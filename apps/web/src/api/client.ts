@@ -105,6 +105,16 @@ export interface Api {
   bookmarks(bookId: string): Promise<Bookmark[]>;
   addBookmark(b: NewBookmark): Promise<Bookmark>;
   deleteBookmark(id: string): Promise<void>;
+  /** Report active reading/listening time (server caps it by wall-clock time). */
+  readingHeartbeat(beat: ReadingHeartbeat, opts?: { keepalive?: boolean }): Promise<void>;
+}
+
+export interface ReadingHeartbeat {
+  sessionId: string;
+  bookId: string;
+  seconds: number;
+  kind?: "read" | "listen";
+  deviceName?: string;
 }
 
 export const httpApi: Api = {
@@ -138,6 +148,9 @@ export const httpApi: Api = {
     request<{ items: Bookmark[] }>(`/api/books/${encodeURIComponent(bookId)}/bookmarks`).then((r) => r.items),
   addBookmark: (b) => request("/api/bookmarks", { method: "POST", body: json({ id: crypto.randomUUID(), ...b }) }),
   deleteBookmark: (id) => request(`/api/bookmarks/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  readingHeartbeat: async (beat, opts) => {
+    await request("/api/reading/heartbeat", { method: "POST", body: json(beat), keepalive: opts?.keepalive });
+  },
 };
 
 /** `VITE_DEMO=1 pnpm dev` (or `?demo` in the URL) runs the UI on sample data without a server. */
