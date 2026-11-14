@@ -79,6 +79,17 @@ export const AiSettingsInput = z
         dailyLimit: z.number().int().min(1).max(500).default(30),
       })
       .prefault({}),
+    /** What happens to a book once the rating helper has looked at it (ai/review.ts). */
+    ratingHelper: z
+      .object({
+        /** Approve rated books out of the Inbox (likely copies stay). Approval alone shows nothing to kids: unrated counts as adult. */
+        autoApprove: z.boolean().default(true),
+        /** Apply a looser rating (one that shows the book to kids) without asking. Off: it waits on "Needs a rating". */
+        trustLooser: z.boolean().default(false),
+        /** How sure Barnaby has to be for `trustLooser`. */
+        minConfidence: z.number().min(0.5).max(1).default(0.8),
+      })
+      .prefault({}),
   })
   .superRefine((s, ctx) => {
     const ids = new Set<string>();
@@ -117,6 +128,7 @@ export interface AiSettings {
   search: { enabled: boolean; url?: string; safeSearch: 0 | 1 | 2; kidAllowlist: string[]; maxResults: number };
   moderation: { adults: boolean };
   kidDefaults: { dailyLimit: number };
+  ratingHelper: { autoApprove: boolean; trustLooser: boolean; minConfidence: number };
 }
 
 export function defaultSettings(): AiSettings {
@@ -133,6 +145,7 @@ export function getAiSettings(db: Db, box: SecretBox): AiSettings {
     ...stored,
     // Settings saved before a feature existed don't have its key.
     features: { ...defaults.features, ...stored.features },
+    ratingHelper: { ...defaults.ratingHelper, ...stored.ratingHelper },
     providers: stored.providers.map((p) => ({ ...p, apiKey: p.apiKey ? box.open(p.apiKey) : undefined })),
   };
 }

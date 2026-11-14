@@ -15,7 +15,6 @@ import {
   type MetadataValue,
   type ProviderSettings,
   type RatingRunStatus,
-  type RatingSuggestion,
 } from "./api";
 import "./ai.css";
 
@@ -64,7 +63,6 @@ export function AiSettingsPage() {
   const [tests, setTests] = useState<Record<string, string>>({});
   const [models, setModels] = useState<Record<string, string[]>>({});
   const [run, setRun] = useState<RatingRunStatus | null>(null);
-  const [suggestions, setSuggestions] = useState<RatingSuggestion[]>([]);
   const [searchTest, setSearchTest] = useState<string | null>(null);
   const [emb, setEmb] = useState<EmbeddingStatus | null>(null);
   const [metaRun, setMetaRun] = useState<RatingRunStatus | null>(null);
@@ -77,7 +75,6 @@ export function AiSettingsPage() {
     if (!admin) return;
     aiApi.settings().then(setS, (e: Error) => setError(e.message));
     aiApi.ratingStatus().then(setRun, () => {});
-    aiApi.suggestions().then(setSuggestions, () => {});
     aiApi.embeddings().then(setEmb, () => {});
     aiApi.metadataStatus().then(setMetaRun, () => {});
     aiApi.metadataSuggestions().then(setMeta, () => {});
@@ -107,10 +104,7 @@ export function AiSettingsPage() {
   useEffect(() => {
     if (!run?.running) return;
     const t = setInterval(() => {
-      aiApi.ratingStatus().then((r) => {
-        setRun(r);
-        void aiApi.suggestions().then(setSuggestions);
-      });
+      aiApi.ratingStatus().then(setRun, () => {});
     }, 1500);
     return () => clearInterval(t);
   }, [run?.running]);
@@ -367,7 +361,9 @@ export function AiSettingsPage() {
         <h2>Rating helper</h2>
         <p className="bb-muted">
           Barnaby reads unrated books and suggests a rating. A stricter suggestion is applied straight away (it can only hide a
-          book from kids); anything looser waits here for you.
+          book from kids). You review the rest where the book already is: new books in the{" "}
+          <Link to="/admin/inbox">Inbox</Link>, library books on <Link to="/admin/review">Needs a rating</Link>, with his pick
+          outlined.
         </p>
         <BatchTool
           run={run}
@@ -378,56 +374,23 @@ export function AiSettingsPage() {
             done: "Barnaby has looked at every unrated book.",
             waiting: "rating suggestions",
             reviewAnchor: "rating-review",
+            review: <ReviewLinks inInbox={run?.progress?.inInbox ?? 0} total={run?.progress?.waiting ?? 0} rest="/admin/review" restLabel="on Needs a rating" />,
           }}
           onStart={(r) => void aiApi.startRating(r).then(setRun, (e: Error) => setError(e.message))}
           onStop={(id) => void aiApi.cancelJob(id).then(refreshRating, (e: Error) => setError(e.message))}
         />
-        {suggestions.length > 0 && (
-          <h3 id="rating-review" className="bb-review-title">
-            Waiting for you{run?.progress && run.progress.waiting > suggestions.length ? ` (showing ${suggestions.length} of ${run.progress.waiting})` : ""}
-          </h3>
-        )}
-        <ul className="bb-suggestions">
-          {suggestions.map((g) => (
-            <li key={g.bookId}>
-              <div>
-                <strong>{g.title}</strong>
-                <span className="bb-muted">
-                  {" "}
-                  · now {g.currentRating ? RATING_LABELS[g.currentRating as ContentRating] : "unrated (adult)"}
-                </span>
-                <p>
-                  Suggests <b>{RATING_LABELS[g.rating as ContentRating] ?? g.rating}</b> ({Math.round(g.confidence * 100)}%):{" "}
-                  {g.reasons}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="bb-btn bb-btn-small bb-btn-primary"
-                onClick={() =>
-                  void aiApi.acceptSuggestion(g.bookId).then(() => {
-                    setSuggestions((l) => l.filter((x) => x !== g));
-                    refreshRating();
-                  })
-                }
-              >
-                Accept
-              </button>
-              <button
-                type="button"
-                className="bb-btn bb-btn-small"
-                onClick={() =>
-                  void aiApi.dismissSuggestion(g.bookId).then(() => {
-                    setSuggestions((l) => l.filter((x) => x !== g));
-                    refreshRating();
-                  })
-                }
-              >
-                Dismiss
-              </button>
-            </li>
-          ))}
-        </ul>
+        <RatingHelperChoices
+          value={s.ratingHelper ?? { autoApprove: true, trustLooser: false, minConfidence: 0.8 }}
+          onChange={(ratingHelper) =>
+            void aiApi.saveSettings({ ...s, ratingHelper }).then(
+              (next) => {
+                setS(next);
+                refreshRating();
+              },
+              (e: Error) => setError(e.message),
+            )
+          }
+        />
       </section>
 
       <section className="bb-settings-card">
@@ -477,6 +440,7 @@ export function AiSettingsPage() {
             done: "Barnaby has checked every book.",
             waiting: "books with fixes",
             reviewAnchor: "metadata-review",
+            review: <ReviewLinks inInbox={metaRun?.progress?.inInbox ?? 0} total={metaRun?.progress?.waiting ?? 0} rest="#metadata-review" restLabel="below" />,
           }}
           onStart={(r) => void aiApi.startMetadata(r).then(setMetaRun, (e: Error) => setError(e.message))}
           onStop={(id) => void aiApi.cancelJob(id).then(refreshMetadata, (e: Error) => setError(e.message))}
@@ -530,6 +494,56 @@ export function AiSettingsPage() {
           ))}
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** Where a batch tool's suggestions are reviewed: Inbox books in the Inbox, the rest `rest`. */
+function ReviewLinks({ inInbox, total, rest, restLabel }: { inInbox: number; total: number; rest: string; restLabel: string }) {
+  const others = total - inInbox;
+  const restLink = rest.startsWith("#") ? <a href={rest}>{others} {restLabel}</a> : <Link to={rest}>{others} {restLabel}</Link>;
+  return (
+    <>
+      {inInbox > 0 && <Link to="/admin/inbox?filter=suggested">{inInbox} in the Inbox</Link>}
+      {inInbox > 0 && others > 0 && " · "}
+      {others > 0 && restLink}
+    </>
+  );
+}
+
+type RatingHelperSettings = NonNullable<AiSettings["ratingHelper"]>;
+
+/** What happens once Barnaby has rated a book. Saved straight away. */
+function RatingHelperChoices({ value, onChange }: { value: RatingHelperSettings; onChange: (v: RatingHelperSettings) => void }) {
+  return (
+    <div className="bb-rating-helper-choices">
+      <label className="bb-field bb-field-inline">
+        <input type="checkbox" checked={value.autoApprove} onChange={(e) => onChange({ ...value, autoApprove: e.target.checked })} />
+        <span>
+          <b>Move rated books out of the Inbox.</b> Once Barnaby has rated a new book it's approved by itself. Likely copies of
+          books you have stay in the Inbox. Approving doesn't show a book to kids: until it has a rating, only grown-ups see
+          it.
+        </span>
+      </label>
+      <label className="bb-field bb-field-inline">
+        <input type="checkbox" checked={value.trustLooser} onChange={(e) => onChange({ ...value, trustLooser: e.target.checked })} />
+        <span>
+          <b>Trust ratings Barnaby is sure about.</b> Apply his rating without asking when he's at least{" "}
+          <select
+            aria-label="How sure"
+            value={value.minConfidence}
+            onChange={(e) => onChange({ ...value, minConfidence: Number(e.target.value) })}
+          >
+            {[0.7, 0.8, 0.9, 0.95].map((c) => (
+              <option key={c} value={c}>
+                {Math.round(c * 100)}%
+              </option>
+            ))}
+          </select>{" "}
+          sure, even when that shows the book to kids. Only for books with no rating of their own; folder, genre and your
+          ratings are never loosened. Off: his pick waits for one tap on Needs a rating.
+        </span>
+      </label>
     </div>
   );
 }

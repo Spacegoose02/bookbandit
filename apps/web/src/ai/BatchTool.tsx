@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatCost } from "@bookbandit/shared";
 import type { BatchRun, RatingRunStatus } from "./api";
 
@@ -14,6 +15,8 @@ export interface BatchWords {
   waiting: string;
   /** id of the review list on this page */
   reviewAnchor: string;
+  /** Where to review instead of the in-page anchor (links to the Inbox and Needs a rating). */
+  review?: ReactNode;
 }
 
 const BATCH = 25;
@@ -80,7 +83,7 @@ export function BatchTool({
             <p className="bb-batch-line">
               <strong>{p.waiting.toLocaleString()}</strong> {words.waiting} waiting for you
               {p.fixes != null && p.fixes !== p.waiting && <span className="bb-muted"> ({p.fixes} fixes)</span>} ·{" "}
-              <a href={`#${words.reviewAnchor}`}>Review them</a>
+              {words.review ?? <a href={`#${words.reviewAnchor}`}>Review them</a>}
             </p>
           ) : (
             allDone && <p className="bb-batch-line bb-muted">Nothing waiting for review.</p>

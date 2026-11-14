@@ -9,11 +9,13 @@ import type {
   ChatMessage,
   Device,
   InboxItem,
+  InboxFilter,
   KidCard,
   KidDetail,
   KidStats,
   MetadataSettings,
   ScanStatus,
+  UnratedBook,
   UserView,
 } from "./api";
 
@@ -45,7 +47,8 @@ let inbox: InboxItem[] = [
     ratingSource: "folder",
     files: [file("Kids/Juniper Vale/The Owl Who Counted Stars.epub", 2_400_000)],
     addedAt: now - 2 * H,
-    possibleDuplicates: [],
+    possibleDuplicates: [{ id: "b9", title: "The Owl Who Counted Stars", approved: false }],
+    barnaby: { rating: { rating: "kids", confidence: 0.92, reasons: "A gentle bedtime picture book about counting." }, fixes: [] },
   },
   {
     id: "i2",
@@ -61,6 +64,18 @@ let inbox: InboxItem[] = [
     files: [file("_incoming/storm-over-pebble-bay.pdf", 8_100_000)],
     addedAt: now - 5 * H,
     possibleDuplicates: [{ id: "b4", title: "Storm Over Pebble Bay", approved: true }],
+    barnaby: {
+      rating: { rating: "middle_grade", confidence: 0.81, reasons: "Adventure for 8 to 12, a storm but nothing scary." },
+      fixes: [
+        {
+          id: "f2",
+          field: "series",
+          current: null,
+          suggested: { name: "Pebble Bay", position: 1 },
+          reason: "The subtitle holds the series.",
+        },
+      ],
+    },
   },
   {
     id: "i3",
@@ -76,6 +91,13 @@ let inbox: InboxItem[] = [
     files: [file("_incoming/night_shift_v2.epub", 640_000)],
     addedAt: now - 26 * H,
     possibleDuplicates: [],
+    barnaby: {
+      rating: { rating: "adult", confidence: 0.55, reasons: "Hard to tell from the opening pages; some violence." },
+      fixes: [
+        { id: "f3", field: "title", current: "night_shift_v2", suggested: "Night Shift", reason: "File-name junk in the title." },
+        { id: "f4", field: "authors", current: [], suggested: ["Mara Quill"], reason: "The title page names the author." },
+      ],
+    },
   },
   {
     id: "i4",
@@ -91,10 +113,17 @@ let inbox: InboxItem[] = [
     files: [file("Adult/Thomas Reyes/Midnight in the Orchard.epub", 1_100_000)],
     addedAt: now - 30 * H,
     possibleDuplicates: [],
+    barnaby: { rating: null, fixes: [] },
   },
 ];
 
-let unrated: AdminBook[] = [
+const UNRATED_PICKS: (UnratedBook["barnaby"]["rating"])[] = [
+  null,
+  { rating: "kids", confidence: 0.74, reasons: "A children's activity annual." },
+  { rating: "middle_grade", confidence: 0.66, reasons: "Nature writing a 10-year-old could read; one hunting scene." },
+];
+
+let unrated: UnratedBook[] = [
   ["Untitled Manuscript", "Unknown", 2010],
   ["Comet Kids Annual 2025", "Various", 2025],
   ["Field Notes on Foxes", "Ines Calder", 2017],
@@ -114,6 +143,7 @@ let unrated: AdminBook[] = [
   approved: true,
   files: [file(`Misc/${title}.epub`, 900_000)],
   addedAt: now - (i + 3) * D,
+  barnaby: { rating: UNRATED_PICKS[i] ?? null },
 }));
 
 const scan: ScanStatus = {
@@ -264,19 +294,59 @@ export const demoAdminApi: AdminApi = {
     return delay(scan);
   },
 
-  inbox: () => delay({ items: inbox, total: inbox.length, limit: 50, offset: 0 }),
-  async approve(ids, rating) {
-    for (const b of inbox.filter((x) => ids.includes(x.id)) ) if (!(rating ?? b.rating)) unrated.push({ ...b, publisher: null, language: null, approved: true, rating: null });
+  inbox: (_offset = 0, filter: InboxFilter = "all") => {
+    const pick: Record<InboxFilter, (b: InboxItem) => boolean> = {
+      all: () => true,
+      suggested: (b) => !!b.barnaby.rating || b.barnaby.fixes.length > 0,
+      unseen: (b) => !b.barnaby.rating && !b.barnaby.fixes.length,
+    };
+    const counts = { all: inbox.length, suggested: inbox.filter(pick.suggested).length, unseen: inbox.filter(pick.unseen).length };
+    const items = inbox.filter(pick[filter]);
+    return delay({ items, total: items.length, counts, limit: 50, offset: 0 });
+  },
+  async approve(ids, opts = {}) {
+    for (const b of inbox.filter((x) => ids.includes(x.id))) {
+      const rating = opts.rating ?? (opts.barnabyRating ? b.barnaby.rating?.rating : undefined) ?? b.rating;
+      if (!rating) unrated.push({ ...b, publisher: null, language: null, approved: true, rating: null, barnaby: { rating: b.barnaby.rating } });
+    }
     inbox = inbox.filter((b) => !ids.includes(b.id));
     return delay({ approved: ids.length });
   },
+  async acceptBarnabyRatings(bookIds) {
+    const n = unrated.filter((b) => bookIds.includes(b.id) && b.barnaby.rating).length;
+    unrated = unrated.filter((b) => !(bookIds.includes(b.id) && b.barnaby.rating));
+    inbox = inbox.map((b) =>
+      bookIds.includes(b.id) && b.barnaby.rating ? { ...b, rating: b.barnaby.rating.rating, ratingSource: "admin", barnaby: { ...b.barnaby, rating: null } } : b,
+    );
+    return delay({ accepted: n });
+  },
+  async dismissBarnabyRating(bookId) {
+    unrated = unrated.map((b) => (b.id === bookId ? { ...b, barnaby: { rating: null } } : b));
+    inbox = inbox.map((b) => (b.id === bookId ? { ...b, barnaby: { ...b.barnaby, rating: null } } : b));
+    await delay(null);
+  },
+  async acceptFix(id) {
+    inbox = inbox.map((b) => {
+      const fix = b.barnaby.fixes.find((f) => f.id === id);
+      if (!fix) return b;
+      const v = fix.suggested;
+      const patch = fix.field === "authors" ? { authors: v as string[] } : fix.field === "series" ? {} : { [fix.field]: v };
+      return { ...b, ...patch, barnaby: { ...b.barnaby, fixes: b.barnaby.fixes.filter((f) => f.id !== id) } };
+    });
+    await delay(null);
+  },
+  async dismissFix(id) {
+    inbox = inbox.map((b) => ({ ...b, barnaby: { ...b.barnaby, fixes: b.barnaby.fixes.filter((f) => f.id !== id) } }));
+    await delay(null);
+  },
+  askBarnaby: () => delay({ rating: true, metadata: true }),
   async reject(id) {
     inbox = inbox.filter((b) => b.id !== id);
   },
   unrated: () => delay({ items: unrated, total: unrated.length, limit: 50, offset: 0 }),
   async setRating(id, rating) {
     if (rating) unrated = unrated.filter((b) => b.id !== id);
-    inbox = inbox.map((b) => (b.id === id ? { ...b, rating, ratingSource: rating ? "admin" : null } : b));
+    inbox = inbox.map((b) => (b.id === id ? { ...b, rating, ratingSource: rating ? "admin" : null, barnaby: { ...b.barnaby, rating: null } } : b));
   },
   async editBook(id, patch) {
     const i = inbox.find((b) => b.id === id);

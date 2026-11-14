@@ -11,6 +11,8 @@ import type { AiContext } from "./context.js";
 import { aiAdminJobRoutes, aiAdminRoutes } from "./admin-routes.js";
 import { registerAiJobs } from "./jobs.js";
 import { aiRoutes } from "./routes.js";
+import { fileRatedBooks } from "./review.js";
+import { getAiSettings } from "./settings.js";
 
 export interface AiOptions {
   db: Db;
@@ -39,6 +41,15 @@ export async function aiPlugin(app: FastifyInstance, opts: AiOptions) {
   await app.register(aiRoutes, { ...ctx, runner: app.jobs });
   await app.register(aiAdminRoutes, { ...ctx, runner: app.jobs });
   await app.register(aiAdminJobRoutes, { ...ctx, runner: app.jobs });
+  // Books Barnaby rated before filing existed (or while the server was down) leave the Inbox.
+  app.addHook("onReady", async () => {
+    try {
+      const r = fileRatedBooks(ctx.db, getAiSettings(ctx.db, ctx.box).ratingHelper);
+      if (r.approved || r.rated) app.log.info(r, "filed books Barnaby has rated");
+    } catch (err) {
+      app.log.warn({ err }, "couldn't file books Barnaby has rated");
+    }
+  });
 }
 
 function lazyBox(key: () => Buffer): SecretBox {

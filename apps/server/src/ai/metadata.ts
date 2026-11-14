@@ -98,11 +98,18 @@ export function metadataProgress(db: Db, failedIds: string[]): BatchProgress & {
     .from(aiMetadataSuggestions)
     .where(eq(aiMetadataSuggestions.status, "pending"))
     .get();
+  const inInbox = db
+    .select({ books: countDistinct(aiMetadataSuggestions.bookId) })
+    .from(aiMetadataSuggestions)
+    .innerJoin(books, eq(books.id, aiMetadataSuggestions.bookId))
+    .where(and(eq(aiMetadataSuggestions.status, "pending"), eq(books.approved, false)))
+    .get();
   return {
     total: n(eq(books.kindleOnly, false)),
     remaining: n(unchecked(db)) - failed,
     waiting: pending?.books ?? 0,
     fixes: pending?.fixes ?? 0,
+    inInbox: inInbox?.books ?? 0,
     failed,
   };
 }
@@ -223,12 +230,17 @@ export function acceptMetadata(db: Db, id: string, value?: unknown) {
   return { id, bookId, field: s.field, value: v, status: "accepted" as const };
 }
 
-export function listMetadataSuggestions(db: Db, status: "pending" | "accepted" | "dismissed", limit: number) {
+export function listMetadataSuggestions(
+  db: Db,
+  status: "pending" | "accepted" | "dismissed",
+  limit: number,
+  scope: "all" | "inbox" | "library" = "all",
+) {
   return db
     .select({ s: aiMetadataSuggestions, title: books.title })
     .from(aiMetadataSuggestions)
     .innerJoin(books, eq(books.id, aiMetadataSuggestions.bookId))
-    .where(eq(aiMetadataSuggestions.status, status))
+    .where(and(eq(aiMetadataSuggestions.status, status), scope === "all" ? undefined : eq(books.approved, scope === "library")))
     .orderBy(books.sortTitle, aiMetadataSuggestions.field)
     .limit(limit)
     .all()

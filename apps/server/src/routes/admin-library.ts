@@ -8,7 +8,7 @@
  * to rate it. Reader-facing lists stay behind visibleBooksWhere.
  */
 import type { FastifyInstance } from "fastify";
-import { and, asc, desc, eq, inArray, isNull, like, not, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, ne, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { CONTENT_RATINGS } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
@@ -35,6 +35,17 @@ import { useAuthErrors } from "../auth/errors.js";
 import { setBookAuthors } from "../library/store.js";
 import { collapse, sortTitle } from "../metadata/text.js";
 import { moveAudioToBook } from "../audio/files.js";
+import { hasPendingRating, pendingRatings, settleRatings } from "../ai/review.js";
+
+/**
+ * "Needs a rating": books nobody has rated, plus books where Barnaby has a looser rating waiting
+ * for a yes (he never loosens one on his own unless the admin trusts him to). Admin ratings are final.
+ */
+const needsRating = () =>
+  and(
+    eq(books.kindleOnly, false),
+    or(isNull(books.rating), and(hasPendingRating, or(isNull(books.ratingSource), ne(books.ratingSource, "admin")))),
+  );
 
 const IdParams = z.object({ id: z.string().min(1).max(64) });
 const Page = z.object({
@@ -184,7 +195,7 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
         db
           .select({ n: sql<number>`count(*)` })
           .from(books)
-          .where(and(eq(books.approved, true), isNull(books.rating), eq(books.kindleOnly, false)))
+          .where(and(eq(books.approved, true), needsRating()))
           .get(),
       ),
       books: count(db.select({ n: sql<number>`count(*)` }).from(books).where(eq(books.approved, true)).get()),
@@ -215,17 +226,19 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
   app.get("/api/admin/review/unrated", async (req) => {
     requireAdmin(req);
     const q = UnratedQuery.parse(req.query);
-    const where = and(
-      isNull(books.rating),
-      eq(books.kindleOnly, false),
-      q.scope === "approved" ? eq(books.approved, true) : undefined,
-    );
+    const where = and(needsRating(), q.scope === "approved" ? eq(books.approved, true) : undefined);
     const rows = db.select().from(books).where(where).orderBy(desc(books.addedAt), asc(books.sortTitle)).limit(q.limit).offset(q.offset).all();
     const total = count(db.select({ n: sql<number>`count(*)` }).from(books).where(where).get());
     const ids = rows.map((r) => r.id);
     const authorsBy = authorsFor(ids);
     const filesBy = filesFor(ids);
-    return { items: rows.map((b) => adminBook(b, authorsBy, filesBy)), total, limit: q.limit, offset: q.offset };
+    const ratingsBy = pendingRatings(db, ids);
+    return {
+      items: rows.map((b) => ({ ...adminBook(b, authorsBy, filesBy), barnaby: { rating: ratingsBy.get(b.id) ?? null } })),
+      total,
+      limit: q.limit,
+      offset: q.offset,
+    };
   });
 
   // --- One book -----------------------------------------------------------------
@@ -258,6 +271,7 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
       tx.update(books).set(set).where(eq(books.id, id)).run();
       if (body.authors) setBookAuthors(tx, id, body.authors);
     });
+    if (body.rating !== undefined) settleRatings(db, [id], body.rating);
     return oneBook(id);
   });
 

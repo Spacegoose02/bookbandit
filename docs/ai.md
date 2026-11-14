@@ -179,8 +179,22 @@ fail-closed:
 
 - A suggestion **stricter** than the current rating (unrated counts as adult) is applied at once, as an `ai`
   rating. It can only hide a book from kids, never show one.
-- Anything else waits in the list for an admin to **Accept** (stored as an admin rating) or **Dismiss**.
+- Anything else waits for an admin where the book already is, with Barnaby's pick outlined (✨) and his reasons:
+  new books in the **Inbox**, library books on **Needs a rating**. **Accept** (or tapping his pick) stores an admin
+  rating. Rating a book any other way settles his suggestion too, so a book never waits in two lists.
 - Admin ratings are never changed.
+
+One review flow (`apps/server/src/ai/review.ts`), set in the rating-helper card:
+
+- **Move rated books out of the Inbox** (on by default): once Barnaby has rated a new book it's approved by itself,
+  unless it looks like a copy of a book you have (same ISBN or title). Approval alone shows nothing to kids: an unrated
+  book counts as adult. Turning it on, and every server start, files books he rated earlier.
+- **Trust ratings Barnaby is sure about** (off by default): applies a looser rating (one that shows the book to
+  kids) when he's at least the chosen confidence (80% default) and the book has no rating of its own. Folder, genre
+  and admin ratings are never loosened. Off, his pick waits for one tap; **Accept Barnaby's picks** on Needs a rating
+  does a page at once.
+- The Inbox shows his rating and metadata fixes on each book, with filters (**Barnaby has a suggestion**, **Barnaby
+  hasn't looked yet**), **Approve with Barnaby's picks** (his rating and fixes) and **Ask Barnaby** for selected books.
 
 It runs on the job runner (`ai.rating`), one run at a time; the admin jobs page shows its log, and a run that a
 restart interrupts carries on from the last book.
@@ -220,19 +234,24 @@ All routes need a signed-in reader. Admin routes use `requireAdmin`.
 | `GET` | `/api/ai/kids` | Kids I manage, with settings, today's count and flagged chats |
 | `GET`/`PUT` | `/api/ai/kids/:kidId/settings` | `{ enabled, webSearch, dailyLimit }`; PUT is linked parent or admin only |
 | `GET` | `/api/ai/kids/:kidId/conversations[/:id]` | Parent log (linked parent or admin) |
-| `GET`/`PUT` | `/api/admin/ai/settings` | Providers, features, search, moderation, kid defaults. Omit `apiKey` to keep it, `""` to remove it |
+| `GET`/`PUT` | `/api/admin/ai/settings` | Providers, features, search, moderation, kid defaults, `ratingHelper: { autoApprove, trustLooser, minConfidence }`. Omit `apiKey` to keep it, `""` to remove it |
 | `POST` | `/api/admin/ai/providers/test` | `{ providerId }` |
 | `GET` | `/api/admin/ai/providers/:id/models` | Model list from the provider |
 | `POST` | `/api/admin/ai/search/test` | `{ q, kid }` |
 | `GET` | `/api/admin/ai/usage?days=30` | Calls, failures, tokens and average time per feature and model |
 | `POST`/`GET` | `/api/admin/ai/rating/run` | Start (`{ limit, all?, retryFailed?, bookIds?, applyStricter }`, 202; 409 when nothing is left) / status of the rating helper, with `progress`, `estimate` and `spent` |
-| `GET` | `/api/admin/ai/rating/suggestions?status=pending` | Review queue |
+| `GET` | `/api/admin/ai/rating/suggestions?status=pending&scope=all` | Suggestions (`scope`: `all`, `inbox`, `library`) |
+| `POST` | `/api/admin/ai/rating/suggestions/accept` | `{ bookIds }`: take Barnaby's pending ratings as admin ratings |
 | `POST` | `/api/admin/ai/rating/suggestions/:bookId/accept` \| `/dismiss` | `{ rating? }` to accept a different rating |
 | `GET` | `/api/admin/ai/embeddings` | `{ configured, model, indexed, total, job }` |
 | `POST` | `/api/admin/ai/embeddings/run` | `{ bookIds? }`: index new and changed books (202) |
 | `POST`/`GET` | `/api/admin/ai/metadata/run` | Start (`{ limit, all?, retryFailed?, bookIds? }`, 202; 409 when nothing is left) / status of metadata cleanup, with `progress`, `estimate` and `spent` |
 | `GET` | `/api/admin/ai/metadata/suggestions?status=pending` | One row per book and field: `{ id, bookId, bookTitle, field, current, suggested, reason }` |
 | `POST` | `/api/admin/ai/metadata/suggestions/:id/accept` \| `/dismiss` | `{ value? }` to accept an edited value |
+| `POST` | `/api/admin/ai/metadata/suggestions/accept` | `{ bookIds }`: every pending fix for these books |
+| `GET` | `/api/admin/inbox?filter=all\|suggested\|unseen` | Each item has `barnaby: { rating, fixes }`; `counts` per filter |
+| `POST` | `/api/admin/inbox/approve` | `{ ids, rating?, barnabyRating?, barnabyFixes? }` |
+| `GET` | `/api/admin/review/unrated` | Unrated books plus books with a looser Barnaby rating waiting; `barnaby: { rating }` |
 
 Tables (`apps/server/src/ai/schema.ts`): `ai_conversations`, `ai_message_sources`, `ai_kid_settings`, `ai_usage`,
 `ai_rating_suggestions`, `ai_book_embeddings`, `ai_metadata_suggestions`, `ai_metadata_checks`; messages are in
