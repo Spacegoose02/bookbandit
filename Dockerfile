@@ -126,7 +126,9 @@ ENV NODE_ENV=production \
     HOME=/tmp
 
 # Fail the build if a converter can't start (missing shared library, wrong CPU).
-RUN ebook-convert --version && kepubify --version && node -e "process.exit(0)" \
+# Calibre's temp dir must exist even when the entrypoint is bypassed (--entrypoint, --user).
+RUN mkdir -p /tmp/calibre && chmod 1777 /tmp/calibre \
+ && ebook-convert --version && kepubify --version \
  && chmod +x /usr/local/bin/bookbandit-entrypoint
 
 VOLUME ["/config", "/books"]

@@ -63,6 +63,7 @@ busts the cache) and `KEPUBIFY_VERSION`.
 ## Publishing (maintainers)
 
 `.github/workflows/docker.yml` builds and smoke-tests every PR and pushes multi-arch images on
-`main` and on `v*.*.*` tags. The first push creates the GHCR package as **private**: open the
+`main` and on `v*.*.*` tags. A tag also gets a GitHub Release with generated notes once its
+images are pushed, so to release: `git tag v0.1.0 && git push origin v0.1.0`. The first push creates the GHCR package as **private**: open the
 package on GitHub → **Package settings** → **Change visibility** → Public, so Unraid can pull
 without logging in.
