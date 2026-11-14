@@ -1,0 +1,112 @@
+name: Windows desktop app
+
+# PRs touching apps/desktop: run the Rust tests and build the installer (kept as a run artifact).
+# Tags v1.2.3: build the installer and attach it to that GitHub Release.
+# Manual run with a tag: build the chosen branch and attach the installers to that tag's release.
+on:
+  pull_request:
+    paths:
+      - apps/desktop/**
+      - .github/workflows/desktop.yml
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach to (for example v0.1.0). Leave empty to just build."
+        required: false
+
+concurrency:
+  group: desktop-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # A manual run builds the branch it was started from (older tags predate the app).
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - run: pnpm install --frozen-lockfile --filter @bookbandit/desktop...
+
+      - name: Set the app version from the tag
+        if: env.TAG != ''
+        run: |
+          # Windows installers need a plain x.y.z version, so a pre-release tag keeps only that part.
+          version="${TAG#v}"; version="${version%%-*}"
+          node -e '
+            const fs = require("fs"); const f = "apps/desktop/src-tauri/tauri.conf.json";
+            const c = JSON.parse(fs.readFileSync(f, "utf8")); c.version = process.argv[1];
+            fs.writeFileSync(f, JSON.stringify(c, null, 2) + "\n");' "$version"
+          sed -i "0,/^version = .*/s//version = \"$version\"/" apps/desktop/src-tauri/Cargo.toml
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: |
+          pnpm --filter @bookbandit/desktop typecheck
+          pnpm --filter @bookbandit/desktop test
+          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Build the installer
+        run: pnpm --filter @bookbandit/desktop tauri build
+
+      - name: Collect installers
+        run: |
+          v="${VERSION:-dev}"
+          mkdir -p out
+          cp apps/desktop/src-tauri/target/release/bundle/nsis/*.exe "out/BookBandit-${v}-windows-x64-setup.exe"
+          cp apps/desktop/src-tauri/target/release/bundle/msi/*.msi "out/BookBandit-${v}-windows-x64.msi"
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bookbandit-windows
+          path: out/*
+          if-no-files-found: error
+
+  # The Docker workflow creates the release page once its images are pushed (that takes longer
+  # than this build), so wait for it and add the installers; create it only if it never appears.
+  release:
+    if: (startsWith(github.ref, 'refs/tags/v') || inputs.tag != '')
+    needs: windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: bookbandit-windows
+          path: out
+      - name: Attach to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 60); do
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break
+            echo "Waiting for the release page for $TAG ($i/60)..."; sleep 120
+          done
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            prerelease=(); case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Bookbandit ${TAG#v}" --generate-notes "${prerelease[@]}"
+          fi
+          gh release upload "$TAG" out/* --repo "$GITHUB_REPOSITORY" --clobber
