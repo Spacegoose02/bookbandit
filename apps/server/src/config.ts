@@ -3,6 +3,8 @@ import { z } from "zod";
 const Env = z.object({
   PORT: z.coerce.number().default(8080),
   HOST: z.string().default("0.0.0.0"),
+  /** Audiobook folders, one per book (Docker volume /audiobooks). Scanned like BOOKS_DIR. */
+  AUDIOBOOKS_DIR: z.string().default("./data/audiobooks"),
   /** Where the SQLite database, covers and caches live (Docker volume /config). */
   CONFIG_DIR: z.string().default("./data/config"),
   /** The library root (Docker volume /books). */

@@ -35,7 +35,7 @@ the import keeps it and reports a conflict.
   books the viewer can't see are left out; kids only get rows for books they can see.
 - `GET /api/books/:id/elsewhere` — `{ googlePlay: { url } | null }`, behind `assertCanSee` (404 when locked).
 
-## Tables (`schema.ts`, migration `0010_migrate`)
+## Tables (`schema.ts`, migration `0011_migrate`)
 
 `reading_history` (unique per person + source + source key, so re-imports update), `book_identifiers`,
 `import_links` (outside id → book). Not rebuilt by a rescan, like progress.

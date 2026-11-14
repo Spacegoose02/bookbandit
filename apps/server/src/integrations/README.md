@@ -10,19 +10,10 @@ Linking: `POST /api/admin/audiobookshelf/auto-link` (`{ dryRun }`) matches by IS
 then title + author surname, and only links unambiguous matches. `GET /api/admin/audiobookshelf/items?q=&unlinked=true`
 and `PUT|DELETE /api/admin/books/:id/audiobookshelf` cover the rest by hand.
 
-Playback (any reader, content lock applied, locked = 404):
-
-| Route | |
-| --- | --- |
-| `GET /api/books/:id/audio` | tracks, chapters, duration, the reader's position |
-| `GET /api/books/:id/audio/tracks/:index` | audio stream, proxied with Range support |
-| `GET /api/books/:id/audio/cover` | cover image |
-| `GET|PUT /api/books/:id/audio/progress` | listening position, newest `clientUpdatedAt` wins |
-| `GET /api/audio/continue` | "keep listening" shelf |
-
-Listening position lives in `audio_progress`, separate from ebook `reading_progress`, so the
-audiobook and ebook of the same work keep their own places. Progress is not written back to
-Audiobookshelf yet (that needs a per-person ABS login).
+Playback, listening positions, bookmarks and player settings for readers are served by the audio
+workstream through one API for Audiobookshelf and local audiobooks: see
+[`src/audio/README.md`](../audio/README.md). That is also where each person's ABS account, the
+progress import and write-back to ABS are documented.
 
 ## Send to Kindle
 

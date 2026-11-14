@@ -179,3 +179,156 @@
   width: 112px;
   height: 112px;
 }
+.bb-listen-source {
+  margin: -6px 0 0;
+}
+.bb-listen-bookmarks {
+  margin: 24px 0 0;
+  padding: 16px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bb-listen-bookmark-add,
+.bb-listen-bookmark-edit {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bb-listen-bookmark-add .bb-input,
+.bb-listen-bookmark-edit .bb-input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.bb-listen-bookmark-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-listen-bookmark-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--bb-tap);
+  padding: 6px 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-listen-bookmark-list li:first-child {
+  border-top: 0;
+}
+.bb-listen-bookmark-time {
+  min-width: 64px;
+  min-height: var(--bb-tap);
+  padding: 0 10px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  background: var(--bb-surface-2);
+  color: var(--bb-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bb-listen-bookmark-note {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bb-listen-bookmark-actions {
+  display: flex;
+  gap: 4px;
+}
+.bb-listen-bookmark-edit {
+  flex: 1;
+}
+
+/* --- /admin/audio --------------------------------------------------------- */
+.bb-audio-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 12px 0;
+  font-size: 0.92rem;
+}
+.bb-audio-facts dt {
+  color: var(--bb-muted);
+}
+.bb-audio-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bb-abs-accounts,
+.bb-audio-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-abs-accounts > li,
+.bb-audio-list > li {
+  padding: 10px 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-abs-accounts > li:first-child,
+.bb-audio-list > li:first-child {
+  border-top: 0;
+}
+.bb-abs-account-head,
+.bb-audio-list > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bb-abs-account-main,
+.bb-audio-list-main {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.bb-audio-list-main code,
+.bb-audio-facts code {
+  overflow-wrap: anywhere;
+}
+.bb-audio-list-tags {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.bb-abs-account-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.bb-abs-account-form .bb-input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.bb-abs-import {
+  overflow-x: auto;
+}
+.bb-abs-import-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.bb-abs-import-table th,
+.bb-abs-import-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--bb-border);
+  white-space: nowrap;
+}
+.bb-abs-import-table th {
+  color: var(--bb-muted);
+  font-weight: 600;
+}
+.bb-abs-account-head .bb-field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
