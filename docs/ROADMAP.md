@@ -46,6 +46,7 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`): built (QR pairing, offline downloads and cache, screen pinning, PIN-locked settings, CI APK on releases); tick once tested on a real Fire and Android tablet
+
 - [ ] Windows desktop app (Tauri) (`ws/desktop`): built (server setup and pairing, offline reading with progress sync, installer attached to releases); tick once tested on a real Windows PC
 
 - [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
@@ -56,22 +57,28 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [x] Browser uploads into the inbox (`ws/requests`)
 
-- [ ] Admin UI: inbox approval, rating review, scan status, users and kids, integration settings (`ws/admin`)
-
-- [ ] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; reading-time API done by the lead)
-
 - [x] Admin UI: inbox approval with metadata edit and merge, rating review, scan status, users and kids, paired devices, Audiobookshelf/SMTP/metadata settings (`ws/admin`)
+
 - [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them)
+
 - [x] AI provider settings (Ollama / OpenAI-compatible / Anthropic / Gemini), usage log, AI rating helper (`ws/ai`, [ai.md](ai.md))
-- [ ] AI metadata cleanup (`ws/ai`)
+
+- [ ] AI metadata cleanup (`ws/ai`, wave 3)
 
 ## Phase 3: Polish and devices
 
 Goal: the Calibre desktop app is no longer needed.
 
-- [ ] Duplicate finder UI (`ws/admin`; detection exists in the library service)
+- [ ] Library-wide duplicates page (`ws/librarian`; the inbox already shows likely duplicates and merges them)
 
-- [ ] Duplicate finder UI (`ws/admin`; the inbox shows likely duplicates and merges them, a library-wide duplicates page is still to do)
+- [ ] Bulk edit, cover editor, library health page (`ws/librarian`)
+
+- [ ] Format conversion on the job runner with `ebook-convert`, KEPUB ahead of time, optional metadata written into EPUBs (`ws/librarian`)
+
+- [ ] Import from Calibre (`metadata.db`), Calibre-Web (`app.db` read status and shelves) and Kavita (progress, collections), with a dry-run report (`ws/migrate`)
+
+- [ ] Goodreads/StoryGraph CSV import and export, Google Play Books library as metadata-only entries, ISBNdb metadata provider (`ws/migrate`)
+
 - [x] Discover and trending, series pages, admin-made series, category browsing (`ws/discover`; "Request it" calls `POST /api/requests` once `ws/requests` lands)
 
 - [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
@@ -81,20 +88,51 @@ Goal: the Calibre desktop app is no longer needed.
 - [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 
 - [x] AI: ask your library, spoiler-free book chat, web answers via SearXNG with sources (`ws/ai`)
-- [ ] AI: more like this, smart requests, meaning search (embeddings), streaming replies (`ws/ai`)
+
+- [ ] AI: more like this, smart requests, meaning search (embeddings), streaming replies, rating helper on the job runner (`ws/ai`, wave 3)
 
 - [x] Kid AI mode with Barnaby (moderation, personal-detail removal, parent log, daily limits, no chat under 5) (`ws/ai`)
 
-- [ ] AI narration (Piper/Kokoro) and quizzes/word help
+- [ ] Narration with a local TTS server (Kokoro/Piper) and sentence highlighting (`ws/readaloud`)
+
+- [ ] Word help and after-chapter quizzes for kids, logged for parents (`ws/readaloud`)
 
 ## Phase 4: Own the audio (optional)
 
 Goal: Audiobookshelf can be switched off.
 
-- [ ] Built-in audiobook player (speed, chapters, sleep timer)
+- [x] Built-in audiobook player (speed, chapters, sleep timer) (`ws/listen`, on Audiobookshelf audio)
 
-- [ ] Audiobook folder scan
+- [ ] Audiobook folder scan of `/audiobooks`, served with Range through the same player API (`ws/audio`)
 
-- [ ] Import Audiobookshelf progress
+- [ ] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
 
-- [ ] Read-along (EPUB3 media overlays)
+- [ ] Read-along (EPUB3 media overlays) (`ws/readaloud`)
+
+## Phase 5: Kids, safety and release
+
+Goal: the kids' side feels finished and the server looks after itself.
+
+- [ ] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
+
+- [ ] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
+
+- [ ] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
+
+- [ ] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
+
+- [ ] Playwright end-to-end suite in CI, including the content lock through every door (`ws/ops`)
+
+- [ ] Sign-in rate limits, token expiry, security headers, dependency audit (`ws/ops`)
+
+- [ ] 20,000-book performance check (`ws/ops`)
+
+- [ ] Release v0.2.0 (`ws/ops`)
+
+## Owner checks on real devices
+
+- [ ] Android app on a Fire tablet and an Android tablet
+
+- [ ] Windows desktop app on a real PC
+
+- [ ] Physical Kobo and a KOReader device
