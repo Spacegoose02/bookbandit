@@ -35,7 +35,7 @@ pnpm dev   # API http://localhost:8080, web http://localhost:5173
 ```
 
 Web UI without a server: `pnpm --filter @bookbandit/web demo` (sample books; add `?demo=kid` to the
-URL for kid mode). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
+URL for kid mode; the demo grown-up is an admin, so `/admin` and `/family` work too). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
 `pnpm --filter @bookbandit/web screenshots`.
 
 Local auth: the API only trusts the Tinyauth email header from `TRUSTED_PROXIES`. For local
@@ -55,6 +55,7 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
 | 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
 | 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |
@@ -65,6 +66,11 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 ## Next up
 
+- Add `<AdminNavLinks role={me.role} />` (from `apps/web/src/admin/AdminLayout.tsx`) to the main nav in
+  `apps/web/src/app/Layout.tsx`. The admin PR left `app/**` alone because the sign-in work owns it, so
+  for now `/admin` and `/family` are reached by URL.
+- Reading time per kid needs a reading-sessions table (schema, lead); the dashboard shows books, progress and
+  last-read times until then.
 1. Land the six Phase 1 workstreams.
 2. Integration pass: wire the web app to auth, library and sync; first end-to-end run in Docker on Unraid.
 3. Start Phase 2 with the Android app and storyteller mode.

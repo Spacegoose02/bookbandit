@@ -32,14 +32,15 @@ Goal: kids read on their own tablets and Kavita is switched off.
 - [ ] Book requests with parent/admin approval
 - [ ] Shelfmark, sabnzbd and direct downloader (admin only)
 - [ ] Browser uploads into the inbox
-- [ ] Parent dashboard (reading, requests, kid AI chats)
+- [x] Admin UI: inbox approval with metadata edit and merge, rating review, scan status, users and kids, paired devices, Audiobookshelf/SMTP/metadata settings (`ws/admin`)
+- [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them)
 - [ ] AI provider settings (Ollama / OpenAI-compatible / cloud), AI rating helper, AI metadata cleanup
 
 ## Phase 3: Polish and devices
 
 Goal: the Calibre desktop app is no longer needed.
 
-- [ ] Duplicate finder
+- [ ] Duplicate finder (inbox shows likely duplicates and merges them; a library-wide duplicates page is still to do)
 - [ ] Discover and trending
 - [ ] Cookbook view
 - [ ] Kobo sync, KOReader sync, OPDS feed
