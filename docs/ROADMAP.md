@@ -45,7 +45,7 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 Goal: kids read on their own tablets and Kavita is switched off.
 
-- [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`)
+- [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`): built (QR pairing, offline downloads and cache, screen pinning, PIN-locked settings, CI APK on releases); tick once tested on a real Fire and Android tablet
 
 - [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
 

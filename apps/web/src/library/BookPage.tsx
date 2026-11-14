@@ -5,6 +5,7 @@ import { api, ApiError } from "../api/client";
 import type { BookDetail } from "../api/types";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { READABLE_FORMATS } from "../reader/formats";
+import { OfflineButton } from "../native/OfflineButton";
 import { BookCategories, useBookCategories } from "../discover/BookCategories";
 import { Cover } from "./BookCard";
 import { ListenButton } from "../audio/ListenButton";
@@ -92,6 +93,7 @@ export function BookPage() {
               Read in Kindle
             </a>
           )}
+          <OfflineButton book={book} />
           <ListenButton book={book} />
           <SendToKindleButton book={book} />
         </div>
