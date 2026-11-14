@@ -29,6 +29,9 @@ import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { audioPlugin, type AudioOptions } from "./audio/index.js";
+import { librarianPlugin, type LibrarianOptions } from "./librarian/index.js";
+import { KepubConverter } from "./kobo/kepub.js";
+import { join } from "node:path";
 import { familyAppsPlugin, type FamilyAppsOptions } from "./family-apps/index.js";
 
 /** Test seams for outside services. */
@@ -42,6 +45,7 @@ export interface AppDeps {
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
   /** ABS calls go through integrations.fetchImpl too. */
   audio?: Pick<AudioOptions, "pullTimeoutMs">;
+  librarian?: Pick<LibrarianOptions, "convert" | "tools" | "fetchImpl">;
   familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
 
@@ -108,7 +112,10 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     resolveLookup: () => resolveLookup(db, box, config),
     ...deps.discover,
   });
-  await app.register(ereaderPlugin, { db, config, trustedProxies, ...deps.ereader });
+  // One KEPUB converter for the Kobo routes and the librarian's "ahead of time" job: one cache.
+  const kepub = deps.ereader?.kepub ?? new KepubConverter(config.KEPUBIFY_PATH, join(config.CONFIG_DIR, "cache"), app.log);
+  await app.register(ereaderPlugin, { db, config, trustedProxies, ...deps.ereader, kepub });
+  await app.register(librarianPlugin, { db, config, resolveLookup: () => resolveLookup(db, box, config), kepub, ...deps.librarian });
   await app.register(aiPlugin, {
     db,
     configDir: config.CONFIG_DIR,

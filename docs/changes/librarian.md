@@ -1,0 +1,3 @@
+# Librarian tools (ws/librarian)
+
+- 2026-11-14: Admin → Librarian: library-wide duplicates (merge formats, keep one with the rest set aside in `.duplicates`, or "not duplicates"; identical files), bulk edit of series with numbering, tags, rating, authors and language, cover editor (from the book's files, online lookup, upload, crop), `ebook-convert` MOBI/AZW3/FB2/TXT → EPUB next to the original on the job runner, KEPUB for Kobo ahead of time, optional "write details into EPUB" (off by default, never DRM), and a library health page with a background file check. API in [apps/server/src/librarian/README.md](../../apps/server/src/librarian/README.md); migration `0008_librarian` (this PR)
