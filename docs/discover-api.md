@@ -21,10 +21,10 @@ Every endpoint that returns books filters with `visibleBooksWhere(reader)` or ch
 }
 ```
 
-Lists, in order: `hardcover-trending` (only with `HARDCOVER_API_TOKEN`), `openlibrary-weekly`,
+Lists, in order: `hardcover-trending` (only with a Hardcover token, from the admin settings or `HARDCOVER_API_TOKEN`), `openlibrary-weekly`,
 `openlibrary-yearly`, then `family` ("Popular in your family": books the most household members
 have started, from `reading_progress`). Outside lists are cached in memory for 6 hours (10 minutes
-after a failure, keeping the last good copy) and skipped entirely when `METADATA_ONLINE=false`.
+after a failure, keeping the last good copy) and skipped entirely when online lookups are off (admin settings or `METADATA_ONLINE=false`).
 Only generic requests leave the server; nothing about the household is sent.
 
 A `DiscoverItem`:

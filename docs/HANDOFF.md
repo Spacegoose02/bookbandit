@@ -1,7 +1,7 @@
 # Handoff
 
 Where things stand, how to run it, and what's next. Update this file whenever a PR changes any of
-those. Newest entries at the top of "Recent changes".
+those. Change logs live in [changes/](changes/README.md), one file per workstream.
 
 This file is written so an agent or developer with only this repository can pick up any
 piece of work. You don't need access to any outside chat or document.
@@ -53,16 +53,21 @@ New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online me
 by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
-Discover pulls Open Library trending lists (and Hardcover's when `HARDCOVER_API_TOKEN` is set),
-cached in memory for 6 hours; `METADATA_ONLINE=false` turns the outside lists off. An admin imports a
-Kindle library at `/discover/kindle-import` (or `POST /api/admin/kindle/import`). Demo mode has an
-admin persona too: `?demo=admin`. See [discover-api.md](discover-api.md).
+Discover pulls Open Library trending lists (and Hardcover's when a Hardcover token is set, in the
+admin settings or `HARDCOVER_API_TOKEN`), cached in memory for 6 hours; turning online lookups off
+turns the outside lists off. An admin imports a Kindle library at `/discover/kindle-import` (or
+`POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
+[discover-api.md](discover-api.md).
 
 ## Recent changes
 
+Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
+parallel PRs don't fight over one table: [lead](changes/lead.md), [auth](changes/auth.md),
+[web](changes/web.md), [library](changes/library.md), [sync](changes/sync.md),
+[integrations](changes/integrations.md), [docker](changes/docker.md), plus a file per wave 2
+workstream once it lands. Add your entry there, not here.
 | Date | Change | PR |
 | --- | --- | --- |
-| 2026-11-14 | Discover (Open Library and Hardcover trending with In library / On Kindle / Request it badges, Popular in your family), series pages in reading order with admin create/rename/drag-to-reorder, category browsing, Cook mode for cookbooks, Kindle library CSV import as metadata-only books. All through the content lock; kids only see outside books already on their shelf. API: [discover-api.md](discover-api.md) | ws/discover PR |
 | 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
 | 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
@@ -79,8 +84,7 @@ admin persona too: `?demo=admin`. See [discover-api.md](discover-api.md).
 
 1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
-2. Auth: web sign-in screen and own-profile editor.
-3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
 
 Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
 `apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
