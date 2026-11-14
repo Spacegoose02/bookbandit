@@ -1,34 +1,113 @@
 /**
- * Authentication.
+ * Authentication. Every request is resolved to at most one reader, in this order:
  *
- * - Web: Tinyauth (forward auth on the reverse proxy) sets an email header.
- *   We only trust it when the TCP peer is a configured trusted proxy.
- * - Tablets / API clients: `Authorization: Bearer <device token>` (QR pairing; see devices table).
- *   TODO(auth workstream): device tokens, kid PIN / picture sign-in, profile switching.
+ * 1. Session token (`Authorization: Bearer bbs_…` or the `bb_session` cookie), issued by
+ *    password, PIN or picture sign-in. Wins over the proxy header so a kid can switch to their
+ *    own profile on a parent's browser.
+ * 2. Device token (`Authorization: Bearer bbd_…`) from QR pairing. A device locked to a person
+ *    signs that person in; a shared family device only gets `req.device` (profile picker).
+ * 3. Tinyauth (forward auth on the reverse proxy) email header, trusted only when the TCP peer
+ *    is one of TRUSTED_PROXIES.
  */
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { and, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { userIdentities, users } from "../db/schema.js";
-import type { Reader } from "./reader.js";
+import { devices, userIdentities, users } from "../db/schema.js";
+import { toReader, type DeviceContext, type Reader } from "./reader.js";
 import { ipMatches } from "./trusted-proxy.js";
+import { readCookie, SESSION_COOKIE, SESSION_PREFIX, type SessionSigner } from "./sessions.js";
+import { sha256 } from "./secrets.js";
+
+export const DEVICE_TOKEN_PREFIX = "bbd_";
+const LAST_SEEN_THROTTLE_MS = 5 * 60_000;
 
 export interface AuthOptions {
   db: Db;
   emailHeader: string;
   trustedProxies: string[];
+  sessions: SessionSigner;
 }
 
 export const authPlugin = fp(async (app: FastifyInstance, opts: AuthOptions) => {
   app.decorateRequest("reader", null);
+  app.decorateRequest("device", null);
+  app.decorateRequest("authVia", null);
 
   app.addHook("onRequest", async (req) => {
-    req.reader = await resolveReader(req, opts);
+    resolve(req, opts);
   });
 });
 
-async function resolveReader(req: FastifyRequest, opts: AuthOptions): Promise<Reader | null> {
+function bearer(req: FastifyRequest): string | null {
+  const h = req.headers.authorization;
+  if (!h) return null;
+  const m = /^Bearer\s+(.+)$/i.exec(h.trim());
+  return m?.[1]?.trim() ?? null;
+}
+
+function resolve(req: FastifyRequest, opts: AuthOptions): void {
+  const token = bearer(req);
+  const sessionToken =
+    token?.startsWith(SESSION_PREFIX) ? token : readCookie(req.headers.cookie, SESSION_COOKIE);
+
+  if (sessionToken) {
+    const r = fromSession(sessionToken, opts);
+    if (r) {
+      req.reader = r.reader;
+      req.device = r.device;
+      req.authVia = "session";
+      return;
+    }
+  }
+
+  if (token?.startsWith(DEVICE_TOKEN_PREFIX)) {
+    const device = deviceFromToken(token, opts.db);
+    if (!device) return; // a bad device token never falls through to the proxy header
+    req.device = device;
+    if (device.userId) {
+      const u = opts.db.select().from(users).where(eq(users.id, device.userId)).get();
+      if (u && !u.disabled && u.householdId === device.householdId) {
+        req.reader = toReader(u);
+        req.authVia = "device";
+      }
+    }
+    return;
+  }
+
+  const reader = fromProxyHeader(req, opts);
+  if (reader) {
+    req.reader = reader;
+    req.authVia = "proxy";
+  }
+}
+
+function fromSession(token: string, opts: AuthOptions): { reader: Reader; device: DeviceContext | null } | null {
+  const p = opts.sessions.verify(token);
+  if (!p) return null;
+  const u = opts.db.select().from(users).where(eq(users.id, p.u)).get();
+  if (!u || u.disabled || u.householdId !== p.h) return null;
+  let device: DeviceContext | null = null;
+  if (p.d) {
+    const d = opts.db.select().from(devices).where(eq(devices.id, p.d)).get();
+    if (!d || d.revokedAt != null || d.householdId !== u.householdId) return null;
+    if (d.userId && d.userId !== u.id) return null;
+    device = { id: d.id, householdId: d.householdId, userId: d.userId, name: d.name };
+  }
+  return { reader: toReader(u), device };
+}
+
+export function deviceFromToken(token: string, db: Db): DeviceContext | null {
+  const d = db.select().from(devices).where(eq(devices.tokenHash, sha256(token))).get();
+  if (!d || d.revokedAt != null) return null;
+  const now = Date.now();
+  if (!d.lastSeenAt || now - d.lastSeenAt > LAST_SEEN_THROTTLE_MS) {
+    db.update(devices).set({ lastSeenAt: now }).where(eq(devices.id, d.id)).run();
+  }
+  return { id: d.id, householdId: d.householdId, userId: d.userId, name: d.name };
+}
+
+function fromProxyHeader(req: FastifyRequest, opts: AuthOptions): Reader | null {
   const peer = req.socket.remoteAddress ?? "";
   if (!ipMatches(peer, opts.trustedProxies)) return null;
 
@@ -43,34 +122,39 @@ async function resolveReader(req: FastifyRequest, opts: AuthOptions): Promise<Re
     .where(and(eq(userIdentities.provider, "tinyauth"), eq(userIdentities.subject, email)))
     .get();
   if (!row || row.user.disabled) return null;
+  return toReader(row.user);
+}
 
-  const u = row.user;
-  return {
-    userId: u.id,
-    householdId: u.householdId,
-    role: u.role,
-    displayName: u.displayName,
-    birthYear: u.birthYear,
-    isKid: u.role === "kid",
-    explicitOptIn: u.role === "kid" ? false : u.explicitOptIn,
-  };
+/** The caller's address: the proxy's X-Forwarded-For (last hop) when the peer is trusted, else the peer. */
+export function clientIp(req: FastifyRequest, trustedProxies: string[]): string {
+  const peer = req.socket.remoteAddress ?? "";
+  if (!ipMatches(peer, trustedProxies)) return peer;
+  const xff = req.headers["x-forwarded-for"];
+  const last = (Array.isArray(xff) ? xff.join(",") : xff)?.split(",").pop()?.trim();
+  return last || peer;
+}
+
+/** True when the request came through a trusted proxy over HTTPS (or directly over HTTPS). */
+export function isSecureRequest(req: FastifyRequest, trustedProxies: string[]): boolean {
+  if (req.protocol === "https") return true;
+  if (!ipMatches(req.socket.remoteAddress ?? "", trustedProxies)) return false;
+  const proto = req.headers["x-forwarded-proto"];
+  return (Array.isArray(proto) ? proto[0] : proto)?.split(",")[0]?.trim() === "https";
+}
+
+export function httpError(statusCode: number, message: string): Error & { statusCode: number } {
+  const err = new Error(message) as Error & { statusCode: number };
+  err.statusCode = statusCode;
+  return err;
 }
 
 export function requireReader(req: FastifyRequest): Reader {
-  if (!req.reader) {
-    const err = new Error("Sign in required") as Error & { statusCode: number };
-    err.statusCode = 401;
-    throw err;
-  }
+  if (!req.reader) throw httpError(401, "Sign in required");
   return req.reader;
 }
 
 export function requireAdmin(req: FastifyRequest): Reader {
   const reader = requireReader(req);
-  if (reader.role !== "admin") {
-    const err = new Error("Admins only") as Error & { statusCode: number };
-    err.statusCode = 403;
-    throw err;
-  }
+  if (reader.role !== "admin") throw httpError(403, "Admins only");
   return reader;
 }
