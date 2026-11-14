@@ -1,7 +1,8 @@
 # Bookbandit: notes for contributors and agents
 
 Self-hosted family book library + reader. TypeScript pnpm monorepo. Read `docs/architecture.md`
-for the plan and `docs/workstreams.md` for who owns what.
+for the plan, `docs/workstreams.md` for who owns what and the per-PR rules (screenshots,
+roadmap, handoff), `docs/ROADMAP.md` for progress and `docs/HANDOFF.md` for current state.
 
 ## Commands
 
