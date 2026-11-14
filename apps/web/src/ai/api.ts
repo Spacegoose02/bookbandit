@@ -136,6 +136,8 @@ export interface AiSettings {
   search: { enabled: boolean; url?: string; safeSearch: 0 | 1 | 2; kidAllowlist: string[]; maxResults: number };
   moderation: { adults: boolean };
   kidDefaults: { dailyLimit: number };
+  /** What happens once the rating helper has looked at a book. */
+  ratingHelper?: { autoApprove: boolean; trustLooser: boolean; minConfidence: number };
 }
 
 export interface RatingRunStatus {
@@ -163,6 +165,8 @@ export interface BatchProgress {
   fixes?: number;
   /** Books that failed and are skipped until tried again. */
   failed: number;
+  /** Of `waiting`, the books still in the Inbox (reviewed there). */
+  inInbox?: number;
 }
 
 export interface CostEstimate {
@@ -325,7 +329,8 @@ export const httpAiApi: AiApi = {
   metadataStatus: () => request("/api/admin/ai/metadata/run"),
   startMetadata: (run) => request("/api/admin/ai/metadata/run", post(run)),
   metadataSuggestions: () =>
-    request<{ items: MetadataSuggestion[] }>("/api/admin/ai/metadata/suggestions").then((r) => r.items),
+    // Inbox books show their fixes in the Inbox; this list is for books already in the library.
+    request<{ items: MetadataSuggestion[] }>("/api/admin/ai/metadata/suggestions?scope=library").then((r) => r.items),
   acceptMetadata: (id, value) =>
     request(`/api/admin/ai/metadata/suggestions/${enc(id)}/accept`, post(value === undefined ? {} : { value })),
   dismissMetadata: (id) => request(`/api/admin/ai/metadata/suggestions/${enc(id)}/dismiss`, post({})),
@@ -414,6 +419,7 @@ const DEMO_SETTINGS: AiSettings = {
   },
   moderation: { adults: false },
   kidDefaults: { dailyLimit: 30 },
+  ratingHelper: { autoApprove: true, trustLooser: false, minConfidence: 0.8 },
 };
 
 async function demoReply(

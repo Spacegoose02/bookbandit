@@ -1,7 +1,8 @@
 /**
  * Rating helper: asks a model to suggest a content rating for books nobody has rated.
- * Suggestions go to the admin review queue. A suggestion is applied on its own only when
- * it's stricter than what the book has now, so the helper can lock a book but never unlock one.
+ * A suggestion is applied on its own when it's stricter than what the book has now. A looser
+ * one waits on the "Needs a rating" page, unless the admin has chosen to trust confident ones
+ * (ai/review.ts, which also files rated books out of the Inbox).
  */
 import { and, count, eq, inArray, isNull, notExists, notInArray, sql } from "drizzle-orm";
 import { CONTENT_RATINGS, ratingRank, UNRATED_FALLBACK, type ContentRating } from "@bookbandit/shared";
@@ -13,6 +14,7 @@ import { makeProvider } from "./providers/index.js";
 import { aiRatingSuggestions } from "./schema.js";
 import { getAiSettings, providerFor } from "./settings.js";
 import { tracked } from "./usage.js";
+import { fileRatedBooks } from "./review.js";
 import { httpError } from "../auth/plugin.js";
 
 export interface RatingRunStatus {
@@ -71,6 +73,8 @@ export interface BatchProgress {
   waiting: number;
   /** Books that failed and are skipped until someone tries them again. */
   failed: number;
+  /** Of `waiting`, the books still in the Inbox (reviewed there; the rest on "Needs a rating"). */
+  inInbox?: number;
 }
 
 /** Where the rating helper stands over the whole library. `failedIds` from earlier runs. */
@@ -83,6 +87,13 @@ export function ratingProgress(ctx: AiContext, failedIds: string[]): BatchProgre
     total: n(and(isNull(books.rating), eq(books.kindleOnly, false))),
     remaining: n(unseen) - failed,
     waiting: db.select({ n: count() }).from(aiRatingSuggestions).where(eq(aiRatingSuggestions.status, "pending")).get()?.n ?? 0,
+    inInbox:
+      db
+        .select({ n: count() })
+        .from(aiRatingSuggestions)
+        .innerJoin(books, eq(books.id, aiRatingSuggestions.bookId))
+        .where(and(eq(aiRatingSuggestions.status, "pending"), eq(books.approved, false)))
+        .get()?.n ?? 0,
     failed,
   };
 }
@@ -144,10 +155,13 @@ export async function rateBook(ctx: AiContext, bookId: string, applyStricter: bo
     ...parsed,
     providerId: config.id,
     model: r.model,
-    status: apply ? ("applied" as const) : ("pending" as const),
+    // An admin's rating is final, so there's nothing to ask about.
+    status: apply ? ("applied" as const) : fresh.ratingSource === "admin" ? ("dismissed" as const) : ("pending" as const),
     createdAt: Date.now(),
   };
   db.insert(aiRatingSuggestions).values(row).onConflictDoUpdate({ target: aiRatingSuggestions.bookId, set: row }).run();
   if (apply) db.update(books).set({ rating: parsed.rating, ratingSource: "ai", updatedAt: Date.now() }).where(eq(books.id, bookId)).run();
-  return { applied: apply };
+  // Out of the Inbox, and a confident looser rating if the admin trusts those (ai/review.ts).
+  const filed = fileRatedBooks(db, settings.ratingHelper, [bookId]);
+  return { applied: apply || filed.rated > 0 };
 }

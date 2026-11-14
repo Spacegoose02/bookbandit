@@ -52,6 +52,38 @@ export interface AdminFile {
 
 export type RatingSource = "admin" | "folder" | "metadata" | "ai" | "keywords";
 
+/** Barnaby's pending rating for a book (ai/review.ts on the server). */
+export interface BarnabyRating {
+  rating: ContentRating;
+  confidence: number;
+  reasons: string;
+}
+
+/** One pending metadata fix: the value is a string, a list of names, or a series. */
+export type FixValue = string | string[] | { name: string; position: number | null } | null;
+export interface BarnabyFix {
+  id: string;
+  field: "title" | "subtitle" | "authors" | "series" | "description";
+  current: FixValue;
+  suggested: FixValue;
+  reason: string;
+}
+
+export type InboxFilter = "all" | "suggested" | "unseen";
+
+export interface InboxPage extends PageOf<InboxItem> {
+  counts: Record<InboxFilter, number>;
+}
+
+export interface ApproveOptions {
+  /** An admin rating for every book. */
+  rating?: ContentRating;
+  /** Take Barnaby's pending rating where he has one. */
+  barnabyRating?: boolean;
+  /** Apply Barnaby's pending detail fixes. */
+  barnabyFixes?: boolean;
+}
+
 export interface InboxItem {
   id: string;
   title: string;
@@ -66,6 +98,7 @@ export interface InboxItem {
   files: AdminFile[];
   addedAt: number;
   possibleDuplicates: { id: string; title: string; approved: boolean }[];
+  barnaby: { rating: BarnabyRating | null; fixes: BarnabyFix[] };
 }
 
 export interface AdminBook {
@@ -85,6 +118,9 @@ export interface AdminBook {
   files: AdminFile[];
   addedAt: number;
 }
+
+/** A row on "Needs a rating". */
+export type UnratedBook = AdminBook & { barnaby: { rating: BarnabyRating | null } };
 
 export interface BookPatch {
   title?: string;
@@ -297,10 +333,17 @@ export interface AdminApi {
   scanStatus(): Promise<ScanStatus>;
   startScan(): Promise<ScanStatus>;
 
-  inbox(offset?: number): Promise<PageOf<InboxItem>>;
-  approve(ids: string[], rating?: ContentRating): Promise<{ approved: number }>;
+  inbox(offset?: number, filter?: InboxFilter): Promise<InboxPage>;
+  approve(ids: string[], opts?: ApproveOptions): Promise<{ approved: number }>;
   reject(id: string): Promise<void>;
-  unrated(offset?: number): Promise<PageOf<AdminBook>>;
+  unrated(offset?: number): Promise<PageOf<UnratedBook>>;
+  /** Take Barnaby's pending ratings for these books, as admin ratings. */
+  acceptBarnabyRatings(bookIds: string[]): Promise<{ accepted: number }>;
+  dismissBarnabyRating(bookId: string): Promise<void>;
+  acceptFix(id: string): Promise<void>;
+  dismissFix(id: string): Promise<void>;
+  /** Ask Barnaby to rate and tidy these books now (the rating helper and metadata cleanup). */
+  askBarnaby(bookIds: string[]): Promise<{ rating: boolean; metadata: boolean; error?: string }>;
   setRating(id: string, rating: ContentRating | null): Promise<void>;
   editBook(id: string, patch: BookPatch): Promise<AdminBook>;
   mergeBook(id: string, intoId: string): Promise<void>;
@@ -339,12 +382,33 @@ export const httpAdminApi: AdminApi = {
   scanStatus: () => request("/api/admin/library/scan"),
   startScan: () => request("/api/admin/library/scan", { method: "POST" }),
 
-  inbox: (offset = 0) => request(`/api/admin/inbox?limit=50&offset=${offset}`),
-  approve: (ids, rating) => request("/api/admin/inbox/approve", { method: "POST", body: json({ ids, ...(rating ? { rating } : {}) }) }),
+  inbox: (offset = 0, filter = "all") => request(`/api/admin/inbox?limit=50&offset=${offset}&filter=${filter}`),
+  approve: (ids, opts = {}) => request("/api/admin/inbox/approve", { method: "POST", body: json({ ids, ...opts }) }),
   reject: async (id) => {
     await request(`/api/admin/inbox/${enc(id)}/reject`, { method: "POST", body: json({}) });
   },
   unrated: (offset = 0) => request(`/api/admin/review/unrated?limit=50&offset=${offset}`),
+  acceptBarnabyRatings: (bookIds) => request("/api/admin/ai/rating/suggestions/accept", { method: "POST", body: json({ bookIds }) }),
+  dismissBarnabyRating: async (bookId) => {
+    await request(`/api/admin/ai/rating/suggestions/${enc(bookId)}/dismiss`, { method: "POST", body: json({}) });
+  },
+  acceptFix: async (id) => {
+    await request(`/api/admin/ai/metadata/suggestions/${enc(id)}/accept`, { method: "POST", body: json({}) });
+  },
+  dismissFix: async (id) => {
+    await request(`/api/admin/ai/metadata/suggestions/${enc(id)}/dismiss`, { method: "POST", body: json({}) });
+  },
+  async askBarnaby(bookIds) {
+    // Both tools take up to 500 named books per run; one of them may be off or already busy.
+    const ids = bookIds.slice(0, 500);
+    const run = (path: string) =>
+      request(path, { method: "POST", body: json({ bookIds: ids }) }).then(
+        () => ({ ok: true, error: undefined as string | undefined }),
+        (e: Error) => ({ ok: false, error: e.message }),
+      );
+    const [rating, metadata] = await Promise.all([run("/api/admin/ai/rating/run"), run("/api/admin/ai/metadata/run")]);
+    return { rating: rating.ok, metadata: metadata.ok, error: rating.error ?? metadata.error };
+  },
   setRating: async (id, rating) => {
     await request(`/api/admin/books/${enc(id)}/rating`, { method: "PUT", body: json({ rating }) });
   },

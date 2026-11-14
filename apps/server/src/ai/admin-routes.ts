@@ -13,6 +13,7 @@ import { estimateCost, spentOn } from "./costs.js";
 import { embeddingStatus } from "./embeddings.js";
 import { acceptMetadata, listMetadataSuggestions, metadataCandidates, metadataProgress } from "./metadata.js";
 import { ratingCandidates, ratingProgress } from "./rating.js";
+import { acceptRatings, fileRatedBooks, pendingFixes } from "./review.js";
 import { aiMetadataChecks, aiMetadataSuggestions } from "./schema.js";
 import { aiRatingSuggestions } from "./schema.js";
 import { webSearch } from "./search.js";
@@ -39,7 +40,10 @@ const RunBody = z.object({ ...BatchChoice, applyStricter: z.boolean().default(tr
 const SuggestionQuery = z.object({
   status: z.enum(["pending", "accepted", "applied", "dismissed"]).default("pending"),
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  /** inbox: books not approved yet. library: approved books. */
+  scope: z.enum(["all", "inbox", "library"]).default("all"),
 });
+const BookIdsBody = z.object({ bookIds: z.array(z.string().min(1).max(64)).min(1).max(1000) });
 const AcceptBody = z.object({ rating: z.enum(CONTENT_RATINGS).optional() });
 const MetadataRunBody = z.object(BatchChoice);
 /** Plenty for "all": SQLite has no LIMIT ∞, and no family library is this big. */
@@ -47,6 +51,7 @@ const EVERYTHING = 1_000_000;
 const MetadataQuery = z.object({
   status: z.enum(["pending", "accepted", "dismissed"]).default("pending"),
   limit: z.coerce.number().int().min(1).max(500).default(100),
+  scope: z.enum(["all", "inbox", "library"]).default("all"),
 });
 const MetadataAccept = z.object({ value: z.unknown().optional() });
 const EmbedBody = z.object({ bookIds: z.array(z.string().min(1)).max(5000).optional() });
@@ -63,6 +68,8 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
     const admin = requireAdmin(req);
     AiSettingsInput.parse(req.body); // 400 with zod details before touching anything
     const saved = saveAiSettings(db, ctx.box, req.body);
+    // Turning filing on (or trusting confident ratings) applies to books already rated.
+    fileRatedBooks(db, saved.ratingHelper);
     // A new or changed embeddings model: build the meaning-search index in the background.
     const emb = embeddingStatus(ctx);
     if (emb.configured && emb.indexed < emb.total) queueEmbedding(ctx, ctx.runner, admin.userId);
@@ -204,13 +211,20 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
       .select({ s: aiRatingSuggestions, title: books.title, current: books.rating, currentSource: books.ratingSource, approved: books.approved })
       .from(aiRatingSuggestions)
       .innerJoin(books, eq(books.id, aiRatingSuggestions.bookId))
-      .where(eq(aiRatingSuggestions.status, q.status))
+      .where(and(eq(aiRatingSuggestions.status, q.status), q.scope === "all" ? undefined : eq(books.approved, q.scope === "library")))
       .orderBy(desc(aiRatingSuggestions.createdAt))
       .limit(q.limit)
       .all();
     return {
       items: rows.map((r) => ({ ...r.s, title: r.title, currentRating: r.current, currentSource: r.currentSource, approved: r.approved })),
     };
+  });
+
+  /** Take Barnaby's pending rating for many books at once ("Needs a rating" bulk action). */
+  app.post("/api/admin/ai/rating/suggestions/accept", async (req) => {
+    requireAdmin(req);
+    const body = BookIdsBody.parse(req.body);
+    return { accepted: acceptRatings(db, body.bookIds) };
   });
 
   /** Accepting is an admin decision, so the rating is stored as an admin rating. */
@@ -280,7 +294,26 @@ export async function aiAdminJobRoutes(app: FastifyInstance, ctx: AiContext & { 
   app.get("/api/admin/ai/metadata/suggestions", async (req) => {
     requireAdmin(req);
     const q = MetadataQuery.parse(req.query);
-    return { items: listMetadataSuggestions(db, q.status, q.limit) };
+    return { items: listMetadataSuggestions(db, q.status, q.limit, q.scope) };
+  });
+
+  /** Every pending fix for these books (the Inbox's "accept all fixes"). A fix that can't apply is left pending. */
+  app.post("/api/admin/ai/metadata/suggestions/accept", async (req) => {
+    requireAdmin(req);
+    const body = BookIdsBody.parse(req.body);
+    const fixes = [...pendingFixes(db, body.bookIds).values()].flat();
+    let accepted = 0;
+    const skipped: { id: string; error: string }[] = [];
+    for (const fix of fixes) {
+      try {
+        acceptMetadata(db, fix.id);
+        accepted++;
+      } catch (e) {
+        skipped.push({ id: fix.id, error: (e as Error).message });
+      }
+    }
+    if (accepted && providerFor(getAiSettings(db, ctx.box), "embeddings")) queueEmbedding(ctx, ctx.runner, null, body.bookIds);
+    return { accepted, skipped };
   });
 
   app.post<{ Params: { id: string } }>("/api/admin/ai/metadata/suggestions/:id/accept", async (req) => {

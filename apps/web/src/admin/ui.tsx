@@ -69,17 +69,19 @@ const SOURCE_LABEL: Record<string, string> = {
   keywords: "from genres",
 };
 
-/** One-tap rating buttons. */
+/** One-tap rating buttons. `suggested` outlines Barnaby's pick until someone chooses. */
 export function RatingButtons({
   value,
   onPick,
   disabled,
   label = "Rating",
+  suggested = null,
 }: {
   value: ContentRating | null;
   onPick: (r: ContentRating) => void;
   disabled?: boolean;
   label?: string;
+  suggested?: ContentRating | null;
 }) {
   return (
     <div className="bb-rating-buttons" role="group" aria-label={label}>
@@ -87,12 +89,13 @@ export function RatingButtons({
         <button
           key={r}
           type="button"
-          className={`bb-rating-btn is-${r}`}
+          className={`bb-rating-btn is-${r}${suggested === r && value !== r ? " is-suggested" : ""}`}
           aria-pressed={value === r}
           disabled={disabled}
-          title={RATING_LABELS[r]}
+          title={suggested === r && value !== r ? `${RATING_LABELS[r]} (Barnaby's pick)` : RATING_LABELS[r]}
           onClick={() => onPick(r)}
         >
+          {suggested === r && value !== r ? <span aria-hidden="true">✨ </span> : null}
           {SHORT_RATING[r]}
         </button>
       ))}

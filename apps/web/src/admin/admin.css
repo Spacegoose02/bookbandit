@@ -243,6 +243,70 @@ a.bb-tile:hover {
   border-color: var(--bb-accent);
 }
 
+/* Barnaby's pick: outlined until someone taps it. */
+.bb-rating-btn.is-suggested {
+  border: 2px dashed var(--bb-accent);
+  color: var(--bb-text);
+}
+
+/* --- Barnaby's suggestions on a book (inbox, needs a rating) --------------- */
+
+.bb-barnaby-pick {
+  padding: 8px 10px;
+  border-radius: var(--bb-radius);
+  background: color-mix(in srgb, var(--bb-accent) 12%, transparent);
+  font-size: 0.85rem;
+}
+.bb-barnaby-pick p {
+  margin: 4px 0 0;
+  color: var(--bb-muted);
+}
+.bb-barnaby-pick.is-unsure {
+  background: color-mix(in srgb, var(--bb-warn) 14%, transparent);
+}
+.bb-fixes {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface-2);
+  font-size: 0.9rem;
+}
+.bb-fixes ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.bb-fix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 4px 0;
+}
+.bb-fix-diff {
+  flex: 1;
+  min-width: 200px;
+  overflow-wrap: anywhere;
+}
+.bb-fix-diff del {
+  color: var(--bb-muted);
+}
+.bb-fix-diff ins {
+  text-decoration: none;
+  font-weight: 600;
+}
+.bb-inbox-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.bb-inbox-more {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 24px;
+}
+
 /* --- inbox --------------------------------------------------------------- */
 
 .bb-bulkbar {

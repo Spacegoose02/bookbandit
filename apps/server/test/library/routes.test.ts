@@ -96,7 +96,7 @@ describe("library admin API", () => {
     expect(byTitle.Thriller.rating).toBeNull();
 
     const ids = inbox.items.map((b: { id: string }) => b.id);
-    expect((await req("admin", "POST", "/api/admin/inbox/approve", { ids })).json()).toEqual({ approved: 3 });
+    expect((await req("admin", "POST", "/api/admin/inbox/approve", { ids })).json()).toMatchObject({ approved: 3 });
 
     expect(await titles("emma")).toEqual(["Picture"]);
     expect(await titles("dad")).toEqual(["Picture", "Thriller"]); // unrated = adult; explicit hidden

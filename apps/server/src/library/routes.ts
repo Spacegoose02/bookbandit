@@ -20,6 +20,8 @@ import { LibraryService } from "./service.js";
 import { enrichBook } from "./enrich.js";
 import { insideRoot, serveRoutes } from "./serve.js";
 import { rejectAudiobookFiles } from "../audio/files.js";
+import { acceptRatings, hasPendingSuggestion, notSeenByBarnaby, pendingFixes, pendingRatings, settleRatings } from "../ai/review.js";
+import { acceptMetadata } from "../ai/metadata.js";
 
 const IdParams = z.object({ id: z.string().min(1).max(64) });
 const Page = z.object({
@@ -31,6 +33,14 @@ const ApproveBody = z.object({
   ids: z.array(z.string().min(1).max(64)).min(1).max(1000),
   /** Optional admin rating applied to every approved book. */
   rating: Rating.optional(),
+  /** Take Barnaby's pending rating (as an admin rating) where he has one. Ignored with `rating`. */
+  barnabyRating: z.boolean().default(false),
+  /** Also apply Barnaby's pending metadata fixes to these books. */
+  barnabyFixes: z.boolean().default(false),
+});
+const InboxQuery = Page.extend({
+  /** suggested: Barnaby has a rating or a fix waiting. unseen: Barnaby hasn't looked yet. */
+  filter: z.enum(["all", "suggested", "unseen"]).default("all"),
 });
 const ApproveOneBody = z.object({ rating: Rating.optional() }).prefault({});
 const RejectBody = z
@@ -150,17 +160,25 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
 
   app.get("/api/admin/inbox", async (req) => {
     requireAdmin(req);
-    const q = parse(Page, req.query);
+    const q = parse(InboxQuery, req.query);
+    const inbox = eq(books.approved, false);
+    const filters = { all: inbox, suggested: and(inbox, hasPendingSuggestion), unseen: and(inbox, notSeenByBarnaby) };
+    const where = filters[q.filter];
     const rows = db
       .select()
       .from(books)
-      .where(eq(books.approved, false))
+      .where(where)
       .orderBy(desc(books.addedAt), asc(books.sortTitle))
       .limit(q.limit)
       .offset(q.offset)
       .all();
-    const total = db.select({ n: sql<number>`count(*)` }).from(books).where(eq(books.approved, false)).get()?.n ?? 0;
-    const { authorsBy, filesBy } = details(rows.map((r) => r.id));
+    const n = (w: typeof where) => db.select({ n: sql<number>`count(*)` }).from(books).where(w).get()?.n ?? 0;
+    const counts = { all: n(filters.all), suggested: n(filters.suggested), unseen: n(filters.unseen) };
+    const ids = rows.map((r) => r.id);
+    const { authorsBy, filesBy } = details(ids);
+    // Barnaby's work shows on the book it's about (ai/review.ts): one queue, not three.
+    const ratingsBy = pendingRatings(db, ids);
+    const fixesBy = pendingFixes(db, ids);
     const items = rows.map((b) => ({
       id: b.id,
       title: b.title,
@@ -175,8 +193,9 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
       files: filesBy.get(b.id) ?? [],
       addedAt: b.addedAt,
       possibleDuplicates: possibleDuplicates(b),
+      barnaby: { rating: ratingsBy.get(b.id) ?? null, fixes: fixesBy.get(b.id) ?? [] },
     }));
-    return { items, total, limit: q.limit, offset: q.offset };
+    return { items, total: counts[q.filter], counts, limit: q.limit, offset: q.offset };
   });
 
   /** Other books that look like the same work (same ISBN, or same sort title). */
@@ -196,6 +215,7 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
     if (rating) {
       set.rating = rating;
       set.ratingSource = "admin";
+      settleRatings(db, ids, rating);
     }
     return db.update(books).set(set).where(inArray(books.id, ids)).run().changes;
   }
@@ -203,7 +223,19 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
   app.post("/api/admin/inbox/approve", async (req) => {
     requireAdmin(req);
     const body = parse(ApproveBody, req.body);
-    return { approved: approve(body.ids, body.rating) };
+    const rated = !body.rating && body.barnabyRating ? acceptRatings(db, body.ids) : 0;
+    let fixed = 0;
+    if (body.barnabyFixes) {
+      for (const fix of [...pendingFixes(db, body.ids).values()].flat()) {
+        try {
+          acceptMetadata(db, fix.id);
+          fixed++;
+        } catch {
+          // e.g. an admin-managed series: the fix stays pending for the admin to look at.
+        }
+      }
+    }
+    return { approved: approve(body.ids, body.rating), rated, fixed };
   });
 
   app.post("/api/admin/inbox/:id/approve", async (req) => {
@@ -255,6 +287,7 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
       .where(eq(books.id, id))
       .run().changes;
     if (!changes) throw notFound();
+    settleRatings(db, [id], rating);
     return db.select({ id: books.id, rating: books.rating, ratingSource: books.ratingSource }).from(books).where(eq(books.id, id)).get();
   });
 
