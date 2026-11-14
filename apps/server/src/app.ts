@@ -29,6 +29,7 @@ import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { audioPlugin, type AudioOptions } from "./audio/index.js";
+import { familyAppsPlugin, type FamilyAppsOptions } from "./family-apps/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -41,6 +42,7 @@ export interface AppDeps {
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
   /** ABS calls go through integrations.fetchImpl too. */
   audio?: Pick<AudioOptions, "pullTimeoutMs">;
+  familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -114,6 +116,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     secretKey: deps.integrations?.secretKey,
     ...deps.ai,
   });
+  await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 

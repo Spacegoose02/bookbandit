@@ -2,8 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { adminApi, type MetadataSettings, type SmtpSettings } from "./api";
 import { Card, ErrorNote, useAction, useLoad } from "./ui";
+import { FamilyAppsCards } from "../family-apps/FamilyAppsCards";
 
-/** Audiobookshelf, Send to Kindle email, and online metadata lookup. Secrets are write-only. */
+/** Audiobookshelf, Send to Kindle email, online metadata lookup, and the family apps. Secrets are write-only. */
 export function ConnectionsPage() {
   return (
     <>
@@ -16,6 +17,7 @@ export function ConnectionsPage() {
         <AbsCard />
         <SmtpCard />
         <MetadataCard />
+        <FamilyAppsCards />
       </div>
     </>
   );
