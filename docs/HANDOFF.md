@@ -44,6 +44,7 @@ Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / 
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Audiobookshelf playback/progress API and Send to Kindle API (see `apps/server/src/integrations/README.md`) | ws/integrations PR |
 | 2026-11-13 | Roadmap, handoff and screenshot rules added | this PR |
 | 2026-11-13 | Foundation: monorepo, data model, content lock, Tinyauth auth, CI | first commit |
 
