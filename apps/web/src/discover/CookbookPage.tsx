@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import type { FoliateLocation, FoliateTocItem, FoliateView } from "foliate-js/view.js";
 import { api, ApiError } from "../api/client";
 import type { BookDetail } from "../api/types";
@@ -10,6 +10,7 @@ import { defaultDeviceName, ProgressSync, resolveStartPosition } from "../reader
 import { readerCss, type ReaderPrefs } from "../reader/readerCss";
 import { flattenRecipes, type Recipe } from "./recipes";
 import { useWakeLock } from "./useWakeLock";
+import { SendToKitchen, useKitchenLinked } from "../family-apps/SendToKitchen";
 import "./discover.css";
 
 const SIZE_KEY = "bb-cook-size";
@@ -30,6 +31,10 @@ function savedSize(): number {
  */
 export function CookbookPage() {
   const { id = "" } = useParams();
+  /** A recipe to open at, e.g. from a "back to the cookbook" link in Nighttime Ninja. */
+  const [params] = useSearchParams();
+  const openAt = params.get("at");
+  const kitchen = useKitchenLinked();
   const { theme } = useSession();
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<FoliateView | null>(null);
@@ -106,7 +111,8 @@ export function CookbookPage() {
       const start = await resolveStartPosition(api, localStorage, id);
       if (disposed) return;
       const cfi = start?.locator.kind === "epub" ? start.locator.cfi : null;
-      await view.init({ lastLocation: cfi, showTextStart: !cfi });
+      await view.init({ lastLocation: openAt ? null : cfi, showTextStart: !cfi && !openAt });
+      if (openAt && !disposed) await view.goTo(openAt).catch(() => undefined);
       setToc(view.book?.toc ?? []);
       setStatus("ready");
     })();
@@ -122,6 +128,7 @@ export function CookbookPage() {
   }, [id]);
 
   const recipes = useMemo(() => flattenRecipes(toc), [toc]);
+  const currentRecipe = recipes.find((r) => r.href === current) ?? null;
   const shown = recipes.filter((r) => r.label.toLowerCase().includes(filter.trim().toLowerCase()));
 
   const jump = (r: Recipe) => {
@@ -180,6 +187,9 @@ export function CookbookPage() {
           </button>
         </div>
       </header>
+      {kitchen && status === "ready" && (
+        <SendToKitchen view={viewRef.current} bookId={id} recipe={currentRecipe} hrefs={recipes.map((r) => r.href)} />
+      )}
       <div className="bb-cook-body">
         <aside className="bb-cook-list" aria-label="Recipes">
           <input

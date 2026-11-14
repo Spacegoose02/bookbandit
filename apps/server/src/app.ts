@@ -30,6 +30,7 @@ import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { narrationPlugin, type NarrationOptions } from "./narration/index.js";
 import { learningPlugin, type LearningOptions } from "./learning/index.js";
+import { familyAppsPlugin, type FamilyAppsOptions } from "./family-apps/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -42,6 +43,7 @@ export interface AppDeps {
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
   narration?: Pick<NarrationOptions, "fetchImpl" | "cacheDir">;
   learning?: Pick<LearningOptions, "fetchImpl" | "now">;
+  familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -114,6 +116,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     fetchImpl: deps.learning?.fetchImpl ?? deps.ai?.fetchImpl,
     now: deps.learning?.now ?? deps.ai?.now,
   });
+  await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
