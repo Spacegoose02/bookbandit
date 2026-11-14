@@ -28,7 +28,8 @@ export function bookFacts(db: Db, ids: string[]): Map<string, BookFacts> {
       .select({ bookId: bookTags.bookId, id: tags.id, name: tags.name })
       .from(bookTags)
       .innerJoin(tags, eq(tags.id, bookTags.tagId))
-      .where(and(inArray(bookTags.bookId, chunk), eq(tags.kind, "genre")))
+      // Curated categories and the raw subjects behind them ("Dragons", "Boarding schools").
+      .where(and(inArray(bookTags.bookId, chunk), inArray(tags.kind, ["genre", "subject"])))
       .all())
       out.get(r.bookId)!.tags.push({ id: r.id, name: r.name });
     for (const r of db

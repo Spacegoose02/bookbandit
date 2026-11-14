@@ -60,10 +60,12 @@ export interface SeriesDetail {
   books: SeriesBook[];
 }
 
+export type CategoryKind = "genre" | "subject" | "section" | "custom";
+
 export interface Category {
   id: string;
   name: string;
-  kind: "genre" | "section" | "custom";
+  kind: Exclude<CategoryKind, "subject">;
   bookCount: number;
   cookbook: boolean;
   books: BookSummary[];
@@ -73,6 +75,27 @@ export interface CategoryPage {
   category: Omit<Category, "bookCount" | "books">;
   items: BookSummary[];
   total: number;
+}
+
+/** A row on the admin's manage-categories page (raw subjects included). */
+export interface ManagedCategory {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  bookCount: number;
+  hidden: boolean;
+  /** One of the curated categories books are filed under automatically. */
+  curated: boolean;
+  /** Whether the Categories page lists it (not hidden, not a subject, enough books). */
+  shown: boolean;
+  /** Old names (merged or renamed away) that now land here. */
+  aliases: string[];
+}
+
+export interface ManagedCategories {
+  items: ManagedCategory[];
+  counts: Partial<Record<CategoryKind, number>>;
+  minBooks: number;
 }
 
 export interface KindleImportReport {
@@ -110,6 +133,11 @@ export interface DiscoverApi {
   categories(): Promise<Category[]>;
   category(id: string, offset?: number): Promise<CategoryPage>;
   bookCategories(bookId: string): Promise<{ items: Omit<Category, "bookCount" | "books">[]; cookbook: boolean }>;
+  manageCategories(kind: CategoryKind | "all" | "categories", q?: string): Promise<ManagedCategories>;
+  updateCategory(id: string, patch: { name?: string; hidden?: boolean; kind?: "genre" | "subject" }): Promise<{ id: string; merged: boolean }>;
+  mergeCategory(id: string, into: string): Promise<{ id: string; bookCount: number }>;
+  setCategoryMinBooks(minBooks: number): Promise<void>;
+  rebuildCategories(): Promise<{ books: number; linked: number }>;
   kindleImport(csv: string, opts: { rating?: ContentRating; dryRun?: boolean }): Promise<KindleImportReport>;
   /** Hands a "Request it" to the requests workstream (POST /api/requests). */
   requestBook(input: BookRequestInput): Promise<RequestResult>;
@@ -155,6 +183,13 @@ export const httpDiscoverApi: DiscoverApi = {
   categories: () => request<{ items: Category[] }>("/api/categories").then((r) => r.items),
   category: (id, offset = 0) => request(`/api/categories/${enc(id)}?${new URLSearchParams({ offset: String(offset) })}`),
   bookCategories: (bookId) => request(`/api/books/${enc(bookId)}/categories`),
+  manageCategories: (kind, q) => request(`/api/admin/categories?${new URLSearchParams({ kind, ...(q ? { q } : {}) })}`),
+  updateCategory: (id, patch) => request(`/api/categories/${enc(id)}`, { method: "PATCH", body: json(patch) }),
+  mergeCategory: (id, into) => request(`/api/categories/${enc(id)}/merge`, { method: "POST", body: json({ into }) }),
+  setCategoryMinBooks: async (minBooks) => {
+    await request("/api/admin/categories/settings", { method: "PUT", body: json({ minBooks }) });
+  },
+  rebuildCategories: () => request("/api/admin/categories/rebuild", { method: "POST" }),
   kindleImport: (csv, opts) => request("/api/admin/kindle/import", { method: "POST", body: json({ csv, ...opts }) }),
   requestBook: async (input) => {
     const res = await fetch("/api/requests", {

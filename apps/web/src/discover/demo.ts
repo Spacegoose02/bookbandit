@@ -4,7 +4,7 @@
  */
 import { demoApi } from "../api/demo";
 import type { BookSummary } from "../api/types";
-import type { Category, DiscoverApi, DiscoverItem, SeriesBook, SeriesDetail } from "./api";
+import type { Category, DiscoverApi, DiscoverItem, ManagedCategory, SeriesBook, SeriesDetail } from "./api";
 
 const wait = <T>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 60));
 
@@ -133,6 +133,52 @@ async function categoryBooks(id: string): Promise<BookSummary[]> {
   return (await visibleBooks()).filter((b) => rule[3].test(b.title));
 }
 
+/** What the manage-categories page shows in demo mode: a tidied 900-book library. */
+const MANAGED: ManagedCategory[] = (
+  [
+    ["Fantasy", "genre", 184],
+    ["Children's Books", "genre", 161],
+    ["Mystery & Crime", "genre", 97],
+    ["Science Fiction", "genre", 88],
+    ["Literary Fiction", "genre", 74],
+    ["Thriller & Suspense", "genre", 66],
+    ["History", "genre", 41],
+    ["Biography & Memoir", "genre", 38],
+    ["Young Adult", "genre", 35],
+    ["Romance", "genre", 29],
+    ["Cooking & Food", "genre", 22],
+    ["Science & Nature", "genre", 19],
+    ["Humor", "genre", 12],
+    ["Fiction", "genre", 9],
+    ["Westerns", "genre", 2],
+    ["Plays & Drama", "genre", 1],
+    ["Cookbooks", "section", 22],
+    ["Picture books", "section", 58],
+    ["Bedtime favourites", "custom", 14],
+    ["Magic", "subject", 131],
+    ["Wizards", "subject", 64],
+    ["Dragons", "subject", 52],
+    ["Detective and mystery stories", "subject", 48],
+    ["Juvenile fiction", "subject", 160],
+    ["England -- Fiction", "subject", 37],
+    ["Schools", "subject", 31],
+    ["Fiction, fantasy, epic", "subject", 28],
+    ["Space opera", "subject", 17],
+    ["Large type books", "subject", 4],
+  ] as const
+).map(([name, kind, bookCount], i) => ({
+  id: `m${i}`,
+  name,
+  kind,
+  bookCount,
+  hidden: name === "Fiction",
+  curated: kind === "genre",
+  shown: false,
+  aliases: name === "Fantasy" ? ["fantasy fiction", "epic fantasy"] : name === "Science Fiction" ? ["sci fi"] : [],
+}));
+let demoMinBooks = 3;
+const shownNow = (c: ManagedCategory) => !c.hidden && c.kind !== "subject" && (c.kind !== "genre" || c.bookCount >= demoMinBooks);
+
 export const demoDiscoverApi: DiscoverApi = {
   async discover() {
     const books = await visibleBooks();
@@ -217,6 +263,45 @@ export const demoDiscoverApi: DiscoverApi = {
       cookbook: id === "cat-cook",
     }));
     return wait({ items, cookbook: items.some((i) => i.cookbook) });
+  },
+  async manageCategories(kind, q) {
+    const items = MANAGED.filter((c) => (kind === "all" || c.kind === kind || (kind === "categories" && c.kind !== "subject")) && (!q || c.name.toLowerCase().includes(q.toLowerCase())))
+      .map((c) => ({ ...c, shown: shownNow(c) }))
+      .sort((a, b) => b.bookCount - a.bookCount);
+    const counts: Record<string, number> = {};
+    for (const c of MANAGED) counts[c.kind] = (counts[c.kind] ?? 0) + 1;
+    return wait({ items, counts, minBooks: demoMinBooks });
+  },
+  async updateCategory(id, patch) {
+    const c = MANAGED.find((x) => x.id === id);
+    if (!c) notFound();
+    if (patch.hidden !== undefined) c.hidden = patch.hidden;
+    if (patch.kind) {
+      c.kind = patch.kind;
+      c.curated = false;
+    }
+    if (patch.name) {
+      const other = MANAGED.find((x) => x.id !== id && x.kind === c.kind && x.name.toLowerCase() === patch.name!.toLowerCase());
+      if (other) return demoDiscoverApi.mergeCategory(id, other.id).then(() => ({ id: other.id, merged: true }));
+      c.aliases.push(c.name.toLowerCase());
+      c.name = patch.name;
+    }
+    return wait({ id, merged: false });
+  },
+  async mergeCategory(id, into) {
+    const from = MANAGED.findIndex((x) => x.id === id);
+    const target = MANAGED.find((x) => x.id === into);
+    if (from < 0 || !target) notFound();
+    const [gone] = MANAGED.splice(from, 1);
+    target.bookCount += gone!.bookCount;
+    target.aliases.push(gone!.name.toLowerCase(), ...gone!.aliases);
+    return wait({ id: into, bookCount: target.bookCount });
+  },
+  async setCategoryMinBooks(minBooks) {
+    demoMinBooks = minBooks;
+  },
+  async rebuildCategories() {
+    return wait({ books: 902, linked: 0 });
   },
   async kindleImport(csv, opts) {
     const rows = csv.split(/\r?\n/).slice(1).filter((l) => l.trim()).length;

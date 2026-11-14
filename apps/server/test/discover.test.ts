@@ -8,8 +8,10 @@ import {
   bookTags,
   readingProgress,
   series,
+  settings,
   tags,
 } from "../src/db/schema.js";
+import { applySubjects, setMinBooks, upgradeCategories } from "../src/discover/category-store.js";
 import { setBookSeries } from "../src/library/store.js";
 import { family, type Family } from "./helpers.js";
 
@@ -287,12 +289,104 @@ describe("categories", () => {
     expect(kid.map((c: { name: string; bookCount: number }) => [c.name, c.bookCount])).toEqual([["Cookbooks", 1]]);
     expect(kid[0].cookbook).toBe(true);
     expect(kid[0].books.map((b: { id: string }) => b.id)).toEqual([ids.kidsCook]);
+    // Horror has one book, under the default minimum of 3 for genre categories.
     const adult = (await get("/api/categories", "adult")).json().items;
-    expect(adult.map((c: { name: string; bookCount: number }) => [c.name, c.bookCount])).toEqual([
+    expect(adult.map((c: { name: string; bookCount: number }) => [c.name, c.bookCount])).toEqual([["Cookbooks", 2]]);
+    setMinBooks(f.db, 1);
+    const all = (await get("/api/categories", "adult")).json().items;
+    expect(all.map((c: { name: string; bookCount: number }) => [c.name, c.bookCount])).toEqual([
       ["Cookbooks", 2],
       ["Horror", 1],
     ]);
+    // Kids still don't see a category whose only book is locked for them.
+    expect((await get("/api/categories", "kid")).json().items.map((c: { name: string }) => c.name)).toEqual(["Cookbooks"]);
   });
+
+  it("never lists raw subjects or hidden categories, on the page, book chips or OPDS", async () => {
+    setMinBooks(f.db, 1);
+    const [subject] = f.db.insert(tags).values({ name: "Haunted houses", kind: "subject" }).returning().all();
+    f.db.insert(bookTags).values({ tagId: subject!.id, bookId: ids.thriller! }).run();
+    const names = async () => (await get("/api/categories", "adult")).json().items.map((c: { name: string }) => c.name);
+    expect(await names()).toEqual(["Cookbooks", "Horror"]);
+    const hide = await f.app.inject({ method: "PATCH", url: `/api/categories/${horror}`, headers: f.as("admin"), payload: { hidden: true } });
+    expect(hide.statusCode).toBe(200);
+    expect(await names()).toEqual(["Cookbooks"]);
+    expect((await get(`/api/books/${ids.thriller}/categories`, "adult")).json().items).toEqual([]);
+    // Still reachable by id, and the books keep the tag.
+    expect((await get(`/api/categories/${horror}`, "adult")).json().total).toBe(1);
+    expect(
+      (await f.app.inject({ method: "PATCH", url: `/api/categories/${horror}`, headers: f.as("parent"), payload: { hidden: false } }))
+        .statusCode,
+    ).toBe(403);
+  });
+
+  it("lets an admin rename, merge, promote and list categories, and a rescan respects it", async () => {
+    setMinBooks(f.db, 1);
+    const admin = f.as("admin");
+    // Rename: the old name now points at the renamed category.
+    const renamed = await f.app.inject({ method: "PATCH", url: `/api/categories/${horror}`, headers: admin, payload: { name: "Scary Stories" } });
+    expect(renamed.json()).toMatchObject({ id: horror, name: "Scary Stories", merged: false });
+    f.db.transaction((tx) => applySubjects(tx, ids.hippo!, ["Horror fiction", "Horror"]));
+    const scary = (await get(`/api/categories/${horror}`, "adult")).json();
+    expect(scary.items.map((b: { id: string }) => b.id).sort()).toEqual([ids.thriller, ids.hippo].sort());
+    expect(f.db.select().from(tags).where(eq(tags.name, "Horror")).all().filter((t) => t.kind === "genre")).toEqual([]);
+
+    // Merge a subject into the category: books move, the subject goes, and its name is remembered.
+    const [spooky] = f.db.insert(tags).values({ name: "Spooky", kind: "subject" }).returning().all();
+    f.db.insert(bookTags).values({ tagId: spooky!.id, bookId: ids.soup! }).run();
+    const merged = await f.app.inject({ method: "POST", url: `/api/categories/${spooky!.id}/merge`, headers: admin, payload: { into: horror } });
+    expect(merged.json()).toEqual({ id: horror, bookCount: 3 });
+    expect(f.db.select().from(tags).where(eq(tags.id, spooky!.id)).get()).toBeUndefined();
+    f.db.transaction((tx) => applySubjects(tx, ids.kidsCook!, ["spookies"]));
+    expect((await get(`/api/categories/${horror}`, "adult")).json().total).toBe(4);
+
+    // Renaming onto an existing name merges instead.
+    const [other] = f.db.insert(tags).values({ name: "Ghost stories", kind: "genre" }).returning().all();
+    const onto = await f.app.inject({ method: "PATCH", url: `/api/categories/${other!.id}`, headers: admin, payload: { name: "scary story" } });
+    expect(onto.json()).toMatchObject({ id: horror, merged: true });
+
+    // Promote a subject to a category.
+    const [dragons] = f.db.insert(tags).values({ name: "Dragons", kind: "subject" }).returning().all();
+    f.db.insert(bookTags).values({ tagId: dragons!.id, bookId: ids.thriller! }).run();
+    await f.app.inject({ method: "PATCH", url: `/api/categories/${dragons!.id}`, headers: admin, payload: { kind: "genre" } });
+    expect((await get("/api/categories", "adult")).json().items.map((c: { name: string }) => c.name)).toContain("Dragons");
+
+    const list = await f.app.inject({ method: "GET", url: "/api/admin/categories?kind=genre", headers: admin });
+    expect(list.json().minBooks).toBe(1);
+    expect(list.json().items.find((c: { id: string }) => c.id === horror)).toMatchObject({
+      name: "Scary Stories",
+      bookCount: 4,
+      hidden: false,
+      shown: true,
+      aliases: expect.arrayContaining(["horror", "spooky", "ghost story"]),
+    });
+    expect((await f.app.inject({ method: "GET", url: "/api/admin/categories", headers: f.as("parent") })).statusCode).toBe(403);
+    const minBooks = await f.app.inject({ method: "PUT", url: "/api/admin/categories/settings", headers: admin, payload: { minBooks: 5 } });
+    expect(minBooks.json()).toEqual({ minBooks: 5 });
+  });
+
+  it("files books under curated categories from their subjects, rebuildable by an admin", async () => {
+    f.db.transaction((tx) => {
+      applySubjects(tx, ids.thriller!, ["Fiction", "Fiction / Thrillers / Suspense", "Serial murderers -- Fiction", "Detective and mystery stories"]);
+      applySubjects(tx, ids.hippo!, ["Juvenile Fiction", "Animals", "Hippopotamus -- Juvenile fiction"]);
+    });
+    const names = (bookId: string) =>
+      f.db
+        .select({ name: tags.name, kind: tags.kind })
+        .from(bookTags)
+        .innerJoin(tags, eq(tags.id, bookTags.tagId))
+        .where(eq(bookTags.bookId, bookId))
+        .all()
+        .filter((t) => t.kind === "genre")
+        .map((t) => t.name)
+        .sort();
+    expect(names(ids.thriller!)).toEqual(["Horror", "Mystery & Crime", "Thriller & Suspense"]);
+    expect(names(ids.hippo!)).toEqual(["Children's Books", "Fiction"]);
+    const rebuild = await f.app.inject({ method: "POST", url: "/api/admin/categories/rebuild", headers: f.as("admin") });
+    expect(rebuild.json()).toMatchObject({ books: 2, linked: 0 });
+    expect((await f.app.inject({ method: "POST", url: "/api/admin/categories/rebuild", headers: f.as("kid") })).statusCode).toBe(403);
+  });
+
 
   it("pages a category's books and 404s one that is entirely locked", async () => {
     const kid = await get(`/api/categories/${cookbooks}`, "kid");
@@ -338,6 +432,67 @@ describe("categories", () => {
         })
       ).statusCode,
     ).toBe(403);
+  });
+});
+
+describe("tidying categories from before curation", () => {
+  it("turns old genre tags into subjects, merges near-duplicates and files books, without losing links", () => {
+    // A library scanned by the old code: every subject a genre, with case and plural duplicates.
+    f.db.delete(settings).where(eq(settings.key, "categories.taxonomy")).run();
+    const old = f.db
+      .insert(tags)
+      .values([
+        { name: "Fantasy", kind: "genre" },
+        { name: "fantasy", kind: "genre" },
+        { name: "Dragons", kind: "genre" },
+        { name: "Dragon", kind: "genre" },
+        { name: "History", kind: "genre" },
+        { name: "Juvenile Fiction", kind: "genre" },
+        { name: "Cookbooks", kind: "section" },
+      ])
+      .returning()
+      .all();
+    const id = (name: string) => old.find((t) => t.name === name)!.id;
+    f.db
+      .insert(bookTags)
+      .values([
+        { bookId: ids.thriller!, tagId: id("Fantasy") },
+        { bookId: ids.thriller!, tagId: id("Dragons") },
+        { bookId: ids.hippo!, tagId: id("fantasy") },
+        { bookId: ids.hippo!, tagId: id("Dragon") },
+        { bookId: ids.hippo!, tagId: id("Juvenile Fiction") },
+        { bookId: ids.kindle!, tagId: id("History") },
+        { bookId: ids.kindle!, tagId: id("Cookbooks") },
+      ])
+      .run();
+
+    const report = upgradeCategories(f.db)!;
+    expect(report).toMatchObject({ subjects: 6, merged: 2 });
+    expect(upgradeCategories(f.db)).toBeNull();
+
+    const byKind = (kind: "genre" | "subject" | "section") =>
+      f.db.select().from(tags).where(eq(tags.kind, kind)).all().map((t) => t.name).sort();
+    expect(byKind("subject")).toEqual(["Dragons", "Fantasy", "History", "Juvenile Fiction"]);
+    expect(byKind("section")).toEqual(["Cookbooks"]);
+    expect(byKind("genre")).toEqual(["Children's Books", "Fantasy", "History"]);
+
+    const of = (bookId: string) =>
+      f.db
+        .select({ name: tags.name, kind: tags.kind })
+        .from(bookTags)
+        .innerJoin(tags, eq(tags.id, bookTags.tagId))
+        .where(eq(bookTags.bookId, bookId))
+        .all()
+        .map((t) => `${t.kind}:${t.name}`)
+        .sort();
+    expect(of(ids.hippo!)).toEqual([
+      "genre:Children's Books",
+      "genre:Fantasy",
+      "subject:Dragons",
+      "subject:Fantasy",
+      "subject:Juvenile Fiction",
+    ]);
+    expect(of(ids.kindle!)).toEqual(["genre:History", "section:Cookbooks", "subject:History"]);
   });
 });
 

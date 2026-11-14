@@ -5,7 +5,7 @@
  * visibleBooksWhere. Endpoint list: README.md in this folder.
  */
 import type { FastifyInstance } from "fastify";
-import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, ne, or, sql, type SQL } from "drizzle-orm";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -194,7 +194,8 @@ export async function librarianRoutes(app: FastifyInstance, opts: LibrarianRoute
 
       for (const tagName of body.tagsAdd ?? []) {
         // Reuse a tag of any kind with that name (a genre the scanner made, or a section); else a custom one.
-        let tag = tx.select({ id: tags.id }).from(tags).where(sql`lower(${tags.name}) = ${tagName.toLowerCase()}`).orderBy(sql`${tags.kind} = 'custom' desc`).get();
+        // Never a raw `subject` tag: those aren't listed as categories, so the tag would vanish.
+        let tag = tx.select({ id: tags.id }).from(tags).where(and(sql`lower(${tags.name}) = ${tagName.toLowerCase()}`, ne(tags.kind, "subject"))).orderBy(sql`${tags.kind} = 'custom' desc`).get();
         if (!tag) [tag] = tx.insert(tags).values({ name: tagName, kind: "custom" }).returning({ id: tags.id }).all();
         for (const bookId of ids) tx.insert(bookTags).values({ bookId, tagId: tag!.id }).onConflictDoNothing().run();
       }
