@@ -12,8 +12,8 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 - [x] Server-side content lock (kids/middle grade/teen/adult/explicit, unrated = adult) with tests
 - [x] Tinyauth sign-in, trusted only from the reverse proxy
 - [ ] Family accounts: kid accounts under a parent, PIN/picture sign-in, QR device pairing, local password fallback (`ws/auth`)
-- [ ] Scan `/books`, read file metadata, Open Library / Google Books / Hardcover lookup, inbox approval (`ws/library`)
-- [ ] Ratings from metadata, keywords and the `/books/adult` folder (`ws/library`)
+- [x] Scan `/books`, read file metadata, Open Library / Google Books / Hardcover lookup, inbox approval (`ws/library`)
+- [x] Ratings from metadata, keywords and the `/books/adult` folder (`ws/library`)
 - [x] Reading progress, bookmarks, highlights, stickers, Continue reading and kid shelves API (`ws/sync`)
 - [x] Web app: shelves, filters (author, year range, age group), series, kids section (`ws/web`; needs the lead's `/api/shelves` and `/api/books` filters to show real data)
 - [ ] Web reader (foliate-js) for EPUB, PDF and CBZ with progress sync (`ws/web`): EPUB, AZW3/MOBI, FB2, CBZ and sync done; PDF still opens in the browser viewer without progress

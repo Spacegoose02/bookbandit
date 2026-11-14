@@ -44,10 +44,18 @@ matching row to `user_identities`. (The auth workstream will add a dev seed and 
 
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
+Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
+`LIBRARY_SCAN_ON_START=false` to turn that off; a missing or empty folder is skipped). An admin can
+start another scan with `POST /api/admin/library/scan` and check progress with `GET` on the same path.
+New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online metadata lookup is on
+by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
+are optional. Details: `apps/server/src/library/README.md`.
+
 ## Recent changes
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
 | 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
 | 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |
 | 2026-11-14 | Audiobookshelf playback/progress API and Send to Kindle API (see `apps/server/src/integrations/README.md`) | ws/integrations PR |
