@@ -330,9 +330,18 @@ export const bookmarks = sqliteTable(
     note: text("note"),
     color: text("color"),
     createdAt: createdAt(),
+    /**
+     * Bumped on every insert, edit and soft delete; the cursor for incremental sync.
+     * Constant default because SQLite can't ALTER TABLE ADD COLUMN with an expression default;
+     * the sync routes always set it.
+     */
+    updatedAt: ms("updated_at").notNull().default(0),
     deletedAt: ms("deleted_at"),
   },
-  (t) => [index("bookmarks_user_book_idx").on(t.userId, t.bookId)],
+  (t) => [
+    index("bookmarks_user_book_idx").on(t.userId, t.bookId),
+    index("bookmarks_user_updated_idx").on(t.userId, t.updatedAt),
+  ],
 );
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,9 @@ import { authPlugin } from "./auth/plugin.js";
 import { parseTrustedProxies } from "./auth/trusted-proxy.js";
 import { healthRoutes } from "./routes/health.js";
 import { bookRoutes } from "./routes/books.js";
+import { progressRoutes } from "./routes/progress.js";
+import { bookmarkRoutes } from "./routes/bookmarks.js";
+import { shelfRoutes } from "./routes/shelves.js";
 
 export async function buildApp(config: Config, db: Db): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.LOG_LEVEL } });
@@ -16,6 +19,9 @@ export async function buildApp(config: Config, db: Db): Promise<FastifyInstance>
   });
   await app.register(healthRoutes);
   await app.register(bookRoutes, { db });
+  await app.register(progressRoutes, { db });
+  await app.register(bookmarkRoutes, { db });
+  await app.register(shelfRoutes, { db });
 
   return app;
 }
