@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the grown-up home page (HomePage.tsx): what goes in "Jump back in", which
+ * Pure helpers for the grown-up home page (HomePage.tsx): what goes in "Continue reading", which
  * series are worth continuing, and how the server's shelves are grouped into sections.
  */
 import type { BookSummary, Shelf } from "../api/types";
@@ -18,7 +18,7 @@ export interface ListeningLike {
   progress: { percent: number; currentTime: number; duration: number };
 }
 
-/** One card in "Jump back in": a book being read, listened to, or both. */
+/** One card in "Continue reading": a book being read, listened to, or both. */
 export interface InProgress {
   book: Pick<BookSummary, "id" | "title" | "coverPath"> & Partial<BookSummary>;
   /** 0..1, the further of reading and listening */

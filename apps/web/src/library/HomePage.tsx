@@ -255,7 +255,9 @@ function JumpBackIn({ items }: { items: InProgress[] }) {
   return (
     <section className="bb-home-section" aria-labelledby="bb-home-jump-h">
       <header className="bb-home-head">
-        <h2 id="bb-home-jump-h">Jump back in</h2>
+        <h2 id="bb-home-jump-h">
+          {items.some((i) => i.listening) ? (items.some((i) => i.reading) ? "Continue reading and listening" : "Continue listening") : "Continue reading"}
+        </h2>
       </header>
       <div className={`bb-home-jump${items.length === 1 ? " is-single" : ""}`}>
         {items.map((i) => (

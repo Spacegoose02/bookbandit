@@ -14,7 +14,7 @@ export interface AudioApi {
   addBookmark(bookId: string, time: number, note?: string): Promise<AudioBookmark>;
   editBookmark(id: string, patch: { note?: string | null; time?: number }): Promise<AudioBookmark>;
   deleteBookmark(id: string): Promise<void>;
-  /** The reader's unfinished audiobooks, newest first (the home page's "Jump back in"). */
+  /** The reader's unfinished audiobooks, newest first (the home page's "Continue reading" row). */
   continueListening(): Promise<ListeningItem[]>;
 }
 
