@@ -32,6 +32,20 @@ describe("providers", () => {
     expect(body).toMatchObject({ model: "claude-haiku-5-5", system: "Be Barnaby", messages: req.messages });
   });
 
+  it("Anthropic: never sends sampling settings, which current Claude models reject", async () => {
+    const r = recorder({ model: "claude-opus-5-5", content: [{ type: "text", text: "{}" }] });
+    const p = makeProvider({ id: "c", name: "Claude", kind: "anthropic", model: "claude-opus-5-5", apiKey: "k" }, r.fetchImpl);
+    await p.chat({ ...req, temperature: 0, json: true });
+    await p.chat(req);
+    for (const call of r.calls) {
+      const body = JSON.parse(String(call.init.body));
+      expect(body).not.toHaveProperty("temperature");
+      expect(body).not.toHaveProperty("top_p");
+      expect(body).not.toHaveProperty("top_k");
+      expect(body.max_tokens).toBeGreaterThanOrEqual(1024);
+    }
+  });
+
   it("Gemini: generateContent with systemInstruction and model role", async () => {
     const r = recorder({ candidates: [{ content: { parts: [{ text: "Hey" }] } }], usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 2 } });
     const p = makeProvider({ id: "g", name: "Gemini", kind: "gemini", model: "gemini-2.5-flash", apiKey: "gk" }, r.fetchImpl);
