@@ -57,7 +57,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Admin UI: inbox approval, rating review, scan status, users and kids, integration settings (`ws/admin`)
 
-- [ ] Parent dashboard: reading, requests, kid AI chats (`ws/admin`)
+- [ ] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; reading-time API done by the lead)
 
 - [ ] AI provider settings (Ollama / OpenAI-compatible / cloud), AI rating helper, AI metadata cleanup (`ws/ai`)
 

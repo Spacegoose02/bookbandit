@@ -10,6 +10,7 @@ import { pickReadableFile } from "./formats";
 import { fraction, pageLocator, PdfView, startPage, type PdfPosition } from "./pdf";
 import { defaultDeviceName, ProgressSync, resolveStartPosition } from "./progressSync";
 import { readerCss } from "./readerCss";
+import { ReadingTimer } from "./readingTimer";
 import { useReaderPrefs } from "./useReaderPrefs";
 
 type Panel = null | "settings" | "bookmarks" | "contents";
@@ -51,6 +52,11 @@ export function ReaderPage() {
     let disposed = false;
     const sync = new ProgressSync(api, id, { deviceName: deviceName(), store: localStorage });
     syncRef.current = sync;
+    const timer = new ReadingTimer(api, id, { deviceName: deviceName() });
+    const touch = () => timer.touch();
+    document.addEventListener("pointerdown", touch);
+    document.addEventListener("keydown", touch);
+    document.addEventListener("wheel", touch, { passive: true });
 
     (async () => {
       let detail: BookDetail;
@@ -108,6 +114,7 @@ export function ReaderPage() {
       view.addEventListener("relocate", (e) => {
         const detail = (e as CustomEvent<FoliateLocation>).detail;
         setLoc(detail);
+        timer.touch();
         if (detail.cfi) sync.report({ kind: "epub", cfi: detail.cfi, percent: detail.fraction ?? 0 }, detail.fraction >= 0.995);
       });
       view.addEventListener("load", (e) => {
@@ -136,9 +143,15 @@ export function ReaderPage() {
     })();
 
     const onHide = () => {
-      if (document.visibilityState === "hidden") void sync.flush({ keepalive: true });
+      if (document.visibilityState === "hidden") {
+        void sync.flush({ keepalive: true });
+        void timer.flush({ keepalive: true });
+      }
     };
-    const onPageHide = () => void sync.flush({ keepalive: true });
+    const onPageHide = () => {
+      void sync.flush({ keepalive: true });
+      void timer.flush({ keepalive: true });
+    };
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("pagehide", onPageHide);
 
@@ -148,6 +161,11 @@ export function ReaderPage() {
       window.removeEventListener("pagehide", onPageHide);
       void sync.flush({ keepalive: true });
       sync.dispose();
+      void timer.flush({ keepalive: true });
+      timer.dispose();
+      document.removeEventListener("pointerdown", touch);
+      document.removeEventListener("keydown", touch);
+      document.removeEventListener("wheel", touch);
       viewRef.current?.close();
       viewRef.current?.remove();
       viewRef.current = null;

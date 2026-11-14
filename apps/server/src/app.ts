@@ -13,6 +13,7 @@ import { progressRoutes } from "./routes/progress.js";
 import { bookmarkRoutes } from "./routes/bookmarks.js";
 import { shelfRoutes } from "./routes/shelves.js";
 import { homeShelfRoutes } from "./routes/home-shelves.js";
+import { readingTimeRoutes } from "./routes/reading-time.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { libraryRoutes } from "./library/routes.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
@@ -45,6 +46,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(shelfRoutes, { db });
   await app.register(libraryRoutes, { db, config });
   await app.register(homeShelfRoutes, { db });
+  await app.register(readingTimeRoutes, { db });
   await app.register(integrationsPlugin, {
     db,
     configDir: config.CONFIG_DIR,
