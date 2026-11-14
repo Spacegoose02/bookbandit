@@ -18,6 +18,11 @@ const Env = z.object({
    * Key that signs sign-in sessions (password, kid PIN/pictures). Optional: when empty, one is
    * generated on first start and kept in the database. Changing it signs everyone out.
    */
+  /**
+   * Where the "Sign in with Google" button goes: your Tinyauth login page (for example
+   * https://auth.example.com/login?redirect_uri=https://books.example.com). Empty hides the button.
+   */
+  GOOGLE_SIGN_IN_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   SESSION_SECRET: z.string().min(32).optional(),
   /** Built web app to serve (index.html + assets). Defaults to apps/web/dist next to the server. */
   WEB_DIR: z.string().optional(),

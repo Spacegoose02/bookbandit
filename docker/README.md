@@ -24,6 +24,8 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 | `UMASK` | `022` | Use `002` so the group can write too. |
 | `TRUSTED_PROXIES` | empty | IPs/CIDRs of your reverse proxy. Auth headers from anywhere else are ignored. |
 | `AUTH_HEADER_EMAIL` | `remote-email` | Header the proxy (Tinyauth) sets with the signed-in email. |
+| `GOOGLE_SIGN_IN_URL` | empty | Your Tinyauth login page. When set, the sign-in screen shows a "Sign in with Google" button. Username/password sign-in works without it. |
+| `SESSION_SECRET` | generated | Signs password/PIN sessions. Generated once and kept in the database if empty. |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `PORT` | `8080` | Port inside the container. |
 
@@ -37,14 +39,17 @@ See [`docker-compose.example.yml`](../docker-compose.example.yml).
 
 ## Unraid
 
-Until the template is in Community Apps, add it by URL:
+Until the template is in Community Apps, download it into your user templates from the Unraid
+terminal (or the web terminal, top right of the web UI):
 
-1. Docker tab → **Add Container** → paste
-   `https://raw.githubusercontent.com/spacegoose02/bookbandit/main/docker/unraid/bookbandit.xml`
-   into **Template** (or copy `docker/unraid/bookbandit.xml` to
-   `/boot/config/plugins/dockerMan/templates-user/my-bookbandit.xml` and pick it from the list).
-2. Set **Books** to your library share and **Trusted proxies** to your reverse proxy's Docker
-   network (for example `172.18.0.0/16`).
+```sh
+wget -O /boot/config/plugins/dockerMan/templates-user/my-bookbandit.xml \
+  https://raw.githubusercontent.com/spacegoose02/bookbandit/main/docker/unraid/bookbandit.xml
+```
+
+1. Docker tab → **Add Container** → **Template** → pick **bookbandit** under *User templates*.
+2. Set **Books** to your library share and **Trusted proxies** to your reverse proxy's IP or
+   Docker network (for example `172.18.0.0/16`). Leave PUID/PGID at 99/100.
 3. Apply, then open the web UI through your proxy.
 
 To list it in Community Apps, the template goes in a public templates repository and gets
