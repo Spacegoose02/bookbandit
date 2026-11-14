@@ -14,6 +14,11 @@ const Env = z.object({
   AUTH_HEADER_EMAIL: z.string().default("remote-email"),
   /** Comma-separated IPs/CIDRs of the reverse proxy. Empty = never trust auth headers. */
   TRUSTED_PROXIES: z.string().default(""),
+  /**
+   * Key that signs sign-in sessions (password, kid PIN/pictures). Optional: when empty, one is
+   * generated on first start and kept in the database. Changing it signs everyone out.
+   */
+  SESSION_SECRET: z.string().min(32).optional(),
   /** Built web app to serve (index.html + assets). Defaults to apps/web/dist next to the server. */
   WEB_DIR: z.string().optional(),
   /** Calibre's converter (installed in the Docker image) and kepubify, for format conversion. */
