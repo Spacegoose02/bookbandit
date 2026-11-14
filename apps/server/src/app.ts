@@ -8,6 +8,7 @@ import { bookRoutes } from "./routes/books.js";
 import { progressRoutes } from "./routes/progress.js";
 import { bookmarkRoutes } from "./routes/bookmarks.js";
 import { shelfRoutes } from "./routes/shelves.js";
+import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 
 export async function buildApp(config: Config, db: Db): Promise<FastifyInstance> {
@@ -23,6 +24,7 @@ export async function buildApp(config: Config, db: Db): Promise<FastifyInstance>
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
   await app.register(shelfRoutes, { db });
+  await app.register(homeShelfRoutes, { db });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
