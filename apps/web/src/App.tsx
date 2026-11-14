@@ -11,6 +11,7 @@ import { Layout } from "./app/Layout";
 import { SignIn } from "./auth/SignIn";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
+import { EreadersPage } from "./ereader/EreadersPage";
 import { BookPage } from "./library/BookPage";
 import { BrowsePage } from "./library/BrowsePage";
 import { HomePage } from "./library/HomePage";
@@ -65,6 +66,7 @@ export function App() {
         <Route path="series/:id" element={<SeriesPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="categories/:id" element={<CategoryPageView />} />
+        <Route path="settings/ereaders" element={<EreadersPage />} />
         <Route path="admin" element={<AdminLayout area="admin" />}>
           <Route index element={<AdminHome />} />
           <Route path="inbox" element={<InboxPage />} />

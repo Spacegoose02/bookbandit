@@ -75,7 +75,7 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
 
-- [ ] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`)
+- [x] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`; physical Kobo test pending)
 
 - [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 
