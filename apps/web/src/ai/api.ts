@@ -197,6 +197,17 @@ export interface RatingSuggestion {
   status: string;
 }
 
+/** A chat model answers with `reply`; an embeddings model (meaning search) answers with `dimensions`. */
+export interface ProviderTestResult {
+  ok: boolean;
+  kind?: "chat" | "embeddings";
+  reply?: string;
+  dimensions?: number;
+  model?: string;
+  error?: string;
+  ms: number;
+}
+
 export type ChatBody = { message: string; conversationId?: string; bookId?: string; webSearch?: boolean };
 
 export interface AiApi {
@@ -223,7 +234,7 @@ export interface AiApi {
   kidConversation(kidId: string, id: string): Promise<{ conversation: AiConversation; messages: AiMessage[] }>;
   settings(): Promise<AiSettings>;
   saveSettings(s: AiSettings): Promise<AiSettings>;
-  testProvider(providerId: string): Promise<{ ok: boolean; reply?: string; model?: string; error?: string; ms: number }>;
+  testProvider(providerId: string): Promise<ProviderTestResult>;
   models(providerId: string): Promise<string[]>;
   testSearch(q: string, kid: boolean): Promise<{ ok: boolean; error?: string; items: { title: string; url: string }[] }>;
   ratingStatus(): Promise<RatingRunStatus>;
@@ -785,7 +796,10 @@ export const demoAiApi: AiApi = {
   kidConversation: async (_k, cid) => DEMO_LOG.find((c) => c.conversation.id === cid) ?? DEMO_LOG[0]!,
   settings: async () => structuredClone(DEMO_SETTINGS),
   saveSettings: async (s) => s,
-  testProvider: async () => ({ ok: true, reply: "Hello, fellow book lover!", model: "llama3.2", ms: 840 }),
+  testProvider: async (providerId) =>
+    providerId === "embed"
+      ? { ok: true, kind: "embeddings", dimensions: 768, model: "nomic-embed-text", ms: 120 }
+      : { ok: true, kind: "chat", reply: "Hello, fellow book lover!", model: "llama3.2", ms: 840 },
   models: async () => ["llama3.2", "llama3.1:8b", "llama-guard3:1b", "qwen2.5:7b"],
   testSearch: async () => ({
     ok: true,

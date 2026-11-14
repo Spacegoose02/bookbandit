@@ -236,8 +236,12 @@ export const tags = sqliteTable(
   {
     id: id(),
     name: text("name").notNull(),
-    /** genre = from metadata; section = drives a home shelf (kids, cookbook); custom = user tag */
-    kind: text("kind", { enum: ["genre", "section", "custom"] }).notNull().default("genre"),
+    /**
+     * genre = a curated category (discover/taxonomy.ts); subject = a raw metadata subject, kept for
+     * search and Barnaby but not listed as a category; section = drives a home shelf (kids,
+     * cookbook); custom = user tag
+     */
+    kind: text("kind", { enum: ["genre", "subject", "section", "custom"] }).notNull().default("genre"),
   },
   (t) => [uniqueIndex("tags_name_idx").on(t.name, t.kind)],
 );

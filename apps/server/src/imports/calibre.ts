@@ -14,6 +14,7 @@ import Database from "better-sqlite3";
 import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { books, bookSeries, bookTags, series, tags } from "../db/schema.js";
+import { applySubjects } from "../discover/category-store.js";
 import { saveCover } from "../library/covers.js";
 import { sha256File } from "../library/hash.js";
 import { findSameWork, setBookAuthors, setBookSeries } from "../library/store.js";
@@ -379,15 +380,9 @@ function applyOne(
     }
   }
 
-  // Tags are added, never removed.
-  for (const name of b.tags.map(collapse).filter((t) => t && t.length <= 60)) {
-    tx.insert(tags).values({ name, kind: "genre" }).onConflictDoNothing().run();
-    const tag = tx.select({ id: tags.id }).from(tags).where(and(eq(tags.name, name), eq(tags.kind, "genre"))).get();
-    if (tag) {
-      const added = tx.insert(bookTags).values({ bookId: current.id, tagId: tag.id }).onConflictDoNothing().run().changes;
-      if (added) report.stat("tags added");
-    }
-  }
+  // Tags are added, never removed: kept as subjects, and the book is filed under curated categories.
+  const tagsAdded = applySubjects(tx, current.id, b.tags.map(collapse).filter((t) => t && t.length <= 60));
+  if (tagsAdded) report.stat("tags added", tagsAdded);
 
   for (const [type, value] of Object.entries(b.identifiers)) setIdentifier(tx, current.id, type, value);
   if (b.uuid) setIdentifier(tx, current.id, "calibre", b.uuid);

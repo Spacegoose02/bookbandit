@@ -25,6 +25,7 @@ export function AdminLayout({ area }: { area: "admin" | "family" }) {
           ["/admin/inbox", "Inbox"],
           ["/admin/review", "Needs a rating"],
           ["/admin/librarian", "Librarian"],
+          ["/admin/categories", "Categories"], // ws/discover
           ["/admin/people", "People & devices"],
           ["/admin/settings", "Connections"],
           ["/admin/import", "Move in"],

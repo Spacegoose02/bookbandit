@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { authors, bookAuthors, books, bookSeries, bookTags, bookFiles, series, tags } from "../db/schema.js";
 import type { BookMetadata } from "../metadata/types.js";
+import { applySubjects } from "../discover/category-store.js";
 import { authorSortName, collapse, matchKey, sortTitle } from "../metadata/text.js";
 
 /** Anything Drizzle can run queries on: the db itself or a transaction. */
@@ -47,28 +48,12 @@ export function setBookSeries(tx: Tx, bookId: string, name: string, position?: n
     .run();
 }
 
-/** Subjects worth showing as genre tags (providers send lots of noise like "nyt:…" or "Accessible book"). */
-export function genreTags(subjects: string[] | undefined, max = 12): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const s of subjects ?? []) {
-    const name = collapse(s);
-    if (!name || name.length > 40 || /[:=]/.test(name) || /^(fiction|general|accessible book|protected daisy|in library|lending library|overdrive)$/i.test(name)) continue;
-    const key = matchKey(name);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(name);
-    if (out.length >= max) break;
-  }
-  return out;
-}
-
+/**
+ * Keeps a book's useful raw subjects as `subject` tags and files it under curated categories
+ * (see discover/taxonomy.ts). Before this, every subject became a category of its own.
+ */
 export function addGenreTags(tx: Tx, bookId: string, subjects: string[] | undefined): void {
-  for (const name of genreTags(subjects)) {
-    tx.insert(tags).values({ name, kind: "genre" }).onConflictDoNothing().run();
-    const tag = tx.select({ id: tags.id }).from(tags).where(and(eq(tags.name, name), eq(tags.kind, "genre"))).get();
-    if (tag) tx.insert(bookTags).values({ bookId, tagId: tag.id }).onConflictDoNothing().run();
-  }
+  applySubjects(tx, bookId, subjects);
 }
 
 /** Columns of `books` we fill from metadata, only where they're empty unless `overwrite`. */

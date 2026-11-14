@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import type { BookSummary } from "../api/types";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { BookGrid } from "../library/BookCard";
+import { useSession } from "../app/session";
 import { discoverApi, type Category, type CategoryPage } from "./api";
 import { ExploreLinks } from "./ExploreLinks";
 import "./discover.css";
@@ -23,6 +24,7 @@ function CoverStack({ books }: { books: BookSummary[] }) {
 
 /** Every category with books this reader can see: sections (Kids, Cookbooks) first, then genres. */
 export function CategoriesPage() {
+  const { me } = useSession();
   const [items, setItems] = useState<Category[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -43,6 +45,11 @@ export function CategoriesPage() {
       <ExploreLinks />
       <div className="bb-discover-head">
         <h1 className="bb-h1">Categories</h1>
+        {me?.role === "admin" && (
+          <Link className="bb-btn" to="/admin/categories">
+            Manage categories
+          </Link>
+        )}
         {items.length > 12 && (
           <input
             className="bb-input bb-cat-filter"

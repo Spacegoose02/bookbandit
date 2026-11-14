@@ -59,7 +59,7 @@ database with `CONFIG_DIR/secret.key` and are never sent back to the browser.
 | Anthropic (Claude) | Anthropic | default (`https://api.anthropic.com`) | `claude-haiku-5-5` (cheap, fast), `claude-sonnet-5-5`, `claude-opus-5-5` (most capable) | console.anthropic.com → API keys |
 | Google Gemini | Gemini | default (`https://generativelanguage.googleapis.com/v1beta`) | `gemini-2.5-flash` | aistudio.google.com → Get API key |
 
-**Load models** lists what the provider offers. **Test** sends "say hello" and shows the answer and time.
+**Load models** lists what the provider offers. **Test** sends "say hello" and shows the answer and time. For an embeddings model (meaning search) it embeds a short text instead and shows the vector size. Claude has no embeddings API, so it can't be picked for meaning search.
 
 Tips:
 
@@ -235,7 +235,7 @@ All routes need a signed-in reader. Admin routes use `requireAdmin`.
 | `GET`/`PUT` | `/api/ai/kids/:kidId/settings` | `{ enabled, webSearch, dailyLimit }`; PUT is linked parent or admin only |
 | `GET` | `/api/ai/kids/:kidId/conversations[/:id]` | Parent log (linked parent or admin) |
 | `GET`/`PUT` | `/api/admin/ai/settings` | Providers, features, search, moderation, kid defaults, `ratingHelper: { autoApprove, trustLooser, minConfidence }`. Omit `apiKey` to keep it, `""` to remove it |
-| `POST` | `/api/admin/ai/providers/test` | `{ providerId }` |
+| `POST` | `/api/admin/ai/providers/test` | `{ providerId, mode?: "auto" \| "chat" \| "embeddings" }` |
 | `GET` | `/api/admin/ai/providers/:id/models` | Model list from the provider |
 | `POST` | `/api/admin/ai/search/test` | `{ q, kid }` |
 | `GET` | `/api/admin/ai/usage?days=30` | Calls, failures, tokens and average time per feature and model |

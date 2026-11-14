@@ -1,4 +1,5 @@
 # Discover changes (`ws/discover`)
 
+- 2026-11-14: Curated categories. Raw metadata subjects are kept as search-only `subject` tags and books are filed under a short curated list (Fantasy, Mystery & Crime, Biography & Memoir …); near-duplicates merged, small categories hidden, and a new **Admin → Categories** page to rename, merge, hide, promote and re-file. Existing libraries are tidied once on start without dropping book links. Migration `0015_categories` (this PR)
 - 2026-11-14: "Request it" on Discover understands `409 already_in_library` from `POST /api/requests` and links to the book instead of showing an error (this PR)
 - 2026-11-14: Discover (Open Library and Hardcover trending with In library / On Kindle / Request it badges, Popular in your family), series pages in reading order with admin create/rename/drag-to-reorder, category browsing, Cook mode for cookbooks, Kindle library CSV import as metadata-only books. All through the content lock; kids only see outside books already on their shelf. API: [discover-api.md](../discover-api.md) (#16)
