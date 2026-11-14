@@ -50,11 +50,11 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
 
-- [ ] Book requests with parent/admin approval (`ws/requests`)
+- [x] Book requests with parent/admin approval (`ws/requests`)
 
-- [ ] Shelfmark, sabnzbd and direct downloader, admin only, on a generic job runner (`ws/requests`)
+- [x] Shelfmark, sabnzbd and direct downloader, admin only, on a generic job runner (`ws/requests`)
 
-- [ ] Browser uploads into the inbox (`ws/requests`)
+- [x] Browser uploads into the inbox (`ws/requests`)
 
 - [ ] Admin UI: inbox approval, rating review, scan status, users and kids, integration settings (`ws/admin`)
 

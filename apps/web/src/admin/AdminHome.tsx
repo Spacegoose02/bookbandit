@@ -15,7 +15,7 @@ export function AdminHome() {
         <Tile label="Books in the library" value={o?.books ?? "…"} />
         <Tile label="People" value={o ? o.people.grownUps + o.people.kids : "…"} hint={o ? `${o.people.grownUps} grown-ups, ${o.people.kids} kids` : null} to="/admin/people" />
         <Tile label="Paired devices" value={o?.devices ?? "…"} to="/admin/people#devices" />
-        <Tile label="Book requests" value={o?.pendingRequests ?? "…"} hint="Pending a parent's OK" to="/family" />
+        <Tile label="Book requests" value={o?.pendingRequests ?? "…"} hint="Pending a parent's OK" to="/requests?tab=approve" />
       </div>
       <ScanCard onFinished={overview.reload} />
     </>

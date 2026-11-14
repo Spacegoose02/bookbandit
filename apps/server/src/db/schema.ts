@@ -392,6 +392,17 @@ export const bookRequests = sqliteTable("book_requests", {
   note: text("note"),
   createdAt: createdAt(),
   updatedAt: ms("updated_at"),
+  // Added by ws/requests (see apps/server/src/requests/README.md).
+  /** Cover and year from the search result the request was made from, for display. */
+  coverUrl: text("cover_url"),
+  publishedYear: integer("published_year"),
+  /** Why `rating` was guessed (e.g. 'genre "Young Adult"'); shown to the approver. */
+  ratingReason: text("rating_reason"),
+  decidedAt: ms("decided_at"),
+  /** The download job working on this request, if any. */
+  jobId: text("job_id"),
+  /** The library book the download became (still subject to the content lock when shown). */
+  bookId: text("book_id").references(() => books.id, { onDelete: "set null" }),
 });
 
 /** Background job queue (scan, metadata, convert, download, send-to-kindle, ai). */
@@ -401,7 +412,7 @@ export const jobs = sqliteTable(
     id: id(),
     type: text("type").notNull(),
     payload: text("payload", { mode: "json" }).notNull(),
-    status: text("status", { enum: ["queued", "running", "done", "failed"] })
+    status: text("status", { enum: ["queued", "running", "done", "failed", "cancelled"] })
       .notNull()
       .default("queued"),
     attempts: integer("attempts").notNull().default(0),
@@ -409,6 +420,16 @@ export const jobs = sqliteTable(
     lastError: text("last_error"),
     createdAt: createdAt(),
     finishedAt: ms("finished_at"),
+    // Added by ws/requests for the job runner (apps/server/src/jobs).
+    /** Short human label for the admin jobs list, e.g. "Download: The Hobbit". */
+    label: text("label"),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    /** 0..1 while running, when the handler reports it. */
+    progress: real("progress"),
+    /** What the handler returned (JSON). */
+    result: text("result", { mode: "json" }),
+    startedAt: ms("started_at"),
+    updatedAt: ms("updated_at"),
   },
   (t) => [index("jobs_status_idx").on(t.status, t.runAfter)],
 );

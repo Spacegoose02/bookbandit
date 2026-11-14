@@ -163,7 +163,9 @@ export function KidPage() {
               </li>
             ))}
           </ul>
-          <p className="bb-muted bb-small">Approving requests arrives with the requests page.</p>
+          <p className="bb-small">
+            <Link to="/requests?tab=approve">Approve or decline requests</Link>
+          </p>
         </Card>
 
         <Card title="Chats with Barnaby" className="bb-chats-card">

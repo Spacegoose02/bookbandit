@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { BookSummary } from "../api/types";
 import { useSession } from "../app/session";
@@ -64,11 +64,25 @@ export function BrowsePage({ title = "Library" }: { title?: string }) {
 
   return (
     <div className="bb-page">
-      <h1 className="bb-h1">{title}</h1>
+      <div className="bb-browse-head">
+        <h1 className="bb-h1">{title}</h1>
+        <Link className="bb-btn" to={`/requests${filters.q ? `?${new URLSearchParams({ tab: "ask", q: filters.q })}` : ""}`}>
+          Request a book
+        </Link>
+      </div>
       <FilterBar value={draft} onChange={setDraft} maxRating={me.maxRating} />
       {error && <p className="bb-error">Couldn't load books: {error}</p>}
       {!loading && !error && books.length === 0 ? (
-        <BarnabyEmpty title="No books match">Try clearing a filter or searching for something else.</BarnabyEmpty>
+        <BarnabyEmpty title="No books match">
+          Try clearing a filter or searching for something else.
+          {filters.q && (
+            <p>
+              <Link className="bb-btn bb-btn-primary" to={`/requests?${new URLSearchParams({ tab: "ask", q: filters.q })}`}>
+                Request “{filters.q}”
+              </Link>
+            </p>
+          )}
+        </BarnabyEmpty>
       ) : (
         <>
           {total != null && <p className="bb-muted">{total === 1 ? "1 book" : `${total} books`}</p>}

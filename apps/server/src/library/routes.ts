@@ -83,6 +83,17 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
 
   const service = new LibraryService({ db, booksDir: booksRoot, configDir: config.CONFIG_DIR, online: currentLookup, log: app.log });
 
+  // Job runner hook (ws/requests): downloads and uploads scan as a job step. If a scan is
+  // already running it may have missed the new files, so wait for it and scan once more.
+  if (app.hasDecorator("jobs")) {
+    app.jobs.register("library.scan", async () => {
+      const wasRunning = service.getStatus().running;
+      let report = await service.startScan();
+      if (wasRunning) report = await service.startScan();
+      return { added: report.added, removed: report.removed, errors: report.errors.length };
+    });
+  }
+
   // Scan at boot. onListen only fires for a real server (not app.inject in tests).
   if (config.LIBRARY_SCAN_ON_START) {
     app.addHook("onListen", async () => {
