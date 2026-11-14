@@ -40,10 +40,10 @@ Goal: kids read on their own tablets and Kavita is switched off.
 Goal: the Calibre desktop app is no longer needed.
 
 - [ ] Duplicate finder
-- [ ] Discover and trending
-- [ ] Cookbook view
+- [x] Discover and trending, series pages, admin-made series, category browsing (`ws/discover`; "Request it" calls `POST /api/requests` once `ws/requests` lands)
+- [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
 - [ ] Kobo sync, KOReader sync, OPDS feed
-- [ ] Kindle library import (metadata-only, "Read in Kindle")
+- [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 - [ ] AI: ask your library, more like this, spoiler-free chat, smart requests, web answers via SearXNG
 - [ ] Kid AI mode with Barnaby (moderation, parent log, limits)
 - [ ] AI narration (Piper/Kokoro) and quizzes/word help

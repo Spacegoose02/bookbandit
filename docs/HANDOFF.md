@@ -51,10 +51,16 @@ New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online me
 by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
+Discover pulls Open Library trending lists (and Hardcover's when `HARDCOVER_API_TOKEN` is set),
+cached in memory for 6 hours; `METADATA_ONLINE=false` turns the outside lists off. An admin imports a
+Kindle library at `/discover/kindle-import` (or `POST /api/admin/kindle/import`). Demo mode has an
+admin persona too: `?demo=admin`. See [discover-api.md](discover-api.md).
+
 ## Recent changes
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Discover (Open Library and Hardcover trending with In library / On Kindle / Request it badges, Popular in your family), series pages in reading order with admin create/rename/drag-to-reorder, category browsing, Cook mode for cookbooks, Kindle library CSV import as metadata-only books. All through the content lock; kids only see outside books already on their shelf. API: [discover-api.md](discover-api.md) | ws/discover PR |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
 | 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
 | 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |

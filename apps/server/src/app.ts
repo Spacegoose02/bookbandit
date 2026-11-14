@@ -16,10 +16,12 @@ import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { libraryRoutes } from "./library/routes.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
+import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
   integrations?: Pick<IntegrationsOptions, "secretKey" | "fetchImpl" | "makeMailer">;
+  discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -45,6 +47,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
   });
+  await app.register(discoverPlugin, { db, config, ...deps.discover });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
