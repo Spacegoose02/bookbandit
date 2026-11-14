@@ -25,7 +25,8 @@ function StatusBadge({ item }: { item: DiscoverItem }) {
 }
 
 function DiscoverCard({ item, canRequest }: { item: DiscoverItem; canRequest: boolean }) {
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "unavailable" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "unavailable" | "in_library" | "error">("idle");
+  const [found, setFound] = useState<{ id: string; title: string } | null>(null);
   const cover = item.bookId && item.coverPath ? api.coverUrl({ id: item.bookId, coverPath: item.coverPath }) : item.coverUrl;
   const art = cover ? (
     <img className="bb-cover" src={cover} alt="" loading="lazy" />
@@ -39,8 +40,9 @@ function DiscoverCard({ item, canRequest }: { item: DiscoverItem; canRequest: bo
   const ask = async () => {
     setState("sending");
     try {
-      const ok = await discoverApi.requestBook({ title: item.title, author: item.authors[0] ?? null, isbn13: item.isbn13 });
-      setState(ok ? "sent" : "unavailable");
+      const r = await discoverApi.requestBook({ title: item.title, author: item.authors[0] ?? null, isbn13: item.isbn13 });
+      if (r.status === "in_library") setFound(r.book);
+      setState(r.status);
     } catch {
       setState("error");
     }
@@ -64,7 +66,12 @@ function DiscoverCard({ item, canRequest }: { item: DiscoverItem; canRequest: bo
             Read in Kindle
           </Link>
         )}
-        {item.status === "request" && canRequest && (
+        {item.status === "request" && canRequest && state === "in_library" && found && (
+          <Link className="bb-btn bb-btn-small" to={`/book/${found.id}`}>
+            Already here: open
+          </Link>
+        )}
+        {item.status === "request" && canRequest && state !== "in_library" && (
           <button
             className="bb-btn bb-btn-small bb-btn-primary"
             onClick={ask}
@@ -75,6 +82,7 @@ function DiscoverCard({ item, canRequest }: { item: DiscoverItem; canRequest: bo
         )}
       </div>
       {state === "unavailable" && <span className="bb-small bb-muted">Requests aren't switched on yet.</span>}
+      {state === "in_library" && found && <span className="bb-small bb-muted">It's already in the library as “{found.title}”.</span>}
       {state === "error" && <span className="bb-small bb-error">Couldn't send that request.</span>}
     </article>
   );

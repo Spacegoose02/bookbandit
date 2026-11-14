@@ -223,6 +223,6 @@ export const demoDiscoverApi: DiscoverApi = {
     return wait({ rows, created: Math.max(0, rows - 1), linked: rows ? 1 : 0, skipped: 0, errors: [], dryRun: !!opts.dryRun });
   },
   async requestBook() {
-    return wait(true);
+    return wait({ status: "sent" as const });
   },
 };

@@ -90,6 +90,15 @@ export interface BookRequestInput {
   isbn13: string | null;
 }
 
+/**
+ * sent: request created. in_library: the server found a book this reader can already open
+ * (409 already_in_library). unavailable: requests aren't switched on on this server.
+ */
+export type RequestResult =
+  | { status: "sent" }
+  | { status: "in_library"; book: { id: string; title: string } }
+  | { status: "unavailable" };
+
 export interface DiscoverApi {
   discover(): Promise<DiscoverResponse>;
   seriesList(q?: string): Promise<{ items: SeriesSummary[]; total: number }>;
@@ -102,8 +111,8 @@ export interface DiscoverApi {
   category(id: string, offset?: number): Promise<CategoryPage>;
   bookCategories(bookId: string): Promise<{ items: Omit<Category, "bookCount" | "books">[]; cookbook: boolean }>;
   kindleImport(csv: string, opts: { rating?: ContentRating; dryRun?: boolean }): Promise<KindleImportReport>;
-  /** Hands a "Request it" to the requests workstream; resolves false if requests aren't available yet. */
-  requestBook(input: BookRequestInput): Promise<boolean>;
+  /** Hands a "Request it" to the requests workstream (POST /api/requests). */
+  requestBook(input: BookRequestInput): Promise<RequestResult>;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -148,14 +157,21 @@ export const httpDiscoverApi: DiscoverApi = {
   bookCategories: (bookId) => request(`/api/books/${enc(bookId)}/categories`),
   kindleImport: (csv, opts) => request("/api/admin/kindle/import", { method: "POST", body: json({ csv, ...opts }) }),
   requestBook: async (input) => {
-    try {
-      await request("/api/requests", { method: "POST", body: json(input) });
-      return true;
-    } catch (e) {
-      // TODO(requests): drop this once ws/requests ships POST /api/requests.
-      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) return false;
-      throw e;
-    }
+    const res = await fetch("/api/requests", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: json(input),
+    });
+    if (res.ok) return { status: "sent" };
+    // A server without the requests feature yet.
+    if (res.status === 404 || res.status === 405) return { status: "unavailable" };
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string; message?: string; book?: { id: string; title: string } }
+      | null;
+    if (res.status === 409 && body?.error === "already_in_library" && body.book?.id)
+      return { status: "in_library", book: body.book };
+    throw new ApiError(res.status, body?.message ?? `HTTP ${res.status}`);
   },
 };
 
