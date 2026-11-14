@@ -30,6 +30,9 @@ import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { narrationPlugin, type NarrationOptions } from "./narration/index.js";
 import { learningPlugin, type LearningOptions } from "./learning/index.js";
+import { rewardsPlugin } from "./rewards/index.js";
+import { importsPlugin, type ImportsOptions } from "./imports/index.js";
+import { audioPlugin, type AudioOptions } from "./audio/index.js";
 import { librarianPlugin, type LibrarianOptions } from "./librarian/index.js";
 import { KepubConverter } from "./kobo/kepub.js";
 import { join } from "node:path";
@@ -46,6 +49,10 @@ export interface AppDeps {
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
   narration?: Pick<NarrationOptions, "fetchImpl" | "cacheDir">;
   learning?: Pick<LearningOptions, "fetchImpl" | "now">;
+  rewards?: { now?: () => number };
+  imports?: Pick<ImportsOptions, "fetchImpl">;
+  /** ABS calls go through integrations.fetchImpl too. */
+  audio?: Pick<AudioOptions, "pullTimeoutMs">;
   librarian?: Pick<LibrarianOptions, "convert" | "tools" | "fetchImpl">;
   familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
@@ -69,6 +76,8 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(healthRoutes);
   // Before any plugin that registers job handlers (library, requests).
   await app.register(jobsPlugin, { db, autostart: deps.jobsAutostart });
+  // Before the book, reading-time and audio routes: its bedtime guard hook must exist first.
+  await app.register(rewardsPlugin, { db, ...deps.rewards });
   await app.register(bookRoutes, { db });
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
@@ -88,6 +97,17 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
+  });
+  // After storyteller (its bedtime guard covers the audio track route) and integrations.
+  await app.register(audioPlugin, {
+    db,
+    box,
+    audiobooksDir: config.AUDIOBOOKS_DIR,
+    configDir: config.CONFIG_DIR,
+    scanOnStart: config.LIBRARY_SCAN_ON_START,
+    lookup: () => resolveLookup(db, box, config),
+    fetchImpl: deps.integrations?.fetchImpl,
+    ...deps.audio,
   });
   await app.register(requestsPlugin, {
     db,
@@ -123,6 +143,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     fetchImpl: deps.learning?.fetchImpl ?? deps.ai?.fetchImpl,
     now: deps.learning?.now ?? deps.ai?.now,
   });
+  await app.register(importsPlugin, { db, box, configDir: config.CONFIG_DIR, ...deps.imports });
   await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });

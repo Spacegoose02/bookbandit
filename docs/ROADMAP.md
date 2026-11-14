@@ -63,7 +63,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [x] AI provider settings (Ollama / OpenAI-compatible / Anthropic / Gemini), usage log, AI rating helper (`ws/ai`, [ai.md](ai.md))
 
-- [ ] AI metadata cleanup (`ws/ai`, wave 3)
+- [x] AI metadata cleanup (`ws/ai`, wave 3)
 
 ## Phase 3: Polish and devices
 
@@ -91,7 +91,7 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] AI: ask your library, spoiler-free book chat, web answers via SearXNG with sources (`ws/ai`)
 
-- [ ] AI: more like this, smart requests, meaning search (embeddings), streaming replies, rating helper on the job runner (`ws/ai`, wave 3)
+- [x] AI: more like this, smart requests, meaning search (embeddings), streaming replies, rating helper on the job runner (`ws/ai`, wave 3)
 
 - [x] Kid AI mode with Barnaby (moderation, personal-detail removal, parent log, daily limits, no chat under 5) (`ws/ai`)
 
@@ -105,9 +105,9 @@ Goal: Audiobookshelf can be switched off.
 
 - [x] Built-in audiobook player (speed, chapters, sleep timer) (`ws/listen`, on Audiobookshelf audio)
 
-- [ ] Audiobook folder scan of `/audiobooks`, served with Range through the same player API (`ws/audio`)
+- [x] Audiobook folder scan of `/audiobooks`, served with Range through the same player API (`ws/audio`)
 
-- [ ] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
+- [x] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
 
 - [x] Read-along (EPUB3 media overlays) (`ws/readaloud`)
 
@@ -115,11 +115,11 @@ Goal: Audiobookshelf can be switched off.
 
 Goal: the kids' side feels finished and the server looks after itself.
 
-- [ ] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
+- [x] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
 
-- [ ] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
+- [x] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
 
-- [ ] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
+- [x] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
 
 - [ ] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
 

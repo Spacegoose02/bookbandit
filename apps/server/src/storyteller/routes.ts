@@ -23,6 +23,7 @@ import type { Db } from "../db/client.js";
 import { bookFiles, books, kidShelf } from "../db/schema.js";
 import { storytellerSessions } from "./schema.js";
 import { beat, endStory, getSettings, recentSessions, saveSettings, startStory, tonight, BEAT_INTERVAL_MS } from "./service.js";
+import { bookIdsWithLocalAudio, hasAudio } from "../audio/sources.js";
 
 /** Formats the web reader can open and read aloud (foliate-js). */
 export const READ_ALOUD_FORMATS = ["epub", "azw3", "mobi", "fb2", "cbz"] as const;
@@ -92,7 +93,8 @@ export async function storytellerRoutes(app: FastifyInstance, opts: { db: Db }) 
             .map((r) => r.bookId)
         : [],
     );
-    return rows.map(({ absItemId, ...b }) => ({ ...b, hasAudio: absItemId != null, canReadAloud: readable.has(b.id) }));
+    const localAudio = bookIdsWithLocalAudio(db, ids); // ws/audio: local audiobooks count too
+    return rows.map(({ absItemId, ...b }) => ({ ...b, hasAudio: absItemId != null || localAudio.has(b.id), canReadAloud: readable.has(b.id) }));
   }
 
   function loadSession(kid: Reader, id: string) {
@@ -180,7 +182,7 @@ export async function storytellerRoutes(app: FastifyInstance, opts: { db: Db }) 
       .where(and(eq(kidShelf.kidId, kid.userId), eq(kidShelf.bookId, bookId)))
       .get();
     if (!onShelf?.storyteller) throw httpError(404, "Not found");
-    if (mode === "audio" && !book.absItemId) throw httpError(422, "This story has no audiobook");
+    if (mode === "audio" && !hasAudio(db, book)) throw httpError(422, "This story has no audiobook");
     if (mode === "read_aloud") {
       if (!getSettings(db, kid.userId).readAloud) throw httpError(422, "Read-aloud is off for this profile");
       const file = db

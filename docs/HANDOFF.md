@@ -62,12 +62,15 @@ Nighttime Ninja (Send to kitchen from Cook mode) under Admin → Connections; no
 `apps/server/src/family-apps/README.md`.
 
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
+Audiobook folders are read from `./data/audiobooks` (`AUDIOBOOKS_DIR`, `/audiobooks` in Docker), scanned at
+startup with the library and from **Admin → Audiobooks**; per-person Audiobookshelf accounts, import and
+write-back are on the same page. Details: `apps/server/src/audio/README.md`.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
 `LIBRARY_SCAN_ON_START=false` to turn that off; a missing or empty folder is skipped). An admin can
 start another scan with `POST /api/admin/library/scan` and check progress with `GET` on the same path.
 New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online metadata lookup is on
-by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
+by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN`, `GOOGLE_BOOKS_API_KEY` and `ISBNDB_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
 Discover pulls Open Library trending lists (and Hardcover's when a Hardcover token is set, in the
@@ -75,6 +78,10 @@ admin settings or `HARDCOVER_API_TOKEN`), cached in memory for 6 hours; turning 
 turns the outside lists off. An admin imports a Kindle library at `/discover/kindle-import` (or
 `POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
 [discover-api.md](discover-api.md).
+
+Moving in from Calibre, Calibre-Web, Kavita, Goodreads/StoryGraph or Google Play Books: **Admin → Move in**
+(`/admin/import`). Mount the Calibre library inside `/books` (and scan) so its books match; point the
+import at the folder holding `metadata.db` / `app.db`, or upload the file. See `apps/server/src/imports/README.md`.
 
 Android tablet app: `pnpm --filter @bookbandit/web build && pnpm --filter @bookbandit/android build`,
 then `cap sync android` and `./gradlew assembleDebug` (JDK 21 + Android SDK). CI builds the APK on

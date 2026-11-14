@@ -4,11 +4,16 @@
  */
 import { api, isDemo, request } from "../api/client";
 import { makeDemoTrack } from "./demoAudio";
-import type { AudioBook, AudioProgress, AudioProgressUpdate } from "./types";
+import type { AudioBook, AudioBookmark, AudioPrefs, AudioProgress, AudioProgressUpdate } from "./types";
 
 export interface AudioApi {
   audio(bookId: string): Promise<AudioBook>;
   putProgress(bookId: string, update: AudioProgressUpdate, opts?: { keepalive?: boolean }): Promise<{ applied: boolean; progress: AudioProgress }>;
+  putPrefs(bookId: string, prefs: Partial<AudioPrefs>): Promise<AudioPrefs>;
+  bookmarks(bookId: string): Promise<AudioBookmark[]>;
+  addBookmark(bookId: string, time: number, note?: string): Promise<AudioBookmark>;
+  editBookmark(id: string, patch: { note?: string | null; time?: number }): Promise<AudioBookmark>;
+  deleteBookmark(id: string): Promise<void>;
 }
 
 const enc = encodeURIComponent;
@@ -21,6 +26,14 @@ export const httpAudioApi: AudioApi = {
       body: JSON.stringify(update),
       keepalive: opts?.keepalive,
     }),
+  putPrefs: (bookId, prefs) => request(`/api/books/${enc(bookId)}/audio/prefs`, { method: "PUT", body: JSON.stringify(prefs) }),
+  bookmarks: async (bookId) => (await request<{ items: AudioBookmark[] }>(`/api/books/${enc(bookId)}/audio/bookmarks`)).items,
+  addBookmark: (bookId, time, note) =>
+    request(`/api/books/${enc(bookId)}/audio/bookmarks`, { method: "POST", body: JSON.stringify({ time, ...(note ? { note } : {}) }) }),
+  editBookmark: (id, patch) => request(`/api/audio/bookmarks/${enc(id)}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteBookmark: async (id) => {
+    await request<void>(`/api/audio/bookmarks/${enc(id)}`, { method: "DELETE" });
+  },
 };
 
 /** Demo books that "have" an audiobook (see DEMO_AUDIO_BOOKS in api/demo.ts). */
@@ -64,12 +77,77 @@ function readDemoProgress(bookId: string): AudioProgress | null {
   }
 }
 
+/** Demo books whose audio "comes from" a local folder rather than Audiobookshelf. */
+const DEMO_LOCAL = new Set(["b1", "b3"]);
+const DEMO_BOOKMARKS = "bb-demo-audio-bookmarks";
+const DEMO_SEED: AudioBookmark[] = [
+  { id: "bm-seed-1", bookId: "b1", time: 38, note: "Barnaby finds the first clue", origin: "bookbandit", createdAt: 1, updatedAt: 1, deleted: false },
+  { id: "bm-seed-2", bookId: "b1", time: 96, note: "Read this bit again with Emma", origin: "audiobookshelf", createdAt: 2, updatedAt: 2, deleted: false },
+];
+
+function readDemo<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDemo(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore */
+  }
+}
+
+function demoBookmarks(): AudioBookmark[] {
+  return readDemo<AudioBookmark[]>(DEMO_BOOKMARKS) ?? DEMO_SEED.map((b) => ({ ...b }));
+}
+
 export const demoAudioApi: AudioApi = {
   async audio(bookId) {
     const book = await api.book(bookId); // 404s like the server for books the profile can't see
-    if (!book.absItemId) throw Object.assign(new Error("This book has no audiobook"), { status: 404, notFound: true });
+    if (!book.absItemId && !book.hasAudio) throw Object.assign(new Error("This book has no audiobook"), { status: 404, notFound: true });
     const a = demoBook(bookId, book.title);
-    return { ...a, coverUrl: book.coverPath ?? "", author: book.authors?.[0]?.name ?? a.author };
+    return {
+      ...a,
+      coverUrl: book.coverPath ?? "",
+      author: book.authors?.[0]?.name ?? a.author,
+      source: DEMO_LOCAL.has(bookId) ? "local" : "audiobookshelf",
+      prefs: readDemo<AudioPrefs>(`bb-demo-audio-prefs-${bookId}`) ?? { speed: 1, skipSilence: false },
+    };
+  },
+  async putPrefs(bookId, prefs) {
+    const next = { ...(readDemo<AudioPrefs>(`bb-demo-audio-prefs-${bookId}`) ?? { speed: 1, skipSilence: false }), ...prefs };
+    writeDemo(`bb-demo-audio-prefs-${bookId}`, next);
+    return next;
+  },
+  async bookmarks(bookId) {
+    return demoBookmarks().filter((b) => b.bookId === bookId && !b.deleted).sort((a, b) => a.time - b.time);
+  },
+  async addBookmark(bookId, time, note) {
+    const now = Date.now();
+    const b: AudioBookmark = { id: `bm-${now}-${Math.random().toString(36).slice(2, 6)}`, bookId, time, note: note?.trim() || null, origin: "bookbandit", createdAt: now, updatedAt: now, deleted: false };
+    writeDemo(DEMO_BOOKMARKS, [...demoBookmarks(), b]);
+    return b;
+  },
+  async editBookmark(id, patch) {
+    const all = demoBookmarks();
+    const b = all.find((x) => x.id === id);
+    if (!b) throw Object.assign(new Error("Not found"), { status: 404, notFound: true });
+    if (patch.time != null) b.time = patch.time;
+    if (patch.note !== undefined) b.note = patch.note?.trim() || null;
+    b.updatedAt = Date.now();
+    writeDemo(DEMO_BOOKMARKS, all);
+    return b;
+  },
+  async deleteBookmark(id) {
+    writeDemo(
+      DEMO_BOOKMARKS,
+      demoBookmarks().filter((b) => b.id !== id),
+    );
   },
   async putProgress(bookId, u) {
     const progress: AudioProgress = {

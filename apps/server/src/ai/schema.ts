@@ -3,7 +3,7 @@
  * alongside db/schema.ts. Messages themselves live in `ai_messages` (db/schema.ts).
  */
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { CONTENT_RATINGS } from "@bookbandit/shared";
 import { aiMessages, books, users } from "../db/schema.js";
 
@@ -98,4 +98,59 @@ export const aiRatingSuggestions = sqliteTable("ai_rating_suggestions", {
   /** pending → accepted (admin), applied (auto, stricter), dismissed */
   status: text("status", { enum: ["pending", "accepted", "applied", "dismissed"] }).notNull().default("pending"),
   createdAt: createdAt(),
+});
+
+// ---- Round 2: meaning search and metadata cleanup ---------------------------------
+
+/**
+ * One embedding per book for meaning search and "more like this". Rebuildable at any time from
+ * the books table (the `ai.embed` job), so it's a cache, not data. `textHash` spots stale rows.
+ */
+export const aiBookEmbeddings = sqliteTable(
+  "ai_book_embeddings",
+  {
+    bookId: text("book_id")
+      .primaryKey()
+      .references(() => books.id, { onDelete: "cascade" }),
+    providerId: text("provider_id").notNull(),
+    model: text("model").notNull(),
+    dims: integer("dims").notNull(),
+    /** Float32 little-endian, unit length. */
+    vector: blob("vector", { mode: "buffer" }).notNull(),
+    textHash: text("text_hash").notNull(),
+    updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+  },
+  (t) => [index("ai_book_embeddings_model_idx").on(t.model)],
+);
+
+/**
+ * Metadata cleanup suggestions, one row per book and field. An admin accepts each field on its
+ * own; nothing is changed without that.
+ */
+export const aiMetadataSuggestions = sqliteTable(
+  "ai_metadata_suggestions",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    bookId: text("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    field: text("field", { enum: ["title", "subtitle", "authors", "series", "description"] }).notNull(),
+    /** JSON: string for text fields, string[] for authors, { name, position } for series. */
+    current: text("current", { mode: "json" }),
+    suggested: text("suggested", { mode: "json" }).notNull(),
+    reason: text("reason").notNull().default(""),
+    providerId: text("provider_id").notNull(),
+    model: text("model").notNull(),
+    status: text("status", { enum: ["pending", "accepted", "dismissed"] }).notNull().default("pending"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("ai_metadata_suggestions_book_field_idx").on(t.bookId, t.field), index("ai_metadata_suggestions_status_idx").on(t.status)],
+);
+
+/** Books the metadata helper has looked at, so a run only picks new ones. */
+export const aiMetadataChecks = sqliteTable("ai_metadata_checks", {
+  bookId: text("book_id")
+    .primaryKey()
+    .references(() => books.id, { onDelete: "cascade" }),
+  checkedAt: integer("checked_at", { mode: "number" }).notNull(),
 });

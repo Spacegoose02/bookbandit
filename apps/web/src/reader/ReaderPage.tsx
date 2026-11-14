@@ -6,6 +6,7 @@ import type { Bookmark, BookDetail } from "../api/types";
 import { useSession } from "../app/session";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { ThemePicker } from "../themes/ThemePicker";
+import { ReadingHelp } from "../themes/ReadingHelp";
 import { pickReadableFile } from "./formats";
 import { fraction, pageLocator, PdfView, startPage, type PdfPosition } from "./pdf";
 import { defaultDeviceName, ProgressSync, resolveStartPosition } from "./progressSync";
@@ -362,6 +363,7 @@ export function ReaderPage() {
                   A+
                 </button>
               </div>
+              {kid && <ReadingHelp prefs={prefs} setPrefs={setPrefs} /> /* ws/kids: big reading-help buttons */}
               {!kid && (
                 <>
                   <label className="bb-field">

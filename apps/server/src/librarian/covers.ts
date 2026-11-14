@@ -16,7 +16,7 @@ import type { Cover } from "../metadata/types.js";
 import type { LibrarianBook } from "./books.js";
 
 export interface CoverCandidate {
-  source: "file" | "openlibrary" | "google" | "hardcover";
+  source: "file" | "openlibrary" | "google" | "hardcover" | "isbndb";
   label: string;
   /** For "file": the admin endpoint that streams it. Otherwise the provider's image URL. */
   url: string;
@@ -73,7 +73,7 @@ export async function coverCandidates(book: LibrarianBook, lookup: LookupOptions
   return { candidates, errors };
 }
 
-const PROVIDER_LABEL = { openlibrary: "Open Library", google: "Google Books", hardcover: "Hardcover" } as const;
+const PROVIDER_LABEL = { openlibrary: "Open Library", google: "Google Books", hardcover: "Hardcover", isbndb: "ISBNdb" } as const;
 
 export async function fetchCoverUrl(fetchFn: typeof fetch, url: string): Promise<Cover | undefined> {
   const u = new URL(url);

@@ -1,0 +1,214 @@
+/* Move-in imports page (/admin/import). Builds on admin.css tokens. */
+
+.bb-import-sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.bb-import-source {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.6rem;
+  align-items: center;
+  text-align: left;
+  padding: 0.75rem 0.85rem;
+  background: var(--bb-surface);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  color: var(--bb-text);
+  cursor: pointer;
+  font: inherit;
+}
+.bb-import-source:hover {
+  border-color: color-mix(in srgb, var(--bb-accent) 60%, transparent);
+}
+.bb-import-source.is-active {
+  border-color: var(--bb-accent);
+  box-shadow: inset 4px 0 0 var(--bb-accent);
+}
+.bb-import-source-icon {
+  grid-row: span 2;
+  font-size: 1.5rem;
+}
+.bb-import-source-name {
+  font-weight: 700;
+}
+.bb-import-source-what {
+  color: var(--bb-muted);
+  font-size: 0.85rem;
+}
+
+.bb-import-file,
+.bb-import-options,
+.bb-import-people {
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  padding: 0.6rem 0.8rem 0.8rem;
+  margin: 0.8rem 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.bb-import-file legend,
+.bb-import-options legend,
+.bb-import-people legend {
+  padding: 0 0.3rem;
+  font-weight: 600;
+}
+.bb-import-file-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.bb-import-keys {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+  justify-items: start;
+}
+.bb-import-key {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.bb-import-person {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 220px);
+  gap: 0.6rem;
+  align-items: center;
+}
+.bb-import-person .bb-tag {
+  margin-left: 0.5rem;
+}
+
+.bb-import-running {
+  margin-top: 1rem;
+}
+
+.bb-import-report {
+  margin-top: 1.2rem;
+  border-top: 1px solid var(--bb-border);
+  padding-top: 1rem;
+}
+.bb-import-report h3 {
+  margin: 0 0 0.7rem;
+}
+.bb-import-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.bb-import-count {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--bb-radius);
+  border: 1px solid var(--bb-border);
+  background: var(--bb-surface-2);
+  color: var(--bb-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bb-import-count strong {
+  font-family: var(--bb-display-font);
+  font-size: 1.5rem;
+}
+.bb-import-count span {
+  color: var(--bb-muted);
+  font-size: 0.85rem;
+}
+.bb-import-count.is-active {
+  border-color: var(--bb-accent);
+}
+.bb-import-count.is-conflict strong {
+  color: var(--bb-warn);
+}
+.bb-import-count.is-new strong,
+.bb-import-count.is-matched strong {
+  color: var(--bb-ok);
+}
+
+.bb-import-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0;
+}
+
+.bb-import-warnings {
+  margin: 0.8rem 0 0;
+  padding: 0.6rem 0.8rem 0.6rem 1.8rem;
+  border-radius: var(--bb-radius);
+  background: color-mix(in srgb, var(--bb-warn) 14%, transparent);
+}
+
+.bb-import-items {
+  width: 100%;
+  margin-top: 0.8rem;
+  border-collapse: collapse;
+}
+.bb-import-items td {
+  padding: 0.4rem 0.3rem;
+  border-top: 1px solid var(--bb-border);
+  vertical-align: top;
+}
+.bb-import-items td:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+.bb-import-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--bb-surface-2);
+  color: var(--bb-muted);
+}
+.bb-import-badge.is-matched,
+.bb-import-badge.is-new {
+  background: color-mix(in srgb, var(--bb-ok) 20%, transparent);
+  color: var(--bb-text);
+}
+.bb-import-badge.is-conflict {
+  background: color-mix(in srgb, var(--bb-warn) 25%, transparent);
+  color: var(--bb-text);
+}
+
+.bb-import-past {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-import-past li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.3rem 1rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-import-past li:first-child {
+  border-top: 0;
+}
+
+.bb-btn.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .bb-import-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bb-import-key,
+  .bb-import-person {
+    grid-template-columns: 1fr;
+  }
+}

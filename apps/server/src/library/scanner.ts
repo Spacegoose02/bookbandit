@@ -118,7 +118,8 @@ export async function scanLibrary(opts: ScanOptions): Promise<ScanReport> {
     .select({ id: books.id })
     .from(books)
     .where(
-      sql`${books.kindleOnly} = 0 and not exists (select 1 from ${bookFiles} where ${bookFiles.bookId} = ${books.id})`,
+      // ws/audio: a book with only an audiobook isn't missing its files.
+      sql`${books.kindleOnly} = 0 and not exists (select 1 from ${bookFiles} where ${bookFiles.bookId} = ${books.id}) and not exists (select 1 from audiobooks where audiobooks.book_id = ${books.id})`,
     )
     .all()
     .map((r) => r.id);
