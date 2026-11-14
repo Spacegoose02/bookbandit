@@ -1456,3 +1456,21 @@ button {
     margin-left: auto;
   }
 }
+
+/* Phones: the grown-up menu is one swipeable line under the logo, not three wrapped rows. */
+@media (max-width: 600px) {
+  .bb-app:not(.is-kid) .bb-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(var(--bb-gutter) * -1);
+    padding: 0 var(--bb-gutter);
+    mask-image: linear-gradient(90deg, transparent 0, #000 var(--bb-gutter), #000 calc(100% - 28px), transparent);
+  }
+  .bb-app:not(.is-kid) .bb-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .bb-app:not(.is-kid) .bb-nav a {
+    min-height: 40px;
+  }
+}

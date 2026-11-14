@@ -1,0 +1,549 @@
+/* Grown-up home page (HomePage.tsx). Theme tokens only, so every theme and light/dark works. */
+
+.bb-home {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 4vw, 40px);
+  padding-top: clamp(16px, 3vw, 28px);
+  /* Room for Barnaby's floating button so it never covers the last row. */
+  padding-bottom: 112px;
+}
+.bb-home > .bb-shelf {
+  margin: 0;
+}
+
+/* --- hero -------------------------------------------------------------- */
+
+.bb-home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
+  grid-template-areas:
+    "hello search"
+    "quick quick";
+  gap: 18px 32px;
+  align-items: center;
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid var(--bb-border);
+  border-radius: calc(var(--bb-radius) * 1.5);
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--bb-accent) 16%, transparent) 0%, transparent 60%),
+    var(--bb-surface);
+}
+.bb-home-hello {
+  grid-area: hello;
+  min-width: 0;
+}
+.bb-home-hello h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  letter-spacing: -0.01em;
+}
+.bb-home-hello p {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+}
+
+.bb-home-search {
+  grid-area: search;
+  position: relative;
+}
+.bb-home-search input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px 0 46px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  background: var(--bb-bg);
+  color: var(--bb-text);
+  font: inherit;
+  font-size: 1rem;
+}
+.bb-home-search input::placeholder {
+  color: var(--bb-muted);
+}
+.bb-home-search input:focus {
+  outline: none;
+  border-color: var(--bb-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bb-accent) 30%, transparent);
+}
+.bb-home-search-icon {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--bb-muted);
+  pointer-events: none;
+}
+
+.bb-home-quick {
+  grid-area: quick;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bb-home-quick a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  background: var(--bb-surface-2);
+  color: var(--bb-text);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.bb-home-quick a:hover {
+  border-color: var(--bb-accent);
+}
+.bb-home-quick a.is-barnaby {
+  padding-left: 6px;
+  border-color: color-mix(in srgb, var(--bb-accent) 60%, var(--bb-border));
+}
+
+/* --- "waiting for you" strip ------------------------------------------- */
+
+.bb-home-desk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: calc(clamp(28px, 4vw, 40px) * -0.5);
+}
+.bb-home-desk a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--bb-radius);
+  border: 1px dashed var(--bb-border);
+  color: var(--bb-muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+.bb-home-desk a.has-count {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--bb-accent) 55%, var(--bb-border));
+  background: color-mix(in srgb, var(--bb-accent) 10%, var(--bb-surface));
+  color: var(--bb-text);
+}
+.bb-home-desk a:hover {
+  border-color: var(--bb-accent);
+  color: var(--bb-text);
+}
+.bb-home-desk b {
+  color: var(--bb-accent);
+  font-size: 1.05rem;
+}
+
+/* --- section headings --------------------------------------------------- */
+
+.bb-home-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.bb-home-head h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.4rem);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-home-head .bb-link {
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.bb-home .bb-shelf-row {
+  grid-auto-columns: minmax(120px, 140px);
+}
+
+/* --- jump back in -------------------------------------------------------- */
+
+.bb-home-jump {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+.bb-home-jump.is-single {
+  grid-template-columns: minmax(0, 560px);
+}
+
+.bb-home-jump-card,
+.bb-home-start {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--bb-border);
+  border-radius: calc(var(--bb-radius) * 1.25);
+  background: var(--bb-surface);
+}
+.bb-home-jump-cover {
+  display: block;
+  align-self: start;
+}
+.bb-home-jump-cover .bb-cover-blank {
+  font-size: 0.75rem;
+  padding: 6px;
+}
+.bb-home-jump-body,
+.bb-home-start-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.bb-home-jump-title {
+  color: var(--bb-text);
+  font-family: var(--bb-display-font);
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1.25;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.bb-home-jump-title:hover {
+  text-decoration: underline;
+}
+.bb-home-jump-meta {
+  color: var(--bb-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bb-home-jump-progress {
+  margin-top: auto;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bb-surface-2);
+  overflow: hidden;
+}
+.bb-home-jump-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bb-accent);
+}
+.bb-home-jump-pct {
+  color: var(--bb-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.bb-home-jump-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.bb-home-jump-actions .bb-btn {
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.bb-home-start {
+  max-width: 640px;
+  grid-template-columns: 110px minmax(0, 1fr);
+}
+.bb-home-start h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.bb-home-start p {
+  margin: 4px 0;
+}
+.bb-home-start-title {
+  color: var(--bb-text);
+}
+
+/* --- series tiles ------------------------------------------------------- */
+
+.bb-home-series-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+}
+.bb-home-series-tile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: calc(var(--bb-radius) * 1.25);
+  background: var(--bb-surface);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.bb-home-series-tile:hover,
+.bb-home-cat-tile:hover {
+  border-color: var(--bb-accent);
+}
+.bb-home-series-stack {
+  position: relative;
+  flex: none;
+  width: 92px;
+  height: 84px;
+}
+.bb-home-series-stack .bb-cover {
+  position: absolute;
+  top: 0;
+  width: 56px;
+  height: 84px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+}
+.bb-home-series-stack .bb-cover-blank {
+  padding: 4px;
+  font-size: 0.55rem;
+}
+.bb-home-series-stack .bb-cover:nth-child(1) {
+  left: 0;
+  z-index: 3;
+}
+.bb-home-series-stack .bb-cover:nth-child(2) {
+  left: 18px;
+  z-index: 2;
+  transform: scale(0.94);
+  opacity: 0.85;
+}
+.bb-home-series-stack .bb-cover:nth-child(3) {
+  left: 36px;
+  z-index: 1;
+  transform: scale(0.88);
+  opacity: 0.7;
+}
+.bb-home-series-text,
+.bb-home-cat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bb-home-series-text b,
+.bb-home-cat-text b {
+  font-size: 1.05rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-home-series-text .bb-muted,
+.bb-home-cat-text .bb-muted {
+  font-size: 0.875rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --- category tiles ---------------------------------------------------- */
+
+.bb-home-cat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+}
+.bb-home-cat-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 92px;
+  padding: 14px 16px;
+  border: 1px solid var(--bb-border);
+  border-radius: calc(var(--bb-radius) * 1.25);
+  background: linear-gradient(135deg, var(--bb-surface) 40%, var(--bb-surface-2));
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+}
+.bb-home-cat-covers {
+  position: relative;
+  flex: none;
+  width: 74px;
+  height: 64px;
+}
+.bb-home-cat-covers .bb-cover {
+  position: absolute;
+  bottom: 0;
+  width: 40px;
+  height: 60px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.bb-home-cat-covers .bb-cover-blank {
+  padding: 2px;
+  font-size: 0.45rem;
+}
+.bb-home-cat-covers .bb-cover:nth-child(1) {
+  right: 30px;
+  transform: rotate(-8deg);
+}
+.bb-home-cat-covers .bb-cover:nth-child(2) {
+  right: 15px;
+  transform: rotate(-2deg);
+  z-index: 1;
+}
+.bb-home-cat-covers .bb-cover:nth-child(3) {
+  right: 0;
+  transform: rotate(6deg);
+  z-index: 2;
+}
+
+/* --- loading ------------------------------------------------------------ */
+
+.bb-home-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.bb-home-skel {
+  border-radius: var(--bb-radius);
+  background: linear-gradient(90deg, var(--bb-surface) 0%, var(--bb-surface-2) 50%, var(--bb-surface) 100%);
+  background-size: 200% 100%;
+  animation: bb-home-skel 1.4s ease-in-out infinite;
+}
+.bb-home-skel-head {
+  width: 200px;
+  height: 24px;
+}
+.bb-home-skel-card {
+  height: 160px;
+}
+.bb-home-skel-row {
+  height: 220px;
+}
+@keyframes bb-home-skel {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bb-home-skel {
+    animation: none;
+  }
+}
+
+/* --- tablet and phone --------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .bb-home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "hello"
+      "search"
+      "quick";
+    gap: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bb-home {
+    gap: 26px;
+    padding-top: 12px;
+  }
+  .bb-home-hero {
+    margin: 0 calc(var(--bb-gutter) * -0.5);
+    padding: 18px 16px;
+  }
+  .bb-home-hello p {
+    font-size: 0.95rem;
+  }
+  /* One swipeable line of chips instead of a wrapped block. */
+  .bb-home-quick,
+  .bb-home-desk {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-left: calc(var(--bb-gutter) * -1);
+    margin-right: calc(var(--bb-gutter) * -1);
+    padding: 0 var(--bb-gutter) 2px;
+    scrollbar-width: none;
+  }
+  .bb-home-hero .bb-home-quick {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px 2px;
+  }
+  .bb-home-desk {
+    margin-top: -10px;
+  }
+  .bb-home-desk a {
+    white-space: nowrap;
+  }
+  /* Swipe through what you're reading; the next card peeks in. */
+  .bb-home-jump {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: 86%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 calc(var(--bb-gutter) * -1);
+    padding: 0 var(--bb-gutter) 4px;
+    scroll-padding: 0 var(--bb-gutter);
+  }
+  .bb-home-jump.is-single {
+    grid-auto-columns: 100%;
+  }
+  .bb-home-jump > * {
+    scroll-snap-align: start;
+  }
+  .bb-home-jump-card,
+  .bb-home-start {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+  .bb-home .bb-shelf-row {
+    grid-auto-columns: 112px;
+    gap: 14px;
+  }
+  .bb-home-cat-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .bb-home-cat-tile {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    min-height: 0;
+    padding: 12px;
+  }
+  .bb-home-cat-covers {
+    width: 70px;
+    height: 54px;
+  }
+  .bb-home-cat-covers .bb-cover {
+    width: 34px;
+    height: 51px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bb-home-series-tiles {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: 82%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 calc(var(--bb-gutter) * -1);
+    padding: 0 var(--bb-gutter) 4px;
+    scroll-padding: 0 var(--bb-gutter);
+  }
+  .bb-home-series-tiles > * {
+    scroll-snap-align: start;
+  }
+}
