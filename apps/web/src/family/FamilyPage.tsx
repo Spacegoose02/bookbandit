@@ -4,6 +4,7 @@ import { RATING_LABELS } from "@bookbandit/shared";
 import { BarnabyAvatar, BarnabyEmpty } from "../brand/Barnaby";
 import { adminApi, type ChatMessage, type KidChat, type KidRequest } from "../admin/api";
 import { ReadingTimeCard, WeekMinutes } from "./ReadingTime";
+import { LearningCard } from "../readaloud/LearningCard"; // ws/readaloud hook
 import { Bar, Card, Cover, ErrorNote, RatingPill, timeAgo, useLoad } from "../admin/ui";
 
 /** Parent dashboard: one card per kid with this week's reading, requests and Barnaby chats. */
@@ -146,6 +147,7 @@ export function KidPage() {
           )}
         </Card>
 
+        <LearningCard kidId={d.kid.id} kidName={d.kid.displayName} /> {/* ws/readaloud hook */}
         <Card title="Book requests">
           {d.requests.length === 0 ? <p className="bb-muted">No requests yet.</p> : null}
           <ul className="bb-requests">

@@ -32,6 +32,7 @@ import { DiscoverPage } from "./discover/DiscoverPage";
 import { KindleImportPage } from "./discover/KindleImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
+import { NarrationSettingsPage } from "./readaloud/NarrationSettingsPage"; // ws/readaloud
 
 export function App() {
   const { me } = useSession();
@@ -69,6 +70,7 @@ export function App() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="categories/:id" element={<CategoryPageView />} />
         <Route path="settings/ereaders" element={<EreadersPage />} />
+        <Route path="readaloud/settings" element={<NarrationSettingsPage />} /> {/* ws/readaloud */}
         <Route path="admin" element={<AdminLayout area="admin" />}>
           <Route index element={<AdminHome />} />
           <Route path="inbox" element={<InboxPage />} />

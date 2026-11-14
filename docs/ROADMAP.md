@@ -85,7 +85,7 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Kid AI mode with Barnaby (moderation, personal-detail removal, parent log, daily limits, no chat under 5) (`ws/ai`)
 
-- [ ] AI narration (Piper/Kokoro) and quizzes/word help
+- [x] AI narration (Piper/Kokoro) and quizzes/word help (`ws/readaloud`: word highlighting, EPUB3 read-along, tap-a-word help, after-chapter quizzes on the family page)
 
 ## Phase 4: Own the audio (optional)
 
