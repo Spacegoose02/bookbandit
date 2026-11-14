@@ -6,6 +6,7 @@ import { authors, bookAuthors, bookFiles, books } from "../db/schema.js";
 import { requireReader } from "../auth/plugin.js";
 import { assertCanSee, ContentLockedError, visibleBooksWhere } from "../content/lock.js";
 import { enrich, likePattern, listBooks, parseRatings, SORTS } from "../catalog/list.js";
+import { hasAudio } from "../audio/sources.js";
 
 const year = z.coerce.number().int().min(0).max(3000);
 
@@ -60,7 +61,8 @@ export async function bookRoutes(app: FastifyInstance, opts: { db: Db }) {
       .orderBy(asc(bookFiles.format))
       .all();
     const [enriched] = enrich(db, reader, [book]);
-    return { ...enriched, files };
+    // hasAudio: an Audiobookshelf link or a local audiobook (ws/audio) — the web shows "Listen".
+    return { ...enriched, files, hasAudio: hasAudio(db, book) };
   });
 
   /** Authors with at least one book the reader can see. */

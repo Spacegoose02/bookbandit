@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { adminApi, type MetadataSettings, type SmtpSettings } from "./api";
 import { Card, ErrorNote, useAction, useLoad } from "./ui";
 import { FamilyAppsCards } from "../family-apps/FamilyAppsCards";
@@ -63,7 +64,10 @@ function AbsCard() {
       title="Audiobookshelf"
       actions={s ? <Status on={s.configured && s.enabled} label={s.configured ? (s.enabled ? "Connected" : "Off") : "Not set up"} /> : null}
     >
-      <p className="bb-muted bb-small">Plays audiobooks from your Audiobookshelf server and keeps listening progress in sync.</p>
+      <p className="bb-muted bb-small">
+        Plays audiobooks from your Audiobookshelf server and keeps listening progress in sync. Per-person accounts, import and
+        your own audiobook folder: <Link to="/admin/audio">Audiobooks</Link>.
+      </p>
       <form onSubmit={save}>
         <label className="bb-field">
           Server address

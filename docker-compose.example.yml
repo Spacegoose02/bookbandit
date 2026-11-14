@@ -15,4 +15,6 @@ services:
     volumes:
       - ./config:/config
       - /mnt/user/media/books:/books
+      # Optional: audiobook folders (the same folder Audiobookshelf uses is fine; read-only works).
+      - /mnt/user/media/audiobooks:/audiobooks
     restart: unless-stopped

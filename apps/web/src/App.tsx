@@ -24,6 +24,7 @@ import { BarnabyPage } from "./ai/BarnabyPage";
 import { FamilyAiPage } from "./ai/FamilyAiPage";
 import { FindBookPage } from "./ai/FindBookPage";
 import { ListenPage } from "./audio/ListenPage";
+import { AudioAdminPage } from "./audio/AudioAdminPage";
 import { StorytellerGate } from "./storyteller/StorytellerGate";
 import { StorytellerPage } from "./storyteller/StorytellerPage";
 import { StorytellerSetup } from "./storyteller/StorytellerSetup";
@@ -82,6 +83,7 @@ export function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="audio" element={<AudioAdminPage />} />
           <Route path="librarian" element={<LibrarianLayout />}>
             <Route index element={<HealthPage />} />
             <Route path="duplicates" element={<DuplicatesPage />} />
