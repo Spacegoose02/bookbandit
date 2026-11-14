@@ -44,7 +44,7 @@ Goal: the Calibre desktop app is no longer needed.
 - [ ] Duplicate finder UI (`ws/admin`; detection exists in the library service)
 - [ ] Discover and trending, series pages, admin-made series, category browsing (`ws/discover`)
 - [ ] Cookbook view (`ws/discover`)
-- [ ] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`)
+- [x] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`; physical Kobo test pending)
 - [ ] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 - [ ] AI: ask your library, more like this, spoiler-free chat, smart requests, web answers via SearXNG (`ws/ai`)
 - [ ] Kid AI mode with Barnaby (moderation, parent log, limits) (`ws/ai`)

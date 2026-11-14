@@ -42,6 +42,10 @@ Local auth: the API only trusts the Tinyauth email header from `TRUSTED_PROXIES`
 development set `TRUSTED_PROXIES=127.0.0.1` and send `Remote-Email: you@example.com`, after adding a
 matching row to `user_identities`. (The auth workstream will add a dev seed and local login.)
 
+E-readers (OPDS apps, KOReader, Kobo): create a sign-in under **E-readers** in the web app. The
+reverse proxy must let `/opds`, `/kosync` and `/kobo` through without Tinyauth; the e-reader signs
+in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
@@ -55,6 +59,7 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | E-reader sync: OPDS 1.2 catalog, KOReader kosync server (positions translated to and from the web reader's CFIs/pages), Kobo store-sync emulation (KEPUB, reading state, removal of books that get locked), e-reader sign-ins and an E-readers settings page (migration 0003). `/opds`, `/kosync`, `/kobo` must bypass Tinyauth on the proxy. See `apps/server/src/ereader/README.md` | ws/ereader PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |

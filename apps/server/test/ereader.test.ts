@@ -380,6 +380,25 @@ describe("KOReader sync", () => {
     expect((await k.get(stranger)).json()).toMatchObject({ document: stranger, progress: "42", percentage: 0.5 });
   });
 
+  it("syncs PDF pages, counting from 1 in KOReader and from 0 in the web reader", async () => {
+    const pdfBook = f.book("Picture Atlas", "kids");
+    const pdf = await addFile(pdfBook, "kids/atlas.pdf", Buffer.from("%PDF-1.4 atlas"), "pdf");
+    const c = await createLogin("adult");
+    const k = await kosync(c);
+    const doc = await partialMd5(pdf.abs);
+    await k.put({ document: doc, progress: "5", percentage: 0.5, device: "KOReader" });
+    const rp = f.db.select().from(readingProgress).where(eq(readingProgress.bookId, pdfBook)).get();
+    expect(rp?.locator).toEqual({ kind: "page", page: 4, totalPages: 10 });
+
+    await f.app.inject({
+      method: "PUT",
+      url: `/api/progress/${pdfBook}`,
+      headers: f.as("adult"),
+      payload: { locator: { kind: "page", page: 7, totalPages: 10 }, updatedAt: Date.now() + 5, deviceName: "Web" },
+    });
+    expect((await k.get(doc)).json()).toMatchObject({ progress: "8", percentage: 0.7 });
+  });
+
   it("treats a locked book exactly like an unknown file", async () => {
     const c = await createLogin("parent", f.ids.kid);
     const k = await kosync(c);

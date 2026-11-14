@@ -133,10 +133,11 @@ export async function koreaderRoutes(app: FastifyInstance, opts: KosyncOptions) 
           mirrorProgress(db, auth.reader.userId, match.book.id, { locator: { kind: "epub", cfi, percent: body.percentage }, percent: body.percentage, deviceName }, now, now);
         }
       } else if (PAGED.has(match.file.format)) {
+        // KOReader counts pages from 1; the web reader's page locator counts from 0.
         const page = Number.parseInt(body.progress, 10);
-        if (Number.isFinite(page) && page >= 0) {
+        if (Number.isFinite(page) && page >= 1) {
           const totalPages = body.percentage > 0 ? Math.max(page, Math.round(page / body.percentage)) : 0;
-          mirrorProgress(db, auth.reader.userId, match.book.id, { locator: { kind: "page", page, totalPages }, percent: body.percentage, deviceName }, now, now);
+          mirrorProgress(db, auth.reader.userId, match.book.id, { locator: { kind: "page", page: page - 1, totalPages }, percent: body.percentage, deviceName }, now, now);
         }
       }
     }
@@ -187,8 +188,8 @@ async function toKoreaderProgress(file: FileRow, abs: string, locator: Locator):
     return locator.kind === "epub" ? cfiToXpointer(abs, locator.cfi).catch(() => null) : null;
   }
   if (PAGED.has(file.format)) {
-    if (locator.kind === "page") return String(Math.max(1, locator.page));
-    // The web reader shows PDFs and comics one section per page.
+    if (locator.kind === "page") return String(Math.max(0, locator.page) + 1);
+    // Comics open in foliate, one section per page.
     if (locator.kind === "epub") {
       const parsed = parseCfi(locator.cfi);
       return parsed ? String(parsed.spineIndex + 1) : null;

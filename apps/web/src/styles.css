@@ -1040,6 +1040,7 @@ button {
 }
 .bb-ereader-error {
   color: #ff8a80;
+}
 
 /* PDF: one page at a time, centred on the stage. */
 .bb-pdf-host {
