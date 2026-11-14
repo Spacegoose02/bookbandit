@@ -18,6 +18,7 @@ import { requireAdmin } from "../auth/plugin.js";
 import type { LookupOptions } from "../metadata/lookup.js";
 import { LibraryService } from "./service.js";
 import { enrichBook } from "./enrich.js";
+import { insideRoot, serveRoutes } from "./serve.js";
 
 const IdParams = z.object({ id: z.string().min(1).max(64) });
 const Page = z.object({
@@ -69,6 +70,9 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
     ? { googleApiKey: config.GOOGLE_BOOKS_API_KEY, hardcoverToken: config.HARDCOVER_API_TOKEN, ...opts.lookup }
     : false;
   const booksRoot = resolve(config.BOOKS_DIR);
+  // Reader-facing: covers and book files (content lock applies).
+  await app.register(serveRoutes, { db, booksDir: booksRoot, configDir: config.CONFIG_DIR });
+
   const service = new LibraryService({ db, booksDir: booksRoot, configDir: config.CONFIG_DIR, online: lookup, log: app.log });
 
   /** Authors and files for a page of books, keyed by book id. */
@@ -281,10 +285,4 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
     }));
     return { sameFile, sameWork };
   });
-}
-
-/** Absolute path for `rel` if it stays inside `root`, else undefined (guards against "../"). */
-function insideRoot(root: string, rel: string): string | undefined {
-  const abs = resolve(root, rel);
-  return abs === root || !abs.startsWith(root + sep) ? undefined : abs;
 }

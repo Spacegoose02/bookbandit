@@ -47,4 +47,11 @@ and Open Library. ISBN first, then title + author with a plausibility check. Tur
 | `POST` | `/api/admin/books/:id/metadata/refresh` | Online lookup now |
 | `GET` | `/api/admin/library/duplicates` | Same bytes at several paths; separate books with the same ISBN or title |
 
+## Reader API (content lock: 404 when locked or not yet approved)
+
+| Method | Path | What |
+| --- | --- | --- |
+| `GET` | `/api/books/:id/cover` | Cover image bytes |
+| `GET` | `/api/books/:id/files/:fileId` | The book file, with `Range` support and the right `Content-Type`. DRM-protected MOBI/AZW3/EPUB files answer 409 (we never remove DRM). |
+
 Covers are saved to `CONFIG_DIR/covers/<bookId>.<ext>`; `books.cover_path` is relative to `CONFIG_DIR`.
