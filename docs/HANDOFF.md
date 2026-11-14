@@ -58,6 +58,8 @@ are optional. Details: `apps/server/src/library/README.md`.
 | Date | Change | PR |
 | --- | --- | --- |
 | 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
+| 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
+| 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
 | 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
 | 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |
@@ -68,9 +70,10 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 ## Next up
 
-1. Land the six Phase 1 workstreams.
-2. Integration pass: wire the web app to auth, library and sync; first end-to-end run in Docker on Unraid.
-3. Start Phase 2 with the Android app and storyteller mode.
+1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
+   storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
+2. Auth: web sign-in screen and own-profile editor.
+3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
 
 ## Decisions so far
 
