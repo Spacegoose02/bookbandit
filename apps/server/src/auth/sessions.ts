@@ -86,8 +86,17 @@ export function readCookie(header: string | undefined, name: string): string | n
 }
 
 export function sessionCookie(token: string, maxAgeMs: number, secure: boolean): string {
+  return cookie(SESSION_COOKIE, token, maxAgeMs, secure);
+}
+
+/** Browsers on a paired tablet keep the device token in this cookie (apps send it as a Bearer token). */
+export const DEVICE_COOKIE = "bb_device";
+/** Browsers cap cookie lifetime at about 400 days. */
+export const DEVICE_COOKIE_MAX_AGE_MS = 400 * 24 * 60 * 60 * 1000;
+
+export function cookie(name: string, value: string, maxAgeMs: number, secure: boolean): string {
   return [
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
+    `${name}=${encodeURIComponent(value)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",

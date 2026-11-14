@@ -15,11 +15,12 @@ import { and, eq, isNull, like, lt, not } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { devices, users } from "../db/schema.js";
-import { clientIp, DEVICE_TOKEN_PREFIX, httpError, requireReader } from "../auth/plugin.js";
+import { clientIp, DEVICE_TOKEN_PREFIX, httpError, isSecureRequest, requireReader } from "../auth/plugin.js";
 import { canManage, loadManagedUser } from "../auth/permissions.js";
 import { normalizePairingCode, pairingCode, randomToken, sha256 } from "../auth/secrets.js";
 import { Lockout, TooManyAttemptsError } from "../auth/rate-limit.js";
 import { useAuthErrors } from "../auth/errors.js";
+import { cookie, DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE_MS } from "../auth/sessions.js";
 import { canManageKids } from "@bookbandit/shared";
 import type { Reader } from "../auth/reader.js";
 
@@ -143,6 +144,8 @@ export async function deviceRoutes(
     claimLockout.succeed(ipKey);
 
     const d = db.select().from(devices).where(eq(devices.id, pending.id)).get()!;
+    // A browser on the tablet keeps it as a cookie; the Android app reads deviceToken instead.
+    reply.header("set-cookie", cookie(DEVICE_COOKIE, token, DEVICE_COOKIE_MAX_AGE_MS, isSecureRequest(req, opts.trustedProxies)));
     reply.status(201);
     return { deviceToken: token, device: deviceView(d) };
   });

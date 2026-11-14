@@ -9,6 +9,8 @@ interface Session {
   error: string | null;
   theme: Theme;
   setTheme(id: ThemeId): void;
+  /** Patch the local copy after a change saved on the server (e.g. a new display name). */
+  updateMe(patch: Partial<Me>): void;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -57,7 +59,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ me, error, theme, setTheme }), [me, error, theme, setTheme]);
+  const updateMe = useCallback((patch: Partial<Me>) => setMe((m) => (m ? { ...m, ...patch } : m)), []);
+
+  const value = useMemo(() => ({ me, error, theme, setTheme, updateMe }), [me, error, theme, setTheme, updateMe]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
