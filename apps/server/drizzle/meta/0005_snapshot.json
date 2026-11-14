@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c1f1cbb1-60b9-413a-a212-8d354b9b7ab7",
+  "id": "35191db5-6b9b-4dea-8551-48e46c7bf313",
   "prevId": "f2342ba2-39f1-4fed-bc06-5c938dc9f66b",
   "tables": {
     "ai_messages": {
@@ -414,48 +414,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "cover_url": {
-          "name": "cover_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "published_year": {
-          "name": "published_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "rating_reason": {
-          "name": "rating_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "job_id": {
-          "name": "job_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {},
@@ -479,19 +437,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "decided_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "book_requests_book_id_books_id_fk": {
-          "name": "book_requests_book_id_books_id_fk",
-          "tableFrom": "book_requests",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
           ],
           "columnsTo": [
             "id"
@@ -1290,49 +1235,6 @@
         },
         "finished_at": {
           "name": "finished_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "max_attempts": {
-          "name": "max_attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 5
-        },
-        "progress": {
-          "name": "progress",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "result": {
-          "name": "result",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -2445,63 +2347,218 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "job_logs": {
-      "name": "job_logs",
+    "ereader_credentials": {
+      "name": "ereader_credentials",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": true
+          "autoincrement": false
         },
-        "job_id": {
-          "name": "job_id",
+        "household_id": {
+          "name": "household_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "at": {
-          "name": "at",
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "secret_hash": {
+          "name": "secret_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "level": {
-          "name": "level",
-          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'info'"
+          "default": "(unixepoch() * 1000)"
         },
-        "message": {
-          "name": "message",
-          "type": "text",
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },
       "indexes": {
-        "job_logs_job_idx": {
-          "name": "job_logs_job_idx",
+        "ereader_credentials_username_idx": {
+          "name": "ereader_credentials_username_idx",
           "columns": [
-            "job_id",
-            "id"
+            "username"
+          ],
+          "isUnique": true
+        },
+        "ereader_credentials_secret_idx": {
+          "name": "ereader_credentials_secret_idx",
+          "columns": [
+            "secret_hash"
+          ],
+          "isUnique": true
+        },
+        "ereader_credentials_user_idx": {
+          "name": "ereader_credentials_user_idx",
+          "columns": [
+            "user_id"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "job_logs_job_id_jobs_id_fk": {
-          "name": "job_logs_job_id_jobs_id_fk",
-          "tableFrom": "job_logs",
-          "tableTo": "jobs",
+        "ereader_credentials_household_id_households_id_fk": {
+          "name": "ereader_credentials_household_id_households_id_fk",
+          "tableFrom": "ereader_credentials",
+          "tableTo": "households",
           "columnsFrom": [
-            "job_id"
+            "household_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ereader_credentials_user_id_users_id_fk": {
+          "name": "ereader_credentials_user_id_users_id_fk",
+          "tableFrom": "ereader_credentials",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ereader_credentials_created_by_users_id_fk": {
+          "name": "ereader_credentials_created_by_users_id_fk",
+          "tableFrom": "ereader_credentials",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "ereader_file_digests": {
+      "name": "ereader_file_digests",
+      "columns": {
+        "file_id": {
+          "name": "file_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "partial_md5": {
+          "name": "partial_md5",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_md5": {
+          "name": "name_md5",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mtime_ms": {
+          "name": "mtime_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ereader_file_digests_partial_idx": {
+          "name": "ereader_file_digests_partial_idx",
+          "columns": [
+            "partial_md5"
+          ],
+          "isUnique": false
+        },
+        "ereader_file_digests_name_idx": {
+          "name": "ereader_file_digests_name_idx",
+          "columns": [
+            "name_md5"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ereader_file_digests_file_id_book_files_id_fk": {
+          "name": "ereader_file_digests_file_id_book_files_id_fk",
+          "tableFrom": "ereader_file_digests",
+          "tableTo": "book_files",
+          "columnsFrom": [
+            "file_id"
           ],
           "columnsTo": [
             "id"
@@ -2511,6 +2568,234 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "kobo_reading_states": {
+      "name": "kobo_reading_states",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "kobo_reading_states_user_id_users_id_fk": {
+          "name": "kobo_reading_states_user_id_users_id_fk",
+          "tableFrom": "kobo_reading_states",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "kobo_reading_states_book_id_books_id_fk": {
+          "name": "kobo_reading_states_book_id_books_id_fk",
+          "tableFrom": "kobo_reading_states",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "kobo_reading_states_user_id_book_id_pk": {
+          "columns": [
+            "user_id",
+            "book_id"
+          ],
+          "name": "kobo_reading_states_user_id_book_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "kobo_synced_books": {
+      "name": "kobo_synced_books",
+      "columns": {
+        "credential_id": {
+          "name": "credential_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "synced_at": {
+          "name": "synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "archived": {
+          "name": "archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "kobo_synced_books_credential_id_ereader_credentials_id_fk": {
+          "name": "kobo_synced_books_credential_id_ereader_credentials_id_fk",
+          "tableFrom": "kobo_synced_books",
+          "tableTo": "ereader_credentials",
+          "columnsFrom": [
+            "credential_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "kobo_synced_books_book_id_books_id_fk": {
+          "name": "kobo_synced_books_book_id_books_id_fk",
+          "tableFrom": "kobo_synced_books",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "kobo_synced_books_credential_id_book_id_pk": {
+          "columns": [
+            "credential_id",
+            "book_id"
+          ],
+          "name": "kobo_synced_books_credential_id_book_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "koreader_progress": {
+      "name": "koreader_progress",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "document": {
+          "name": "document",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "progress": {
+          "name": "progress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "percentage": {
+          "name": "percentage",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device": {
+          "name": "device",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "koreader_progress_user_id_users_id_fk": {
+          "name": "koreader_progress_user_id_users_id_fk",
+          "tableFrom": "koreader_progress",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "koreader_progress_user_id_document_pk": {
+          "columns": [
+            "user_id",
+            "document"
+          ],
+          "name": "koreader_progress_user_id_document_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     }

@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
+import { BarnabyLauncher } from "./ai/BarnabyLauncher";
 import { SessionProvider } from "./app/session";
 import "./styles.css";
 
@@ -10,6 +11,7 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <SessionProvider>
         <App />
+        <BarnabyLauncher />
       </SessionProvider>
     </BrowserRouter>
   </StrictMode>,

@@ -44,6 +44,13 @@ with Google through Tinyauth (the email header is trusted only from `TRUSTED_PRO
 `GOOGLE_SIGN_IN_URL` to show a Google button). Paired tablets show "Who's reading?" and kids sign in
 with a PIN or pictures. API details: `apps/server/src/auth/` and `apps/web/API_CONTRACT.md`.
 
+E-readers (OPDS apps, KOReader, Kobo): create a sign-in under **E-readers** in the web app. The
+reverse proxy must let `/opds`, `/kosync` and `/kobo` through without Tinyauth; the e-reader signs
+in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
+
+Barnaby AI is optional and off until an admin adds a provider at `/barnaby/settings`; local Ollama, cloud
+providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
@@ -58,6 +65,10 @@ admin settings or `HARDCOVER_API_TOKEN`), cached in memory for 6 hours; turning 
 turns the outside lists off. An admin imports a Kindle library at `/discover/kindle-import` (or
 `POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
 [discover-api.md](discover-api.md).
+
+Android tablet app: `pnpm --filter @bookbandit/web build && pnpm --filter @bookbandit/android build`,
+then `cap sync android` and `./gradlew assembleDebug` (JDK 21 + Android SDK). CI builds the APK on
+every PR and attaches it to releases. Details and signing: [apps/android/README.md](../apps/android/README.md).
 
 ## Recent changes
 

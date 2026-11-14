@@ -45,7 +45,8 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 Goal: kids read on their own tablets and Kavita is switched off.
 
-- [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`)
+- [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`): built (QR pairing, offline downloads and cache, screen pinning, PIN-locked settings, CI APK on releases); tick once tested on a real Fire and Android tablet
+- [ ] Windows desktop app (Tauri) (`ws/desktop`): built (server setup and pairing, offline reading with progress sync, installer attached to releases); tick once tested on a real Windows PC
 
 - [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
 
@@ -61,7 +62,8 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [x] Admin UI: inbox approval with metadata edit and merge, rating review, scan status, users and kids, paired devices, Audiobookshelf/SMTP/metadata settings (`ws/admin`)
 - [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them)
-- [ ] AI provider settings (Ollama / OpenAI-compatible / cloud), AI rating helper, AI metadata cleanup (`ws/ai`)
+- [x] AI provider settings (Ollama / OpenAI-compatible / Anthropic / Gemini), usage log, AI rating helper (`ws/ai`, [ai.md](ai.md))
+- [ ] AI metadata cleanup (`ws/ai`)
 
 ## Phase 3: Polish and devices
 
@@ -74,13 +76,14 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
 
-- [ ] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`)
+- [x] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`; physical Kobo test pending)
 
 - [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 
-- [ ] AI: ask your library, more like this, spoiler-free chat, smart requests, web answers via SearXNG (`ws/ai`)
+- [x] AI: ask your library, spoiler-free book chat, web answers via SearXNG with sources (`ws/ai`)
+- [ ] AI: more like this, smart requests, meaning search (embeddings), streaming replies (`ws/ai`)
 
-- [ ] Kid AI mode with Barnaby (moderation, parent log, limits) (`ws/ai`)
+- [x] Kid AI mode with Barnaby (moderation, personal-detail removal, parent log, daily limits, no chat under 5) (`ws/ai`)
 
 - [ ] AI narration (Piper/Kokoro) and quizzes/word help
 

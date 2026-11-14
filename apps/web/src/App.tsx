@@ -11,6 +11,7 @@ import { Layout } from "./app/Layout";
 import { SignIn } from "./auth/SignIn";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
+import { EreadersPage } from "./ereader/EreadersPage";
 import { BookPage } from "./library/BookPage";
 import { BrowsePage } from "./library/BrowsePage";
 import { HomePage } from "./library/HomePage";
@@ -18,6 +19,9 @@ import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
 import { RequestsPage } from "./requests/RequestsPage";
 import { SettingsPage } from "./themes/ThemePicker";
+import { AiSettingsPage } from "./ai/AiSettingsPage";
+import { BarnabyPage } from "./ai/BarnabyPage";
+import { FamilyAiPage } from "./ai/FamilyAiPage";
 import { ListenPage } from "./audio/ListenPage";
 import { StorytellerGate } from "./storyteller/StorytellerGate";
 import { StorytellerPage } from "./storyteller/StorytellerPage";
@@ -53,6 +57,9 @@ export function App() {
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="requests" element={<RequestsPage />} />
+        <Route path="barnaby" element={<BarnabyPage />} />
+        <Route path="barnaby/family" element={<FamilyAiPage />} />
+        <Route path="barnaby/settings" element={<AiSettingsPage />} />
         <Route path="listen/:id" element={<ListenPage />} />
         <Route path="storyteller/setup" element={<StorytellerSetup />} />
         <Route path="discover" element={<DiscoverPage />} />
@@ -61,6 +68,7 @@ export function App() {
         <Route path="series/:id" element={<SeriesPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="categories/:id" element={<CategoryPageView />} />
+        <Route path="settings/ereaders" element={<EreadersPage />} />
         <Route path="admin" element={<AdminLayout area="admin" />}>
           <Route index element={<AdminHome />} />
           <Route path="inbox" element={<InboxPage />} />
