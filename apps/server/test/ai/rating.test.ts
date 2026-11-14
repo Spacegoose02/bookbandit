@@ -17,12 +17,11 @@ afterEach(() => f.close());
 async function runAndWait() {
   const start = await f.app.inject({ method: "POST", url: "/api/admin/ai/rating/run", headers: f.as("admin"), payload: {} });
   expect(start.statusCode).toBe(202);
-  for (let i = 0; i < 50; i++) {
-    const s = (await f.app.inject({ url: "/api/admin/ai/rating/run", headers: f.as("admin") })).json();
-    if (!s.running) return s;
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  throw new Error("rating run never finished");
+  expect(start.json().running).toBe(true);
+  await f.app.jobs.drain();
+  const s = (await f.app.inject({ url: "/api/admin/ai/rating/run", headers: f.as("admin") })).json();
+  expect(s.running).toBe(false);
+  return s;
 }
 
 const rating = (id: string) => f.db.select().from(books).where(eq(books.id, id)).get()!;
@@ -70,7 +69,21 @@ describe("rating helper", () => {
     const id = f.book("Admin Says Teen", "teen", { ratingSource: "admin" });
     ai.setChat(() => '{"rating":"explicit","confidence":0.9,"reasons":"x"}');
     await f.app.inject({ method: "POST", url: "/api/admin/ai/rating/run", headers: f.as("admin"), payload: { bookIds: [id] } });
-    await new Promise((r) => setTimeout(r, 50));
+    await f.app.jobs.drain();
     expect(rating(id)).toMatchObject({ rating: "teen", ratingSource: "admin" });
+  });
+
+  it("runs on the job runner: one run at a time, visible on the jobs page", async () => {
+    f.book("Unrated One", null);
+    ai.setChat(() => '{"rating":"teen","confidence":0.7,"reasons":"x"}');
+    const first = await f.app.inject({ method: "POST", url: "/api/admin/ai/rating/run", headers: f.as("admin"), payload: {} });
+    expect(first.statusCode).toBe(202);
+    const second = await f.app.inject({ method: "POST", url: "/api/admin/ai/rating/run", headers: f.as("admin"), payload: {} });
+    expect(second.statusCode).toBe(409);
+    const jobsList = (await f.app.inject({ url: "/api/admin/jobs", headers: f.as("admin") })).json();
+    expect(JSON.stringify(jobsList)).toContain("ai.rating");
+    await f.app.jobs.drain();
+    const s = (await f.app.inject({ url: "/api/admin/ai/rating/run", headers: f.as("admin") })).json();
+    expect(s).toMatchObject({ running: false, total: 1, done: 1, suggested: 1 });
   });
 });

@@ -17,6 +17,7 @@ export function fakeAi() {
   let chatReply: Responder = () => "Hello from Barnaby!";
   let moderationReply: Responder = () => '{"flagged": false}';
   let searchResults: { url: string; title: string; content: string }[] = [];
+  let embedFails = false;
 
   const fetchImpl = async (url: string, init: RequestInit = {}) => {
     const headers = Object.fromEntries(Object.entries((init.headers ?? {}) as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v]));
@@ -25,9 +26,22 @@ export function fakeAi() {
     const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
     if (url.startsWith("http://searx")) return json({ results: searchResults });
     if (url.endsWith("/models")) return json({ data: [{ id: "llama3.2" }, { id: "llama-guard3" }] });
+    if (url.endsWith("/embeddings")) {
+      if (embedFails) return json({ error: "embedding model not found" }, 404);
+      const input = call.body.input as string[];
+      return json({ model: call.body.model, data: input.map((t, index) => ({ index, embedding: fakeEmbedding(t) })), usage: { prompt_tokens: input.length } });
+    }
     if (url.endsWith("/chat/completions")) {
       const isMod = call.body.model === "llama-guard3";
-      const text = await (isMod ? moderationReply : chatReply)(call);
+      const text = String(await (isMod ? moderationReply : chatReply)(call));
+      if (call.body.stream) {
+        // Three pieces, like a real model writing as it goes.
+        const n = Math.ceil(text.length / 3) || 1;
+        const pieces = [0, 1, 2].map((i) => text.slice(i * n, (i + 1) * n)).filter(Boolean);
+        const sse =
+          pieces.map((p) => `data: ${JSON.stringify({ model: call.body.model, choices: [{ delta: { content: p } }] })}\n\n`).join("") + "data: [DONE]\n\n";
+        return new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } });
+      }
       return json({ model: call.body.model, choices: [{ message: { content: text } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     }
     return json({ error: "not found" }, 404);
@@ -47,7 +61,26 @@ export function fakeAi() {
     setChat: (r: Responder) => void (chatReply = r),
     setModeration: (r: Responder) => void (moderationReply = r),
     setSearch: (r: typeof searchResults) => void (searchResults = r),
+    embedCalls: () => calls.filter((c) => c.url.endsWith("/embeddings")),
+    failEmbeddings: (v = true) => void (embedFails = v),
   };
+}
+
+/**
+ * A toy embedding: words (minus a few stop words and the nomic prefixes) hashed into 512 buckets.
+ * Texts that share words point the same way, which is all the tests need.
+ */
+const STOP = new Set(["the", "and", "for", "with", "her", "his", "a", "an", "of", "to", "in", "on", "by", "about", "book", "books", "search", "query", "document", "genres", "series"]);
+export function fakeEmbedding(text: string): number[] {
+  const v = new Array(512).fill(0);
+  for (const w of text.toLowerCase().split(/[^a-z]+/)) {
+    if (w.length < 3 || STOP.has(w)) continue;
+    let h = 0;
+    for (const c of w) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    v[h % 512] += 1;
+  }
+  v[511] += 0.01; // never all zeros
+  return v;
 }
 
 export const OLLAMA_SETTINGS = {
@@ -87,3 +120,10 @@ export function makeChapteredEpub(path: string, chapters: string[]): Promise<voi
     });
   });
 }
+
+/** OLLAMA_SETTINGS plus an embeddings model, for meaning search. */
+export const EMBED_SETTINGS = {
+  ...OLLAMA_SETTINGS,
+  providers: [...OLLAMA_SETTINGS.providers, { id: "embed", name: "Ollama embeddings", kind: "openai", baseUrl: "http://ollama:11434/v1", model: "nomic-embed-text" }],
+  features: { ...OLLAMA_SETTINGS.features, embeddings: "embed" },
+};

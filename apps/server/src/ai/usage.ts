@@ -1,16 +1,18 @@
 /** Every provider call goes through `tracked` so the admin can see what Barnaby costs. */
 import { and, gte, sql } from "drizzle-orm";
-import type { AiProvider, ChatResult } from "./providers/types.js";
+import type { AiProvider } from "./providers/types.js";
 import type { AiContext } from "./context.js";
 import { aiUsage } from "./schema.js";
 
-export async function tracked(
-  ctx: AiContext,
+type Tracked = { model: string; inputTokens?: number; outputTokens?: number };
+
+export async function tracked<T extends Tracked>(
+  ctx: Pick<AiContext, "db" | "now">,
   provider: AiProvider,
   feature: string,
   userId: string | null,
-  run: () => Promise<ChatResult>,
-): Promise<ChatResult> {
+  run: () => Promise<T>,
+): Promise<T> {
   const started = Date.now();
   try {
     const r = await run();
@@ -22,7 +24,7 @@ export async function tracked(
   }
 }
 
-function log(ctx: AiContext, row: typeof aiUsage.$inferInsert) {
+function log(ctx: Pick<AiContext, "db">, row: typeof aiUsage.$inferInsert) {
   try {
     ctx.db.insert(aiUsage).values(row).run();
   } catch {

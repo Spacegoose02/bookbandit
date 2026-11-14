@@ -37,9 +37,19 @@ export interface ProviderConfig {
   timeoutMs?: number;
 }
 
+export interface EmbedResult {
+  vectors: number[][];
+  model: string;
+  inputTokens?: number;
+}
+
 export interface AiProvider {
   readonly config: ProviderConfig;
   chat(req: ChatRequest): Promise<ChatResult>;
+  /** Same as chat, but calls `onDelta` with each piece of text as it arrives. */
+  chatStream(req: ChatRequest, onDelta: (text: string) => void): Promise<ChatResult>;
+  /** Text embeddings for meaning search. Throws a ProviderError when the provider has none. */
+  embed(texts: string[]): Promise<EmbedResult>;
   listModels(): Promise<string[]>;
 }
 
@@ -86,6 +96,79 @@ export async function postJson<T>(
     throw new ProviderError(`${init.label}: HTTP ${res.status}${detail ? ` (${detail.slice(0, 200)})` : ""}`, res.status);
   }
   return (await res.json()) as T;
+}
+
+/**
+ * POST and read a server-sent-events reply, calling `onData` with each `data:` payload
+ * (parsed as JSON; `[DONE]` and non-JSON lines are skipped). The timeout covers the whole stream.
+ */
+export async function postSse(
+  fetchImpl: FetchLike,
+  url: string,
+  init: { headers: Record<string, string>; body: unknown; timeoutMs: number; label: string },
+  onData: (data: any) => void,
+): Promise<void> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), init.timeoutMs);
+  try {
+    let res: Response;
+    try {
+      res = await fetchImpl(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "text/event-stream", ...init.headers },
+        body: JSON.stringify(init.body),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      throw new ProviderError(`${init.label}: ${ctrl.signal.aborted ? `timed out after ${Math.round(init.timeoutMs / 1000)} s` : (e as Error).message}`);
+    }
+    if (!res.ok) {
+      let detail = "";
+      try {
+        const body = (await res.json()) as { error?: { message?: string } | string; message?: string };
+        detail = typeof body.error === "string" ? body.error : (body.error?.message ?? body.message ?? "");
+      } catch {
+        /* not JSON */
+      }
+      throw new ProviderError(`${init.label}: HTTP ${res.status}${detail ? ` (${detail.slice(0, 200)})` : ""}`, res.status);
+    }
+    // Some OpenAI-compatible servers ignore `stream: true` and answer with plain JSON.
+    if (!(res.headers.get("content-type") ?? "").includes("event-stream")) {
+      onData(await res.json());
+      return;
+    }
+    const decoder = new TextDecoder();
+    let buf = "";
+    const handle = (line: string) => {
+      if (!line.startsWith("data:")) return;
+      const data = line.slice(5).trim();
+      if (!data || data === "[DONE]") return;
+      try {
+        onData(JSON.parse(data));
+      } catch {
+        /* keep-alive or junk */
+      }
+    };
+    const reader = res.body?.getReader();
+    if (!reader) return;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          handle(buf.slice(0, nl).replace(/\r$/, ""));
+          buf = buf.slice(nl + 1);
+        }
+      }
+    } catch (e) {
+      throw new ProviderError(`${init.label}: ${ctrl.signal.aborted ? `timed out after ${Math.round(init.timeoutMs / 1000)} s` : (e as Error).message}`);
+    }
+    handle(buf.trim());
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const trimSlash = (u: string) => u.replace(/\/+$/, "");
