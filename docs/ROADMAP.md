@@ -37,9 +37,9 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 - [x] Docker image serving the web app, ebook-convert, kepubify, PUID/PGID, GHCR, Unraid template (`ws/docker`), released as v0.1.0
 
-- [ ] Audiobookshelf: link and play audiobooks, listening progress (server API done; web player is `ws/listen`)
+- [x] Audiobookshelf: link and play audiobooks, listening progress (`ws/integrations` server API, `ws/listen` web player with speed, ±30 s, chapters, sleep timer)
 
-- [ ] Send to Kindle by email (server API done; button and address setting are `ws/listen`)
+- [x] Send to Kindle by email (`ws/integrations` server API, `ws/listen` button and address setting)
 
 ## Phase 2: Tablets and requests
 
@@ -47,7 +47,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`)
 
-- [ ] Storyteller mode for toddlers: big covers, play button, bedtime limits (`ws/listen`); screen pinning (`ws/android`)
+- [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
 
 - [ ] Book requests with parent/admin approval (`ws/requests`)
 
