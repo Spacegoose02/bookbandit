@@ -1,9 +1,11 @@
 /**
  * Text-to-speech fallback for picture books with no audiobook: foliate-js finds the text block
- * by block, the browser's speechSynthesis reads it, and the page turns as the story goes.
+ * by block, the family's speech server (Kokoro/Piper, see ../readaloud) or else the browser's
+ * speechSynthesis reads it, and the page turns as the story goes.
  * Pages with no words (pure pictures) stay up for a few seconds before turning.
  */
 import type { FoliateView } from "foliate-js/view.js";
+import { readAloudApi } from "../readaloud/api";
 
 const PICTURE_PAGE_MS = 6_000;
 
@@ -46,7 +48,7 @@ export interface ReadAloudController {
  */
 export function startReadAloud(
   view: FoliateView,
-  opts: { lang?: string; rate?: number; onEnd(): void; onPageWithoutWords?(): void },
+  opts: { lang?: string; rate?: number; bookId?: string; onEnd(): void; onPageWithoutWords?(): void },
 ): ReadAloudController {
   const v = view as TtsView;
   let alive = true;
@@ -59,7 +61,39 @@ export function startReadAloud(
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  function speak(text: string): Promise<boolean> {
+  // The server voice, when an admin set one up (ws/readaloud). Cached clips make re-reads instant.
+  let server: Promise<boolean> = opts.bookId
+    ? readAloudApi.status(opts.bookId).then((s) => s.server, () => false)
+    : Promise.resolve(false);
+  let audio: HTMLAudioElement | null = null;
+  let stopAudio: (() => void) | null = null;
+
+  async function speakServer(text: string): Promise<boolean | null> {
+    if (!opts.bookId || !(await server)) return null;
+    let url: string;
+    try {
+      url = (await readAloudApi.speech(opts.bookId, text)).url;
+    } catch {
+      server = Promise.resolve(false); // fall back to the device voice for the rest of the story
+      return null;
+    }
+    if (!alive || paused) return false;
+    return new Promise((resolve) => {
+      const a = (audio ??= new Audio());
+      a.src = url;
+      a.onended = () => resolve(true);
+      a.onerror = () => resolve(false);
+      stopAudio = () => {
+        a.pause();
+        resolve(false);
+      };
+      a.play().catch(() => resolve(false));
+    });
+  }
+
+  async function speak(text: string): Promise<boolean> {
+    const viaServer = await speakServer(text);
+    if (viaServer !== null) return viaServer;
     return new Promise((resolve) => {
       const u = new SpeechSynthesisUtterance(text);
       const voice = pickVoice(opts.lang ?? "en");
@@ -119,6 +153,7 @@ export function startReadAloud(
   return {
     pause() {
       paused = true;
+      stopAudio?.();
       speechSynthesis.cancel();
     },
     resume() {
@@ -130,6 +165,7 @@ export function startReadAloud(
       alive = false;
       paused = false;
       wake?.();
+      stopAudio?.();
       speechSynthesis.cancel();
     },
   };

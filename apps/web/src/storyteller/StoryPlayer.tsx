@@ -152,6 +152,7 @@ function ReadAloudStory({ story, started, sleepEndsAt, onDone, onSleep }: Props)
       if (disposed) return;
       ctrl.current = startReadAloud(view, {
         lang: detail.language ?? "en",
+        bookId: detail.id, // ws/readaloud: use the family's speech server when there is one
         onEnd: () => {
           setPlaying(false);
           void sessionRef.current.finish(true).then((t) => onDone(t, true));

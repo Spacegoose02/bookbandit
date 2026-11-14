@@ -28,6 +28,8 @@ import { storytellerPlugin } from "./storyteller/index.js";
 import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
+import { narrationPlugin, type NarrationOptions } from "./narration/index.js";
+import { learningPlugin, type LearningOptions } from "./learning/index.js";
 import { rewardsPlugin } from "./rewards/index.js";
 import { importsPlugin, type ImportsOptions } from "./imports/index.js";
 import { audioPlugin, type AudioOptions } from "./audio/index.js";
@@ -45,6 +47,8 @@ export interface AppDeps {
   discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
   ereader?: Pick<EreaderOptions, "kepub">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
+  narration?: Pick<NarrationOptions, "fetchImpl" | "cacheDir">;
+  learning?: Pick<LearningOptions, "fetchImpl" | "now">;
   rewards?: { now?: () => number };
   imports?: Pick<ImportsOptions, "fetchImpl">;
   /** ABS calls go through integrations.fetchImpl too. */
@@ -128,6 +132,16 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     booksDir: config.BOOKS_DIR,
     secretKey: deps.integrations?.secretKey,
     ...deps.ai,
+  });
+  // Read-aloud and learning (ws/readaloud).
+  await app.register(narrationPlugin, { db, configDir: config.CONFIG_DIR, booksDir: config.BOOKS_DIR, secretKey: deps.integrations?.secretKey, ...deps.narration });
+  await app.register(learningPlugin, {
+    db,
+    configDir: config.CONFIG_DIR,
+    booksDir: config.BOOKS_DIR,
+    secretKey: deps.integrations?.secretKey,
+    fetchImpl: deps.learning?.fetchImpl ?? deps.ai?.fetchImpl,
+    now: deps.learning?.now ?? deps.ai?.now,
   });
   await app.register(importsPlugin, { db, box, configDir: config.CONFIG_DIR, ...deps.imports });
   await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });

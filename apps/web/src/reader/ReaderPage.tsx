@@ -13,6 +13,7 @@ import { defaultDeviceName, ProgressSync, resolveStartPosition } from "./progres
 import { readerCss } from "./readerCss";
 import { ReadingTimer } from "./readingTimer";
 import { useReaderPrefs } from "./useReaderPrefs";
+import { ReadAloudLayer } from "../readaloud/ReadAloudLayer"; // ws/readaloud hook
 
 type Panel = null | "settings" | "bookmarks" | "contents";
 
@@ -441,6 +442,7 @@ export function ReaderPage() {
         </aside>
       )}
 
+      <ReadAloudLayer bookId={id} viewRef={viewRef} ready={status === "ready" && !pdfPos} /> {/* ws/readaloud hook: read aloud, word help, quizzes */}
       {toast && (
         <div className="bb-toast" role="status">
           {toast}

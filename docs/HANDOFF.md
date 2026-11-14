@@ -51,6 +51,12 @@ in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
 Barnaby AI is optional and off until an admin adds a provider at `/barnaby/settings`; local Ollama, cloud
 providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
 
+Read-aloud works with the device's own voice out of the box. For better voices with word-by-word
+highlighting, run a Kokoro-FastAPI (or Piper) container and set it up at **Admin → Read-aloud**
+(`/readaloud/settings`); spoken audio is cached in `CONFIG_DIR/cache/narration`. An optional
+offline dictionary for word help goes in `CONFIG_DIR/dictionary.json`. Details:
+`apps/server/src/narration/README.md` and `apps/server/src/learning/README.md`.
+
 Family apps: an admin links Den Duty (kids' reading minutes earn chore-app practice points) and
 Nighttime Ninja (Send to kitchen from Cook mode) under Admin → Connections; no env vars. Details:
 `apps/server/src/family-apps/README.md`.
