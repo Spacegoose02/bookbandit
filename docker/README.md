@@ -37,14 +37,17 @@ See [`docker-compose.example.yml`](../docker-compose.example.yml).
 
 ## Unraid
 
-Until the template is in Community Apps, add it by URL:
+Until the template is in Community Apps, download it into your user templates from the Unraid
+terminal (or the web terminal, top right of the web UI):
 
-1. Docker tab → **Add Container** → paste
-   `https://raw.githubusercontent.com/spacegoose02/bookbandit/main/docker/unraid/bookbandit.xml`
-   into **Template** (or copy `docker/unraid/bookbandit.xml` to
-   `/boot/config/plugins/dockerMan/templates-user/my-bookbandit.xml` and pick it from the list).
-2. Set **Books** to your library share and **Trusted proxies** to your reverse proxy's Docker
-   network (for example `172.18.0.0/16`).
+```sh
+wget -O /boot/config/plugins/dockerMan/templates-user/my-bookbandit.xml \
+  https://raw.githubusercontent.com/spacegoose02/bookbandit/main/docker/unraid/bookbandit.xml
+```
+
+1. Docker tab → **Add Container** → **Template** → pick **bookbandit** under *User templates*.
+2. Set **Books** to your library share and **Trusted proxies** to your reverse proxy's IP or
+   Docker network (for example `172.18.0.0/16`). Leave PUID/PGID at 99/100.
 3. Apply, then open the web UI through your proxy.
 
 To list it in Community Apps, the template goes in a public templates repository and gets

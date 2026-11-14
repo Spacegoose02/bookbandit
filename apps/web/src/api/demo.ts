@@ -92,7 +92,7 @@ const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i
   absItemId: DEMO_AUDIO.has(`b${i + 1}`) ? `abs-b${i + 1}` : null,
   authors: [{ id: `a-${author}`, name: author }],
   series: series ? [{ id: `series:${series}`, name: series, position: pos ?? null }] : [],
-  files: i === 10 ? [] : [{ id: `f${i + 1}`, format: "epub", sizeBytes: 120_000 }],
+  files: i === 10 ? [] : i === 9 ? [{ id: `f${i + 1}`, format: "pdf", sizeBytes: 20_000 }] : [{ id: `f${i + 1}`, format: "epub", sizeBytes: 120_000 }],
   added: Date.UTC(2026, 10, 14) - i * 86_400_000,
 }));
 
@@ -225,7 +225,7 @@ export const demoApi: Api = {
     return delay({ ...b, ...summary(b, who()) });
   },
   coverUrl: (b) => b.coverPath,
-  fileUrl: () => `${import.meta.env.BASE_URL}demo/sample.epub`,
+  fileUrl: (bookId) => `${import.meta.env.BASE_URL}demo/sample.${bookId === "b10" ? "pdf" : "epub"}`,
   async getProgress(bookId) {
     return delay(store.get<ProgressRecord | null>(`bb-demo-progress-${who().id}-${bookId}`, null));
   },

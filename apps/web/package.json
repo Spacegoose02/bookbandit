@@ -16,6 +16,7 @@
   "dependencies": {
     "@bookbandit/shared": "workspace:*",
     "foliate-js": "1.0.1",
+    "pdfjs-dist": "4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.6"
