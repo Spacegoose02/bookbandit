@@ -89,6 +89,8 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 
+- [x] Curated categories: raw subjects mapped onto a short list, near-duplicates merged, small ones hidden, admin rename/merge/hide (`ws/discover`)
+
 - [x] AI: ask your library, spoiler-free book chat, web answers via SearXNG with sources (`ws/ai`)
 
 - [x] AI: more like this, smart requests, meaning search (embeddings), streaming replies, rating helper on the job runner (`ws/ai`, wave 3)

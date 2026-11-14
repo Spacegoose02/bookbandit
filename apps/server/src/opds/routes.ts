@@ -12,12 +12,13 @@ import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { and, asc, count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, notInArray, sql, type SQL } from "drizzle-orm";
 import { z, ZodError } from "zod";
 import type { Db } from "../db/client.js";
 import { authors, bookAuthors, bookFiles, books, bookSeries, bookTags, kidShelf, readingProgress, series, tags } from "../db/schema.js";
 import type { Reader } from "../auth/reader.js";
 import { visibleBooksWhere, ContentLockedError } from "../content/lock.js";
+import { hiddenTagIds } from "../discover/category-store.js";
 import { enrich, likePattern } from "../catalog/list.js";
 import { CONTENT_TYPES, downloadName, insideRoot, sendFile } from "../library/serve.js";
 import { isDrmProtected } from "../library/drm.js";
@@ -458,7 +459,8 @@ export async function opdsRoutes(app: FastifyInstance, opts: OpdsOptions) {
   app.get("/opds/genres", async (req, reply) => {
     const reader = readerOf(req);
     const { page } = PageQuery.parse(req.query);
-    const where = and(feedable(reader), inArray(tags.kind, ["genre", "section"]));
+    // Curated categories and sections, minus any an admin hid (ws/discover).
+    const where = and(feedable(reader), inArray(tags.kind, ["genre", "section"]), notInArray(tags.id, hiddenTagIds(db)));
     const total =
       db
         .select({ n: sql<number>`count(distinct ${tags.id})` })

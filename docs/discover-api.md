@@ -64,17 +64,36 @@ admin-managed series alone, so a rescan or metadata refresh keeps the admin's ve
 
 ## Categories
 
-Categories are the existing `tags` table: `genre` (from metadata), `section` (Kids, Cookbooks …;
-these also get a home shelf) and `custom`.
+Categories are the existing `tags` table: `genre` (a curated category), `subject` (a raw metadata
+subject, never listed), `section` (Kids, Cookbooks …; these also get a home shelf) and `custom`.
+
+**Where categories come from.** Every metadata source (EPUB `dc:subject`, Open Library, Google
+Books, Hardcover genres and tags, ISBNdb, Calibre tags, CBZ `Genre`/`Tags`) sends free-form subjects.
+They are kept as `subject` tags (up to 12 a book, noise dropped, near-duplicates such as
+"Dragon"/"dragons" folded together) so search, "More like this" and Barnaby still use them. Each
+book is then filed under at most three curated categories plus one audience (Children's Books or
+Young Adult) by the rules in `apps/server/src/discover/taxonomy.ts`; a book with subjects but no
+match gets "Fiction" or "Nonfiction". Admin merges and renames are stored in `category_aliases` and
+hides in `category_prefs`, so a rescan respects them. Genre categories with fewer visible books
+than the admin's minimum (setting `categories.minBooks`, default 3) don't get a tile.
+
+On first start after upgrading, every old `genre` tag (one per raw subject) becomes a `subject`,
+duplicates are merged and every book is filed under the curated list. Book links are moved, never
+dropped; it runs once (setting `categories.taxonomy`).
 
 | Method | Path | Who | Notes |
 | --- | --- | --- | --- |
-| GET | `/api/categories?q=&kind=&covers=3` | reader | `{ items: [{ id, name, kind, bookCount, cookbook, books }] }`, sections first, then by size. Categories with no visible books are left out. |
+| GET | `/api/categories?q=&kind=&covers=3` | reader | `{ items: [{ id, name, kind, bookCount, cookbook, books }] }`, sections first, then by size. Categories with no visible books, hidden ones, raw subjects and genres under the minimum are left out. |
 | GET | `/api/categories/:id?limit=&offset=&sort=` | reader | `{ category, items, total }`; 404 when nothing in it is visible |
 | GET | `/api/books/:id/categories` | reader | `{ items, cookbook }` for one visible book |
 | POST | `/api/categories` | admin | `{ name, kind: "section" \| "custom" }` → 201 |
 | PUT | `/api/categories/:id/books` | admin | `{ add: [bookId], remove: [bookId] }` |
 | DELETE | `/api/categories/:id` | admin | 204 |
+| PATCH | `/api/categories/:id` | admin | `{ name?, hidden?, kind?: "genre" \| "subject" }`; renaming onto an existing name merges → `{ id, name, kind, merged }` |
+| POST | `/api/categories/:id/merge` | admin | `{ into }`: moves every book, deletes this tag, its name now lands on `into` → `{ id, bookCount }` |
+| GET | `/api/admin/categories?kind=all\|categories\|genre\|subject\|section\|custom&q=` | admin | `{ items: [{ id, name, kind, bookCount, hidden, curated, shown, aliases }], counts, minBooks }` |
+| PUT | `/api/admin/categories/settings` | admin | `{ minBooks }` |
+| POST | `/api/admin/categories/rebuild` | admin | Re-files every book from its subjects (adds only) → `{ books, linked }` |
 
 `cookbook` is `isCookbookCategory(name)` from `@bookbandit/shared` (cookbook, cooking, recipes,
 baking, kitchen …). The book page shows **Cook mode** (`/cook/:id`) for those books: the screen
