@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { RATING_LABELS } from "@bookbandit/shared";
+import { kindleReadUrl, RATING_LABELS } from "@bookbandit/shared";
 import { api, ApiError } from "../api/client";
 import type { BookDetail } from "../api/types";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { READABLE_FORMATS } from "../reader/formats";
+import { BookCategories, useBookCategories } from "../discover/BookCategories";
 import { Cover } from "./BookCard";
 import { ListenButton } from "../audio/ListenButton";
 import { SendToKindleButton } from "../kindle/SendToKindleButton";
@@ -14,6 +15,7 @@ export function BookPage() {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const categories = useBookCategories(book ? id : null);
 
   useEffect(() => {
     setBook(null);
@@ -63,7 +65,7 @@ export function BookPage() {
         </p>
         {book.series?.map((s) => (
           <p key={s.id}>
-            <Link className="bb-link" to={`/browse?shelf=${encodeURIComponent(s.id)}&sort=title`}>
+            <Link className="bb-link" to={`/series/${encodeURIComponent(s.id)}`}>
               {s.name}
               {s.position != null ? `, book ${s.position}` : ""}
             </Link>
@@ -75,14 +77,19 @@ export function BookPage() {
               {pct > 0 && pct < 100 ? `Keep reading (${pct}%)` : "Read"}
             </Link>
           )}
-          {book.kindleOnly && book.kindleAsin && (
+          {readable.length > 0 && categories?.cookbook && (
+            <Link className="bb-btn bb-btn-big" to={`/cook/${book.id}`}>
+              🍳 Cook mode
+            </Link>
+          )}
+          {book.kindleAsin && (
             <a
-              className="bb-btn bb-btn-primary bb-btn-big"
-              href={`https://read.amazon.com/?asin=${encodeURIComponent(book.kindleAsin)}`}
+              className={`bb-btn bb-btn-big${book.kindleOnly ? " bb-btn-primary" : ""}`}
+              href={kindleReadUrl(book.kindleAsin)}
               target="_blank"
               rel="noreferrer"
             >
-              Open in Kindle
+              Read in Kindle
             </a>
           )}
           <ListenButton book={book} />
@@ -92,6 +99,7 @@ export function BookPage() {
           <p className="bb-muted bb-small">This book lives in your Kindle library, so it opens in Amazon's Kindle reader.</p>
         )}
         {book.description && <p className="bb-description">{book.description}</p>}
+        <BookCategories categories={categories} />
         <dl className="bb-facts">
           {book.rating && (
             <>
