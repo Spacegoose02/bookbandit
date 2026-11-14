@@ -9,6 +9,7 @@ import { progressRoutes } from "./routes/progress.js";
 import { bookmarkRoutes } from "./routes/bookmarks.js";
 import { shelfRoutes } from "./routes/shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
+import { libraryRoutes } from "./library/routes.js";
 
 export async function buildApp(config: Config, db: Db): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.LOG_LEVEL } });
@@ -23,6 +24,7 @@ export async function buildApp(config: Config, db: Db): Promise<FastifyInstance>
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
   await app.register(shelfRoutes, { db });
+  await app.register(libraryRoutes, { db, config });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 

@@ -19,6 +19,15 @@ const Env = z.object({
   /** Calibre's converter (installed in the Docker image) and kepubify, for format conversion. */
   EBOOK_CONVERT_PATH: z.string().default("ebook-convert"),
   KEPUBIFY_PATH: z.string().default("kepubify"),
+  /** Library workstream: look up new books on Hardcover / Google Books / Open Library. */
+  METADATA_ONLINE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  /** Optional: raises Google Books' anonymous quota. */
+  GOOGLE_BOOKS_API_KEY: z.string().optional(),
+  /** Optional: enables Hardcover lookups (hardcover.app → Account → API). */
+  HARDCOVER_API_TOKEN: z.string().optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });
 
