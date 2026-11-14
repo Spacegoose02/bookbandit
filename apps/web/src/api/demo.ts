@@ -182,7 +182,7 @@ export const demoApi: Api = {
   async books(query) {
     const me = who();
     const q = (query.get("q") ?? "").toLowerCase();
-    const author = (query.get("author") ?? "").toLowerCase();
+    const author = query.get("author") ?? "";
     const from = Number(query.get("yearFrom") ?? -Infinity);
     const to = Number(query.get("yearTo") ?? Infinity);
     const ratings = query.get("ratings")?.split(",") ?? [];
@@ -191,7 +191,7 @@ export const demoApi: Api = {
     let list = visible(me).filter(
       (b) =>
         (!q || b.title.toLowerCase().includes(q) || b.authors?.some((a) => a.name.toLowerCase().includes(q))) &&
-        (!author || b.authors?.some((a) => a.name.toLowerCase().includes(author))) &&
+        (!author || b.authors?.some((a) => a.id === author)) &&
         (b.publishedYear == null || (b.publishedYear >= from && b.publishedYear <= to)) &&
         (!ratings.length || ratings.includes(b.rating ?? "adult")) &&
         (!shelf || shelf === "kid" || b.series?.some((s) => s.id === shelf)),

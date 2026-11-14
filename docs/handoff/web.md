@@ -42,9 +42,10 @@ pnpm --filter @bookbandit/web screenshots
 
 ## What the server needs to provide
 
-See `apps/web/API_CONTRACT.md`. Sync is merged. `/api/users/me` comes from the auth PR, the
-shelves/books/authors endpoints from the lead, and covers/files from the library workstream.
-Until those land, the real (non-demo) app shows "Barnaby can't reach the server".
+See `apps/web/API_CONTRACT.md`. Sync, accounts (`/api/users/me`) and the catalog
+(`/api/shelves`, `/api/books` filters, `/api/authors`) are merged. Cover and file serving
+(`/api/books/:id/cover`, `/api/books/:id/files/:fileId`) still come from the library workstream;
+until then books list fine but covers are blank and the reader can't open files.
 
 ## Roadmap for the web app
 

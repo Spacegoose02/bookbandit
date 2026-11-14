@@ -11,7 +11,7 @@ export function ShelfRow({ shelf }: { shelf: Shelf }) {
     <section className="bb-shelf" aria-labelledby={`shelf-${shelf.id}`}>
       <header className="bb-shelf-head">
         <h2 id={`shelf-${shelf.id}`}>{shelf.name}</h2>
-        {shelf.kind !== "continue" && (
+        {shelf.kind !== "continue" && (shelf.total == null || shelf.total > shelf.books.length) && (
           <Link className="bb-link" to={`/browse?shelf=${encodeURIComponent(shelf.id)}`}>
             See all
           </Link>

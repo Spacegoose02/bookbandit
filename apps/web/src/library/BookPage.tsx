@@ -53,7 +53,7 @@ export function BookPage() {
           {book.authors?.map((a, i) => (
             <span key={a.id}>
               {i > 0 && ", "}
-              <Link className="bb-link" to={`/browse?author=${encodeURIComponent(a.name)}`}>
+              <Link className="bb-link" to={`/browse?${new URLSearchParams({ author: a.id, authorName: a.name })}`}>
                 {a.name}
               </Link>
             </span>

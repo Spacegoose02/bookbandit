@@ -73,6 +73,8 @@ export interface Shelf {
   id: string;
   name: string;
   kind: "continue" | "kid" | "recent" | "series" | "collection" | "tag";
+  /** How many books the whole shelf has (books holds the first few) */
+  total?: number;
   books: BookSummary[];
 }
 

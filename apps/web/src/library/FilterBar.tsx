@@ -23,7 +23,9 @@ export function FilterBar({
   maxRating: ContentRating;
 }) {
   const [open, setOpen] = useState(activeFilterCount(value) > (value.q ? 1 : 0));
-  const [authors, setAuthors] = useState<string[]>([]);
+  const [authors, setAuthors] = useState<{ id: string; name: string }[]>([]);
+  // What's typed in the author box; it becomes a filter once it matches a real author.
+  const [authorText, setAuthorText] = useState(value.authorName);
   const listId = useId();
   const count = activeFilterCount(value);
   const groups = ageGroupOptions(maxRating);
@@ -31,12 +33,21 @@ export function FilterBar({
   useEffect(() => {
     const t = setTimeout(() => {
       api
-        .authors(value.author)
-        .then((a) => setAuthors(a.map((x) => x.name)))
+        .authors(authorText)
+        .then(setAuthors)
         .catch(() => setAuthors([]));
     }, 200);
     return () => clearTimeout(t);
-  }, [value.author]);
+  }, [authorText]);
+
+  useEffect(() => setAuthorText(value.authorName), [value.authorName]);
+
+  const onAuthorText = (text: string) => {
+    setAuthorText(text);
+    const match = authors.find((a) => a.name.toLowerCase() === text.trim().toLowerCase());
+    if (match) set({ author: match.id, authorName: match.name });
+    else if (!text.trim()) set({ author: "", authorName: "" });
+  };
 
   const set = (patch: Partial<LibraryFilters>) => onChange({ ...value, ...patch });
   const year = (v: string) => (v === "" ? null : Number.isInteger(Number(v)) ? Number(v) : null);
@@ -82,13 +93,13 @@ export function FilterBar({
             <input
               className="bb-input"
               list={listId}
-              value={value.author}
+              value={authorText}
               placeholder="Any author"
-              onChange={(e) => set({ author: e.target.value })}
+              onChange={(e) => onAuthorText(e.target.value)}
             />
             <datalist id={listId}>
               {authors.map((a) => (
-                <option key={a} value={a} />
+                <option key={a.id} value={a.name} />
               ))}
             </datalist>
           </label>

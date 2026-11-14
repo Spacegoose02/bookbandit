@@ -6,12 +6,12 @@ Web-side types: `apps/web/src/api/types.ts`. Shared types: `@bookbandit/shared`.
 
 | Method | Path | Provided by | Notes |
 | --- | --- | --- | --- |
-| GET | `/api/users/me` | ws/auth (PR #5) | `id, displayName, role, avatar, theme, birthYear, explicitOptIn`. The web app derives `isKid` from `role` and `maxRating` with `maxAllowedRating()` (`toMe` in client.ts). |
-| PATCH | `/api/users/me` | ws/auth (PR #5) | `{ theme }`. Theme ids: `THEME_IDS` / `isThemeId` in shared. |
-| GET | `/api/shelves` | lead | `{ items: Shelf[] }`. Shelf ids `continue`, `recent`, `kid`, `series:<id>`, `collection:<id>`, `tag:<id>`; each id also works as `?shelf=` on `/api/books`. |
-| GET | `/api/books` | lead | Query `q, author, yearFrom, yearTo, ratings` (comma list, intersected with the reader's allowed ratings), `shelf, sort` (`title, author, year, added`), `limit, offset`. Returns `total`; rows include `authors`, `series`, `percent`. |
-| GET | `/api/books/:id` | lead | Adds `authors`, `series`, `files: {id, format, sizeBytes}[]`, `percent`. |
-| GET | `/api/authors?q=&limit=` | lead | `{ items: {id, name}[] }`, only authors with a book the reader can see. |
+| GET | `/api/users/me` | ws/auth, merged | `id, displayName, role, avatar, theme, birthYear, explicitOptIn`. The web app derives `isKid` from `role` and `maxRating` with `maxAllowedRating()` (`toMe` in client.ts). |
+| PATCH | `/api/users/me` | ws/auth, merged | `{ theme }`. Theme ids: `THEME_IDS` / `isThemeId` in shared. |
+| GET | `/api/shelves` | lead, merged ([catalog-api.md](../../docs/catalog-api.md)) | `{ items: Shelf[] }`, each with `total`. Shelf ids `continue`, `recent`, `kid`, `series:<id>`, `collection:<id>`, `tag:<id>`; each id also works as `?shelf=` on `/api/books`. |
+| GET | `/api/books` | lead, merged | Query `q, author` (author **id**), `yearFrom, yearTo, ratings` (comma list, intersected with the reader's allowed ratings), `shelf, sort` (`title, author, year, added`), `limit, offset`. Returns `total`; rows include `authors`, `series`, `percent`. |
+| GET | `/api/books/:id` | lead, merged | Adds `authors`, `series`, `files: {id, format, sizeBytes}[]`, `percent`. |
+| GET | `/api/authors?q=&limit=` | lead, merged | `{ items: {id, name}[] }`, only authors with a book the reader can see. |
 | GET | `/api/books/:id/cover` | ws/library | Image bytes, same lock check. |
 | GET | `/api/books/:id/files/:fileId` | ws/library | The book file, same lock check, `Range` support, never DRM'd Kindle files (rule 5). |
 | GET | `/api/progress/:bookId` | ws/sync, merged | `{ progress: ProgressRecord \| null }`. See [docs/sync-api.md](../../docs/sync-api.md). |

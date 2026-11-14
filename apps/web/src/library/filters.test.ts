@@ -11,11 +11,12 @@ import {
 describe("filtersFromSearch", () => {
   it("reads a full set of filters", () => {
     const f = filtersFromSearch(
-      new URLSearchParams("q=dragon&author=Tolkien&yearFrom=1950&yearTo=1960&ratings=kids,teen&shelf=s1&sort=year"),
+      new URLSearchParams("q=dragon&author=a1&authorName=Tolkien&yearFrom=1950&yearTo=1960&ratings=kids,teen&shelf=s1&sort=year"),
     );
     expect(f).toEqual({
       q: "dragon",
-      author: "Tolkien",
+      author: "a1",
+      authorName: "Tolkien",
       yearFrom: 1950,
       yearTo: 1960,
       ratings: ["kids", "teen"],
@@ -40,7 +41,7 @@ describe("filtersFromSearch", () => {
 
 describe("filtersToSearch", () => {
   it("round-trips", () => {
-    const f = { ...EMPTY_FILTERS, author: "Le Guin", yearFrom: 1968, ratings: ["teen" as const] };
+    const f = { ...EMPTY_FILTERS, author: "a7", authorName: "Le Guin", yearFrom: 1968, ratings: ["teen" as const] };
     expect(filtersFromSearch(filtersToSearch(f))).toEqual(f);
   });
   it("leaves defaults out", () => {
@@ -54,6 +55,11 @@ describe("filtersToApiQuery", () => {
     const p = filtersToApiQuery(f, "middle_grade", { limit: 50, offset: 0 });
     expect(p.get("ratings")).toBe("kids");
     expect(p.get("limit")).toBe("50");
+  });
+  it("sends the author id, not the display name", () => {
+    const p = filtersToApiQuery({ ...EMPTY_FILTERS, author: "a7", authorName: "Le Guin" }, "adult", { limit: 10, offset: 0 });
+    expect(p.get("author")).toBe("a7");
+    expect(p.has("authorName")).toBe(false);
   });
 });
 

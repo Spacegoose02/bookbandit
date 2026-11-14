@@ -7,7 +7,10 @@ import { CONTENT_RATINGS, ratingRank, type ContentRating } from "@bookbandit/sha
  */
 export interface LibraryFilters {
   q: string;
+  /** Author id (what the API filters on) */
   author: string;
+  /** Author's name, only for showing in the filter box */
+  authorName: string;
   yearFrom: number | null;
   yearTo: number | null;
   /** Empty = all ratings the reader is allowed */
@@ -23,6 +26,7 @@ export type SortKey = (typeof SORT_KEYS)[number];
 export const EMPTY_FILTERS: LibraryFilters = {
   q: "",
   author: "",
+  authorName: "",
   yearFrom: null,
   yearTo: null,
   ratings: [],
@@ -69,6 +73,7 @@ export function filtersFromSearch(params: URLSearchParams): LibraryFilters {
   return {
     q: params.get("q")?.trim() ?? "",
     author: params.get("author")?.trim() ?? "",
+    authorName: params.get("authorName")?.trim() ?? "",
     yearFrom,
     yearTo,
     ratings: [...new Set(ratings)],
@@ -82,6 +87,7 @@ export function filtersToSearch(f: LibraryFilters): URLSearchParams {
   const p = new URLSearchParams();
   if (f.q) p.set("q", f.q);
   if (f.author) p.set("author", f.author);
+  if (f.author && f.authorName) p.set("authorName", f.authorName);
   if (f.yearFrom != null) p.set("yearFrom", String(f.yearFrom));
   if (f.yearTo != null) p.set("yearTo", String(f.yearTo));
   if (f.ratings.length) p.set("ratings", f.ratings.join(","));
@@ -100,6 +106,7 @@ export function filtersToApiQuery(
   page: { limit: number; offset: number },
 ): URLSearchParams {
   const p = filtersToSearch({ ...f, ratings: f.ratings.filter((r) => ratingRank(r) <= ratingRank(maxRating)) });
+  p.delete("authorName");
   p.set("limit", String(page.limit));
   p.set("offset", String(page.offset));
   return p;
