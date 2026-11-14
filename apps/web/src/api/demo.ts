@@ -242,4 +242,7 @@ export const demoApi: Api = {
     const all = store.get<Bookmark[]>(`bb-demo-bookmarks-${who().id}`, []);
     store.set(`bb-demo-bookmarks-${who().id}`, all.filter((b) => b.id !== id));
   },
+  async readingHeartbeat() {
+    // Demo mode doesn't track reading time.
+  },
 };

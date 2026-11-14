@@ -1,7 +1,7 @@
 # Handoff
 
 Where things stand, how to run it, and what's next. Update this file whenever a PR changes any of
-those. Newest entries at the top of "Recent changes".
+those. Change logs live in [changes/](changes/README.md), one file per workstream.
 
 This file is written so an agent or developer with only this repository can pick up any
 piece of work. You don't need access to any outside chat or document.
@@ -55,6 +55,11 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 ## Recent changes
 
+Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
+parallel PRs don't fight over one table: [lead](changes/lead.md), [auth](changes/auth.md),
+[web](changes/web.md), [library](changes/library.md), [sync](changes/sync.md),
+[integrations](changes/integrations.md), [docker](changes/docker.md), plus a file per wave 2
+workstream once it lands. Add your entry there, not here.
 | Date | Change | PR |
 | --- | --- | --- |
 | 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
@@ -73,8 +78,7 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
-2. Auth: web sign-in screen and own-profile editor.
-3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
 
 Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
 `apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
