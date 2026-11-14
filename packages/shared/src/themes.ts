@@ -12,6 +12,8 @@ export const THEME_IDS = [
   "gaming",
   "dinosaur",
   "storm",
+  /** High contrast: black, white and yellow, for low vision and bright sunlight. */
+  "contrast",
 ] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 

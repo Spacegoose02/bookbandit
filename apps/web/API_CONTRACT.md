@@ -49,3 +49,10 @@ PDF opens in the browser's own viewer for now and doesn't report a position yet.
 
 `pnpm --filter @bookbandit/web demo` (or `?demo`, `?demo=kid` in the URL) swaps the HTTP
 client for `src/api/demo.ts`, which follows the same shapes with sample data.
+
+## Rewards (ws/kids)
+
+Goals, badges, stickers and reading bedtime: `GET /api/rewards/:userId`, `POST /api/rewards/me/seen`,
+`GET /api/rewards/me/bedtime`, `GET /api/rewards/kids/:kidId/settings`, `PUT /api/rewards/kids/:kidId/goal`,
+`PUT /api/rewards/kids/:kidId/bedtime`. At bedtime a kid's book files, reading heartbeats and audio tracks
+return `403 { bedtime: true, endsAt }`. Details: `apps/server/src/rewards/README.md`.
