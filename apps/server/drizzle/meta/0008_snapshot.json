@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4fe3e891-a855-4da6-91a6-f749a4e613f0",
+  "id": "1795cdb0-eb8a-4211-9b73-5e7d85a66d84",
   "prevId": "1acccd3d-1da6-4f8d-bfca-5844656b1bfa",
   "tables": {
     "ai_messages": {
@@ -195,15 +195,7 @@
           "default": 0
         }
       },
-      "indexes": {
-        "book_authors_author_idx": {
-          "name": "book_authors_author_idx",
-          "columns": [
-            "author_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "book_authors_book_id_books_id_fk": {
           "name": "book_authors_book_id_books_id_fk",
@@ -318,13 +310,6 @@
           "name": "book_files_hash_idx",
           "columns": [
             "sha256"
-          ],
-          "isUnique": false
-        },
-        "book_files_book_idx": {
-          "name": "book_files_book_idx",
-          "columns": [
-            "book_id"
           ],
           "isUnique": false
         }
@@ -544,15 +529,7 @@
           "autoincrement": false
         }
       },
-      "indexes": {
-        "book_series_series_idx": {
-          "name": "book_series_series_idx",
-          "columns": [
-            "series_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "book_series_book_id_books_id_fk": {
           "name": "book_series_book_id_books_id_fk",
@@ -611,15 +588,7 @@
           "autoincrement": false
         }
       },
-      "indexes": {
-        "book_tags_tag_idx": {
-          "name": "book_tags_tag_idx",
-          "columns": [
-            "tag_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "book_tags_book_id_books_id_fk": {
           "name": "book_tags_book_id_books_id_fk",
@@ -973,13 +942,6 @@
           "name": "books_sort_idx",
           "columns": [
             "sort_title"
-          ],
-          "isUnique": false
-        },
-        "books_added_idx": {
-          "name": "books_added_idx",
-          "columns": [
-            "created_at"
           ],
           "isUnique": false
         }
@@ -3465,6 +3427,52 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "duplicate_ignores": {
+      "name": "duplicate_ignores",
+      "columns": {
+        "group_key": {
+          "name": "group_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ignored_by": {
+          "name": "ignored_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duplicate_ignores_ignored_by_users_id_fk": {
+          "name": "duplicate_ignores_ignored_by_users_id_fk",
+          "tableFrom": "duplicate_ignores",
+          "tableTo": "users",
+          "columnsFrom": [
+            "ignored_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

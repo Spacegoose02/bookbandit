@@ -121,6 +121,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -141,5 +144,17 @@ jobs:
           Multi-arch: linux/amd64 and linux/arm64. ${also}
 
           NOTES
+          # What changed: the bullets each workstream added to docs/changes/ since the last tag.
+          prev="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          if [ -n "$prev" ]; then
+            echo "## What's new since ${prev}" >> notes.md
+            for f in docs/changes/*.md; do
+              [ "$(basename "$f")" = README.md ] && continue
+              added="$(git diff "$prev" "$TAG" -- "$f" | sed -e '/^+++/d' -n -e 's/^+//p' | grep -E '^(- |  )')"
+              [ -z "$added" ] && continue
+              printf '\n### %s\n\n%s\n' "$(basename "$f" .md)" "$added" >> notes.md
+            done
+            echo >> notes.md
+          fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "Bookbandit $version" --notes-file notes.md --generate-notes "${prerelease[@]}"

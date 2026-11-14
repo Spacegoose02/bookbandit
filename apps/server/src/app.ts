@@ -30,6 +30,10 @@ import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { backupPlugin } from "./backup/index.js";
 import { securityHeaders } from "./security/headers.js";
+import { librarianPlugin, type LibrarianOptions } from "./librarian/index.js";
+import { KepubConverter } from "./kobo/kepub.js";
+import { join } from "node:path";
+import { familyAppsPlugin, type FamilyAppsOptions } from "./family-apps/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -40,6 +44,8 @@ export interface AppDeps {
   discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
   ereader?: Pick<EreaderOptions, "kepub">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
+  librarian?: Pick<LibrarianOptions, "convert" | "tools" | "fetchImpl">;
+  familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -101,7 +107,10 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     resolveLookup: () => resolveLookup(db, box, config),
     ...deps.discover,
   });
-  await app.register(ereaderPlugin, { db, config, trustedProxies, ...deps.ereader });
+  // One KEPUB converter for the Kobo routes and the librarian's "ahead of time" job: one cache.
+  const kepub = deps.ereader?.kepub ?? new KepubConverter(config.KEPUBIFY_PATH, join(config.CONFIG_DIR, "cache"), app.log);
+  await app.register(ereaderPlugin, { db, config, trustedProxies, ...deps.ereader, kepub });
+  await app.register(librarianPlugin, { db, config, resolveLookup: () => resolveLookup(db, box, config), kepub, ...deps.librarian });
   await app.register(aiPlugin, {
     db,
     configDir: config.CONFIG_DIR,
@@ -109,6 +118,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     secretKey: deps.integrations?.secretKey,
     ...deps.ai,
   });
+  await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
   await app.register(backupPlugin, {
     db,
     configDir: config.CONFIG_DIR,

@@ -51,6 +51,10 @@ in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
 Barnaby AI is optional and off until an admin adds a provider at `/barnaby/settings`; local Ollama, cloud
 providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
 
+Family apps: an admin links Den Duty (kids' reading minutes earn chore-app practice points) and
+Nighttime Ninja (Send to kitchen from Cook mode) under Admin → Connections; no env vars. Details:
+`apps/server/src/family-apps/README.md`.
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 The database is backed up every night to `CONFIG_DIR/backups` (`BACKUP_TIME`, `BACKUP_KEEP`); restore
 with `node apps/server/dist/backup/cli.js restore latest` while the server is stopped
@@ -100,12 +104,12 @@ workstream once it lands. Add your entry there, not here.
 
 ## Next up
 
-1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
-   storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
-2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
-
-Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
-`apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
+1. Wave 3 in parallel (see [workstreams.md](workstreams.md#wave-3)): own the audio, move in from
+   Calibre/Calibre-Web/Kavita, librarian tools, Barnaby AI round 2, read-aloud and learning, kids'
+   goals and rewards, ops (backups, end-to-end tests, hardening, v0.2.0). Next migration number is
+   0008; see [Migrations in wave 3](workstreams.md#migrations-in-wave-3).
+2. Lead: reader hooks for read-aloud and kids, integration passes as wave 3 lands.
+3. Owner: real-device checks (Fire/Android tablet, Windows PC, Kobo, KOReader).
 
 ## Decisions so far
 

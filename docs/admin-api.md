@@ -18,6 +18,7 @@ through `visibleBooksWhere` for the parent (rule 1).
 | GET/POST/PATCH/DELETE | `/api/devices…` | `routes/devices.ts` |
 | GET | `/api/reading/stats?userId=<kid>&days=7&utcOffset=` | `routes/reading-time.ts` (lead; minutes per day, streak, top books on the family pages) |
 | GET/PUT/POST | `/api/admin/integrations/audiobookshelf[/test]`, `/api/admin/integrations/smtp[/test]` | `integrations/` |
+| GET/PUT/POST/DELETE | `/api/admin/family-apps…` (Den Duty and Nighttime Ninja links, kid matching, report now) | `family-apps/` ([README](../apps/server/src/family-apps/README.md)) |
 
 ## Added by ws/admin
 
