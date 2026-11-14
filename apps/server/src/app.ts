@@ -16,7 +16,11 @@ import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { readingTimeRoutes } from "./routes/reading-time.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { libraryRoutes } from "./library/routes.js";
-import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
+import { integrationsPlugin, lazyBox, type IntegrationsOptions } from "./integrations/index.js";
+import { loadOrCreateKey } from "./integrations/secrets.js";
+import { adminLibraryRoutes } from "./routes/admin-library.js";
+import { adminSettingsRoutes, resolveLookup } from "./routes/admin-settings.js";
+import { familyRoutes } from "./routes/admin-family.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -44,9 +48,14 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
   await app.register(shelfRoutes, { db });
-  await app.register(libraryRoutes, { db, config });
+  // Same key file as the integrations' SecretBox (CONFIG_DIR/secret.key), created on first use.
+  const box = lazyBox(() => deps.integrations?.secretKey ?? loadOrCreateKey(config.CONFIG_DIR));
+  await app.register(libraryRoutes, { db, config, resolveLookup: () => resolveLookup(db, box, config) });
   await app.register(homeShelfRoutes, { db });
   await app.register(readingTimeRoutes, { db });
+  await app.register(adminLibraryRoutes, { db });
+  await app.register(adminSettingsRoutes, { db, box, config });
+  await app.register(familyRoutes, { db });
   await app.register(integrationsPlugin, {
     db,
     configDir: config.CONFIG_DIR,

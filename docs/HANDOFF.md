@@ -35,7 +35,7 @@ pnpm dev   # API http://localhost:8080, web http://localhost:5173
 ```
 
 Web UI without a server: `pnpm --filter @bookbandit/web demo` (sample books; add `?demo=kid` to the
-URL for kid mode). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
+URL for kid mode; the demo grown-up is an admin, so `/admin` and `/family` work too). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
 `pnpm --filter @bookbandit/web screenshots`.
 
 Sign-in: on an empty database the web app shows "Welcome to BookBandit" and the first person creates
@@ -60,12 +60,29 @@ parallel PRs don't fight over one table: [lead](changes/lead.md), [auth](changes
 [web](changes/web.md), [library](changes/library.md), [sync](changes/sync.md),
 [integrations](changes/integrations.md), [docker](changes/docker.md), plus a file per wave 2
 workstream once it lands. Add your entry there, not here.
+| Date | Change | PR |
+| --- | --- | --- |
+| 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
+| 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
+| 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
+| 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
+| 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
+| 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
+| 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |
+| 2026-11-14 | Audiobookshelf playback/progress API and Send to Kindle API (see `apps/server/src/integrations/README.md`) | ws/integrations PR |
+| 2026-11-14 | Reading sync API: progress (newest wins, offline batch), bookmarks/highlights/stickers with `updated_at` sync cursor (migration 0001), Continue reading, Finished and kid shelves; see [sync-api.md](sync-api.md) | this PR |
+| 2026-11-13 | Roadmap, handoff and screenshot rules added | this PR |
+| 2026-11-13 | Foundation: monorepo, data model, content lock, Tinyauth auth, CI | first commit |
 
 ## Next up
 
 1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
 2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
+
+Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
+`apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
+Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 
