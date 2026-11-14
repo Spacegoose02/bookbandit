@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { aiMessages, bookFiles, books, readingProgress, settings, users } from "../../src/db/schema.js";
 import { aiConversations } from "../../src/ai/schema.js";
 import { family, type Family } from "../helpers.js";
-import { fakeAi, makeChapteredEpub, OLLAMA_SETTINGS } from "./fake.js";
+import { EMBED_SETTINGS, fakeAi, makeChapteredEpub, OLLAMA_SETTINGS } from "./fake.js";
 
 let f: Family;
 let ai: ReturnType<typeof fakeAi>;
@@ -67,6 +67,54 @@ describe("admin settings", () => {
     expect(m.json().items).toContain("llama3.2");
     const usage = await f.app.inject({ url: "/api/admin/ai/usage", headers: f.as("admin") });
     expect(usage.json().items[0]).toMatchObject({ feature: "test", providerId: "ollama", calls: 1 });
+  });
+});
+
+describe("provider test for embeddings models", () => {
+  const test = (providerId: string, mode?: string) =>
+    f.app.inject({ method: "POST", url: "/api/admin/ai/providers/test", headers: f.as("admin"), payload: { providerId, ...(mode ? { mode } : {}) } });
+
+  it("embeds instead of chatting for an embeddings model", async () => {
+    await configure(EMBED_SETTINGS);
+    const t = await test("embed");
+    expect(t.json()).toMatchObject({ ok: true, kind: "embeddings", model: "nomic-embed-text", dimensions: 512 });
+    expect(ai.embedCalls()).toHaveLength(1);
+    expect(ai.calls.filter((c) => c.url.endsWith("/chat/completions"))).toHaveLength(0);
+  });
+
+  it("falls back to embeddings when the server says the model can't chat", async () => {
+    // A name that doesn't look like an embeddings model, on a provider also picked for chat.
+    const providers = [{ id: "local", name: "Local", kind: "openai", baseUrl: "http://ollama:11434/v1", model: "nomic-text-v1" }];
+    expect((await configure({ providers, features: { chat: "local", embeddings: "local" } })).statusCode).toBe(200);
+    const t = await test("local", "auto");
+    expect(t.json()).toMatchObject({ ok: true, kind: "embeddings" });
+  });
+
+  it("still tests chat models by chatting, and reports a failed embeddings test", async () => {
+    await configure(EMBED_SETTINGS);
+    expect((await test("ollama")).json()).toMatchObject({ ok: true, kind: "chat", reply: "Hello from Barnaby!" });
+    ai.failEmbeddings();
+    const t = (await test("embed")).json();
+    expect(t.ok).toBe(false);
+    expect(t.error).toMatch(/does not support chat|embedding model not found/);
+  });
+
+  it("won't pick Claude for meaning search", async () => {
+    const claude = { id: "claude", name: "Claude", kind: "anthropic", model: "claude-haiku-5-5", apiKey: "k" };
+    const res = await configure({ providers: [...OLLAMA_SETTINGS.providers, claude], features: { chat: "ollama", embeddings: "claude" } });
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatch(/no embeddings API/);
+    expect((await configure({ providers: [...OLLAMA_SETTINGS.providers, claude] })).statusCode).toBe(200);
+    expect((await test("claude", "embeddings")).json()).toMatchObject({ ok: false, error: expect.stringMatching(/no embeddings API/) });
+  });
+
+  it("treats an older save that picked Claude for meaning search as off", async () => {
+    await configure({ providers: [...OLLAMA_SETTINGS.providers, { id: "claude", name: "Claude", kind: "anthropic", model: "claude-haiku-5-5" }] });
+    const row = f.db.select().from(settings).where(eq(settings.key, "ai.settings")).get()!;
+    const value = row.value as { features: Record<string, string | null> };
+    f.db.update(settings).set({ value: { ...value, features: { ...value.features, embeddings: "claude" } } }).where(eq(settings.key, "ai.settings")).run();
+    const got = await f.app.inject({ url: "/api/admin/ai/settings", headers: f.as("admin") });
+    expect(got.json().features.embeddings).toBeNull();
   });
 });
 

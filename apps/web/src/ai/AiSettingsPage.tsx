@@ -13,6 +13,7 @@ import {
   type MetadataSuggestion,
   type MetadataValue,
   type ProviderSettings,
+  type ProviderTestResult,
   type RatingRunStatus,
   type RatingSuggestion,
 } from "./api";
@@ -214,7 +215,7 @@ export function AiSettingsPage() {
                     .then((r) =>
                       setTests((t) => ({
                         ...t,
-                        [p.id]: r.ok ? `✅ ${r.model} said “${r.reply}” in ${(r.ms / 1000).toFixed(1)} s` : `❌ ${r.error}`,
+                        [p.id]: testSummary(r),
                       })),
                     )
                 }
@@ -268,8 +269,10 @@ export function AiSettingsPage() {
               >
                 <option value="">{f === "kidChat" || f === "bookChat" ? "Same as grown-up chat" : "Off"}</option>
                 {s.providers.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  // Claude has no embeddings API, so it can't do meaning search.
+                  <option key={p.id} value={p.id} disabled={f === "embeddings" && p.kind === "anthropic"}>
                     {p.name} · {p.model}
+                    {f === "embeddings" && p.kind === "anthropic" ? " (no embeddings)" : ""}
                   </option>
                 ))}
               </select>
@@ -514,4 +517,11 @@ function showValue(v: MetadataValue): string {
   if (typeof v === "string") return v.length > 220 ? `${v.slice(0, 220)}…` : v;
   if (Array.isArray(v)) return v.join(", ");
   return `${v.name}${v.position != null ? ` #${v.position}` : ""}`;
+}
+
+function testSummary(r: ProviderTestResult): string {
+  if (!r.ok) return `❌ ${r.error}`;
+  const secs = `${(r.ms / 1000).toFixed(1)} s`;
+  if (r.kind === "embeddings") return `✅ ${r.model} is an embeddings model: made a ${r.dimensions}-number vector in ${secs}. Ready for meaning search.`;
+  return `✅ ${r.model} said “${r.reply}” in ${secs}`;
 }
