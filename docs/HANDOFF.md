@@ -51,6 +51,10 @@ in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
 Barnaby AI is optional and off until an admin adds a provider at `/barnaby/settings`; local Ollama, cloud
 providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
 
+Family apps: an admin links Den Duty (kids' reading minutes earn chore-app practice points) and
+Nighttime Ninja (Send to kitchen from Cook mode) under Admin → Connections; no env vars. Details:
+`apps/server/src/family-apps/README.md`.
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set

@@ -31,6 +31,7 @@ import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { librarianPlugin, type LibrarianOptions } from "./librarian/index.js";
 import { KepubConverter } from "./kobo/kepub.js";
 import { join } from "node:path";
+import { familyAppsPlugin, type FamilyAppsOptions } from "./family-apps/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -42,6 +43,7 @@ export interface AppDeps {
   ereader?: Pick<EreaderOptions, "kepub">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
   librarian?: Pick<LibrarianOptions, "convert" | "tools" | "fetchImpl">;
+  familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -107,6 +109,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     secretKey: deps.integrations?.secretKey,
     ...deps.ai,
   });
+  await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
