@@ -16,10 +16,12 @@ import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { libraryRoutes } from "./library/routes.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
+import { aiPlugin, type AiOptions } from "./ai/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
   integrations?: Pick<IntegrationsOptions, "secretKey" | "fetchImpl" | "makeMailer">;
+  ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -44,6 +46,13 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
+  });
+  await app.register(aiPlugin, {
+    db,
+    configDir: config.CONFIG_DIR,
+    booksDir: config.BOOKS_DIR,
+    secretKey: deps.integrations?.secretKey,
+    ...deps.ai,
   });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
