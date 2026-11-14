@@ -1,0 +1,19 @@
+.bb-backup-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.bb-backup-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-backup-list li:first-child {
+  border-top: 0;
+}
+.bb-backup-card code {
+  overflow-wrap: anywhere;
+}

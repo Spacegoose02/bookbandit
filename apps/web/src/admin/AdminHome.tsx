@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { adminApi, type ScanStatus } from "./api";
+import { BackupCard } from "../ops/BackupCard";
 import { Bar, Card, ErrorNote, Tile, timeAgo, useAction, useLoad } from "./ui";
 
 export function AdminHome() {
@@ -18,6 +19,7 @@ export function AdminHome() {
         <Tile label="Book requests" value={o?.pendingRequests ?? "…"} hint="Pending a parent's OK" to="/requests?tab=approve" />
       </div>
       <ScanCard onFinished={overview.reload} />
+      <BackupCard />
     </>
   );
 }

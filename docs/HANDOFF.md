@@ -66,6 +66,14 @@ Audiobook folders are read from `./data/audiobooks` (`AUDIOBOOKS_DIR`, `/audiobo
 startup with the library and from **Admin → Audiobooks**; per-person Audiobookshelf accounts, import and
 write-back are on the same page. Details: `apps/server/src/audio/README.md`.
 
+The database is backed up every night to `CONFIG_DIR/backups` (`BACKUP_TIME`, `BACKUP_KEEP`); restore
+with `node apps/server/dist/backup/cli.js restore latest` while the server is stopped
+(details: `apps/server/src/backup/README.md`, Docker: `docker/README.md#backups`).
+
+End-to-end tests and the 20,000-book performance check: build shared, server and web, then
+`pnpm --filter @bookbandit/e2e e2e` and `pnpm --filter @bookbandit/e2e perf` (see `e2e/README.md`).
+A new endpoint that returns books gets a check in the matching `e2e/tests/lock-*.spec.ts`.
+
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
 `LIBRARY_SCAN_ON_START=false` to turn that off; a missing or empty folder is skipped). An admin can
 start another scan with `POST /api/admin/library/scan` and check progress with `GET` on the same path.

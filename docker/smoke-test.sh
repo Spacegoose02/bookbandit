@@ -51,3 +51,30 @@ test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/does-
 test "$(docker top "$NAME" -eo pid,uid,args | awk '$3 == "node" && /apps\/server\/dist\/index.js/ {print $2; exit}')" = 99
 test "$(stat -c %u "$WORK/config/bookbandit.sqlite")" = 99
 echo "server ok (port $PORT, running as uid 99)"
+
+echo "== backup and restore into a fresh container"
+BASE="http://127.0.0.1:$PORT"
+TOKEN="$(curl -fsS -X POST "$BASE/api/auth/setup" -H 'content-type: application/json' \
+  -d '{"displayName":"Smoke Admin","username":"smoke","password":"smoke-test-password"}' \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')"
+test -n "$TOKEN"
+curl -fsS -X POST "$BASE/api/admin/backups" -H "authorization: Bearer $TOKEN" | grep -q '"hasKey"'
+BACKUP_DIR_NAME="$(ls "$WORK/config/backups" | grep -v '^\.' | head -n1)"
+test -s "$WORK/config/backups/$BACKUP_DIR_NAME/bookbandit.sqlite"
+docker rm -f "$NAME" >/dev/null
+
+# A brand-new /config with only the backups folder copied over, restored by the image's command.
+mkdir -p "$WORK/fresh"
+cp -r "$WORK/config/backups" "$WORK/fresh/backups"
+docker run --rm -e PUID=99 -e PGID=100 -v "$WORK/fresh:/config" "$IMAGE" restore latest
+docker run -d --name "$NAME" -e PUID=99 -e PGID=100 \
+  -v "$WORK/fresh:/config" -v "$WORK/books:/books" -p 127.0.0.1::8080 "$IMAGE" >/dev/null
+PORT="$(docker port "$NAME" 8080/tcp | head -n1 | sed 's/.*://')"
+for _ in $(seq 1 30); do
+  curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && break
+  sleep 1
+done
+curl -fsS "http://127.0.0.1:$PORT/api/auth/status" | grep -q '"setupRequired":false'
+curl -fsS -X POST "http://127.0.0.1:$PORT/api/auth/login" -H 'content-type: application/json' \
+  -d '{"username":"smoke","password":"smoke-test-password"}' | grep -q '"token"'
+echo "backup restored into a fresh container ok"

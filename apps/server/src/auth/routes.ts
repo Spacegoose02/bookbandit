@@ -35,6 +35,8 @@ export interface AuthRouteOptions {
   emailHeader?: string;
   /** Per account across all addresses, looser, so one bad actor can't lock a grown-up out for long. */
   accountLockout?: Lockout;
+  /** Per address across all usernames, so one address can't spray guesses over many accounts. */
+  addressLockout?: Lockout;
 }
 
 const username = z
@@ -73,6 +75,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
   const { db, sessions } = opts;
   const lockout = opts.lockout ?? new Lockout();
   const accountLockout = opts.accountLockout ?? new Lockout({ freeTries: 30, baseLockMs: 60_000, maxLockMs: 15 * 60_000 });
+  const addressLockout = opts.addressLockout ?? new Lockout({ freeTries: 50, baseLockMs: 60_000, maxLockMs: 60 * 60_000 });
 
   const userCount = () => db.select({ n: sql<number>`count(*)` }).from(users).get()!.n;
 
@@ -157,6 +160,8 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
     const ip = clientIp(req, opts.trustedProxies);
     const key = `login:${body.username ?? body.userId}:${ip}`;
     guard(key);
+    const ipWait = addressLockout.retryAfter(`ip:${ip}`);
+    if (ipWait > 0) throw new TooManyAttemptsError(ipWait);
     if (u) {
       const wait = accountLockout.retryAfter(`account:${u.id}`);
       if (wait > 0) throw new TooManyAttemptsError(wait);
@@ -166,6 +171,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
     const ok = await verifySecret(body.password, usable ? u!.secretHash : null);
     if (!ok || !u || !usable) {
       lockout.fail(key);
+      addressLockout.fail(`ip:${ip}`);
       if (u) accountLockout.fail(`account:${u.id}`);
       throw httpError(401, "Wrong username or password");
     }

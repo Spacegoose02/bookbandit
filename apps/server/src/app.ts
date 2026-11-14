@@ -28,6 +28,8 @@ import { storytellerPlugin } from "./storyteller/index.js";
 import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
+import { backupPlugin } from "./backup/index.js";
+import { securityHeaders } from "./security/headers.js";
 import { narrationPlugin, type NarrationOptions } from "./narration/index.js";
 import { learningPlugin, type LearningOptions } from "./learning/index.js";
 import { rewardsPlugin } from "./rewards/index.js";
@@ -63,7 +65,14 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   const trustedProxies = parseTrustedProxies(config.TRUSTED_PROXIES);
   const sessions = new SessionSigner(loadSessionSecret(db, config.SESSION_SECRET));
 
-  await app.register(authPlugin, { db, emailHeader: config.AUTH_HEADER_EMAIL, trustedProxies, sessions });
+  await app.register(securityHeaders, { trustedProxies, csp: config.CONTENT_SECURITY_POLICY });
+  await app.register(authPlugin, {
+    db,
+    emailHeader: config.AUTH_HEADER_EMAIL,
+    trustedProxies,
+    sessions,
+    deviceIdleMs: config.DEVICE_IDLE_DAYS * 86_400_000,
+  });
   await app.register(authRoutes, {
     db,
     sessions,
@@ -145,6 +154,13 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   });
   await app.register(importsPlugin, { db, box, configDir: config.CONFIG_DIR, ...deps.imports });
   await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
+  await app.register(backupPlugin, {
+    db,
+    configDir: config.CONFIG_DIR,
+    backupDir: config.BACKUP_DIR,
+    keep: config.BACKUP_KEEP,
+    time: config.BACKUP_TIME,
+  });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 

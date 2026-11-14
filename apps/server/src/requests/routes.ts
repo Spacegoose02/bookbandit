@@ -55,7 +55,7 @@ const CreateBody = z.object({
   note: z.string().trim().max(500).nullish(),
 });
 const IdParams = z.object({ id: z.string().min(1).max(64) });
-const DecideBody = z.object({ note: z.string().trim().max(500).nullish() }).default({});
+const DecideBody = z.object({ note: z.string().trim().max(500).nullish() }).prefault({});
 const DownloadBody = z
   .object({
     via: z.enum(["auto", "shelfmark", "sabnzbd", "direct"]).default("auto"),
@@ -67,7 +67,7 @@ const DownloadBody = z
       .refine((u) => /^https?:\/\//i.test(u), "must be http(s)")
       .optional(),
   })
-  .default({});
+  .prefault({});
 
 export interface RequestRouteOptions {
   db: Db;

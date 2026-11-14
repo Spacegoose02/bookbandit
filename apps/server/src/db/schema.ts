@@ -170,6 +170,8 @@ export const books = sqliteTable(
     index("books_rating_idx").on(t.rating),
     index("books_isbn_idx").on(t.isbn13),
     index("books_sort_idx").on(t.sortTitle),
+    // "Recently added" lists.
+    index("books_added_idx").on(t.addedAt),
   ],
 );
 
@@ -185,7 +187,8 @@ export const bookAuthors = sqliteTable(
     role: text("role").notNull().default("author"),
     position: integer("position").notNull().default(0),
   },
-  (t) => [primaryKey({ columns: [t.bookId, t.authorId, t.role] })],
+  // author_idx: author pages and author lists (ws/ops, 20k-book performance pass).
+  (t) => [primaryKey({ columns: [t.bookId, t.authorId, t.role] }), index("book_authors_author_idx").on(t.authorId)],
 );
 
 export const bookSeries = sqliteTable(
@@ -200,7 +203,7 @@ export const bookSeries = sqliteTable(
     /** Allows 1, 1.5, 2 … */
     position: real("position"),
   },
-  (t) => [primaryKey({ columns: [t.bookId, t.seriesId] })],
+  (t) => [primaryKey({ columns: [t.bookId, t.seriesId] }), index("book_series_series_idx").on(t.seriesId)],
 );
 
 export const BOOK_FORMATS = ["epub", "kepub", "mobi", "azw3", "fb2", "pdf", "cbz", "cbr", "txt"] as const;
@@ -220,7 +223,12 @@ export const bookFiles = sqliteTable(
     mtimeMs: ms("mtime_ms"),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("book_files_path_idx").on(t.relPath), index("book_files_hash_idx").on(t.sha256)],
+  (t) => [
+    uniqueIndex("book_files_path_idx").on(t.relPath),
+    index("book_files_hash_idx").on(t.sha256),
+    // "Has a file" checks (OPDS, Kobo) and files-per-book lookups.
+    index("book_files_book_idx").on(t.bookId),
+  ],
 );
 
 export const tags = sqliteTable(
@@ -244,7 +252,7 @@ export const bookTags = sqliteTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.bookId, t.tagId] })],
+  (t) => [primaryKey({ columns: [t.bookId, t.tagId] }), index("book_tags_tag_idx").on(t.tagId)],
 );
 
 export const collections = sqliteTable("collections", {

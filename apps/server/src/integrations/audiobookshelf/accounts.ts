@@ -28,7 +28,7 @@ const AccountBody = z
   .refine((b) => b.token != null || b.writeBack != null, "nothing to change");
 const ImportBody = z
   .object({ userIds: z.array(z.string().min(1).max(64)).max(100).optional(), dryRun: z.boolean().default(false) })
-  .default({});
+  .prefault({});
 
 function httpError(statusCode: number, message: string): Error & { statusCode: number } {
   return Object.assign(new Error(message), { statusCode });

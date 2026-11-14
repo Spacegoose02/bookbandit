@@ -53,7 +53,7 @@ export const AiSettingsInput = z
         /** Meaning search and "more like this". Needs an embeddings model (Ollama nomic-embed-text). */
         embeddings: providerRef,
       })
-      .default({}),
+      .prefault({}),
     search: z
       .object({
         enabled: z.boolean().default(false),
@@ -65,18 +65,18 @@ export const AiSettingsInput = z
         kidAllowlist: z.array(z.string().trim().toLowerCase().min(3).max(100)).max(200).default(DEFAULT_KID_ALLOWLIST()),
         maxResults: z.number().int().min(1).max(10).default(5),
       })
-      .default({}),
+      .prefault({}),
     moderation: z
       .object({
         /** Also moderate grown-ups' chats (kids are always moderated). */
         adults: z.boolean().default(false),
       })
-      .default({}),
+      .prefault({}),
     kidDefaults: z
       .object({
         dailyLimit: z.number().int().min(1).max(500).default(30),
       })
-      .default({}),
+      .prefault({}),
   })
   .superRefine((s, ctx) => {
     const ids = new Set<string>();

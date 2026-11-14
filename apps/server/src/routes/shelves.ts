@@ -26,7 +26,7 @@ const bookSummary = {
 
 const LimitQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).default(20) });
 const KidShelfQuery = z.object({ storyteller: z.enum(["true", "false"]).optional() });
-const KidShelfBody = z.object({ storyteller: z.boolean().default(false) }).default({});
+const KidShelfBody = z.object({ storyteller: z.boolean().default(false) }).prefault({});
 
 function forbidden(message: string): Error {
   return Object.assign(new Error(message), { statusCode: 403 });

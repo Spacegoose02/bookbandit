@@ -121,15 +121,15 @@ Goal: the kids' side feels finished and the server looks after itself.
 
 - [x] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
 
-- [ ] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
+- [x] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
 
-- [ ] Playwright end-to-end suite in CI, including the content lock through every door (`ws/ops`)
+- [x] Playwright end-to-end suite in CI, including the content lock through every door (`ws/ops`)
 
-- [ ] Sign-in rate limits, token expiry, security headers, dependency audit (`ws/ops`)
+- [x] Sign-in rate limits, token expiry, security headers, dependency audit (`ws/ops`)
 
-- [ ] 20,000-book performance check (`ws/ops`)
+- [x] 20,000-book performance check (`ws/ops`)
 
-- [ ] Release v0.2.0 (`ws/ops`)
+- [x] Release v0.2.0 (`ws/ops`)
 
 ## Owner checks on real devices
 

@@ -38,9 +38,9 @@ export async function staticRoutes(app: FastifyInstance, opts: StaticOptions) {
     index: ["index.html"],
     setHeaders(res, path) {
       if (path.startsWith(assetsDir)) {
-        res.setHeader("cache-control", "public, max-age=31536000, immutable");
+        res.header("cache-control", "public, max-age=31536000, immutable");
       } else {
-        res.setHeader("cache-control", "no-cache");
+        res.header("cache-control", "no-cache");
       }
     },
   });
