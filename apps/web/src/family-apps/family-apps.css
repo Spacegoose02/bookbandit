@@ -1,0 +1,52 @@
+.bb-kitchen-send {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+  padding: 6px var(--bb-gutter, 16px);
+  background: var(--bb-surface);
+  border-bottom: 1px solid var(--bb-border);
+  color: var(--bb-text);
+}
+.bb-kitchen-recipe {
+  min-width: 0;
+  flex: 1 1 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-kitchen-send .bb-kitchen-ok,
+.bb-kitchen-send .bb-error {
+  margin: 0;
+}
+.bb-family-apps-kids {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.bb-family-apps-kid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 8px;
+  align-items: center;
+}
+.bb-family-apps-kid > strong {
+  grid-column: 1 / -1;
+}
+.bb-family-apps-kid select {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 420px) {
+  .bb-family-apps-kid {
+    grid-template-columns: 1fr;
+  }
+}
+.bb-kitchen-ok {
+  color: #49b37a;
+}
+.bb-kitchen-ok a {
+  color: inherit;
+  font-weight: 600;
+}

@@ -1,0 +1,463 @@
+/* Librarian pages (/admin/librarian). Builds on admin.css; colors come from the theme tokens. */
+
+.bb-lib-tabs {
+  display: flex;
+  gap: 6px;
+  margin: -8px 0 20px;
+  overflow-x: auto;
+}
+.bb-lib-tabs a {
+  padding: 6px 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  color: var(--bb-muted);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bb-lib-tabs a:hover {
+  color: var(--bb-text);
+}
+.bb-lib-tabs a.active {
+  border-color: var(--bb-accent);
+  color: var(--bb-text);
+  background: color-mix(in srgb, var(--bb-accent) 16%, transparent);
+}
+
+.bb-librarian .bb-linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bb-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bb-lib-h2 {
+  margin: 28px 0 12px;
+  font-size: 1.2rem;
+}
+.bb-librarian .bb-tag {
+  margin-left: 0;
+}
+
+/* --- health --------------------------------------------------------------- */
+
+.bb-lib-problems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-lib-problems li {
+  display: grid;
+  grid-template-columns: 150px 1fr minmax(160px, 260px);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-lib-badge {
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--bb-warn) 22%, transparent);
+  color: var(--bb-text);
+}
+.bb-lib-badge.is-drm {
+  background: var(--bb-surface-2);
+}
+
+/* --- duplicates ------------------------------------------------------------ */
+
+.bb-lib-reason {
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--bb-surface-2);
+  color: var(--bb-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.bb-dupe-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.bb-dupe-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 2px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-bg);
+  cursor: pointer;
+}
+.bb-dupe-col.is-keep {
+  border-color: var(--bb-accent);
+}
+.bb-dupe-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.bb-dupe-pick input {
+  width: 20px;
+  height: 20px;
+}
+.bb-dupe-book {
+  display: flex;
+  gap: 12px;
+}
+.bb-dupe-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.bb-dupe-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.bb-dupe-facts dt {
+  color: var(--bb-muted);
+}
+.bb-dupe-facts dd {
+  margin: 0;
+}
+.bb-dupe-files,
+.bb-copy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+.bb-dupe-files li {
+  overflow-wrap: anywhere;
+  padding: 2px 0;
+}
+.bb-copy-list li label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+.bb-dupe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* --- edit books ---------------------------------------------------------- */
+
+.bb-lib-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.bb-lib-filters .bb-input[type="search"] {
+  flex: 1 1 260px;
+}
+.bb-lib-filters select.bb-input {
+  flex: 0 1 200px;
+}
+.bb-lib-bulk {
+  position: sticky;
+  top: 64px;
+  z-index: 5;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: var(--bb-surface);
+  border: 2px solid var(--bb-accent);
+  border-radius: var(--bb-radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.bb-lib-bulk header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.bb-lib-sel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-lib-bulk-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+.bb-lib-bulk-body .bb-field {
+  margin: 0;
+}
+.bb-lib-wide {
+  flex: 1 1 320px;
+}
+.bb-lib-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.bb-lib-table {
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  overflow: hidden;
+  background: var(--bb-surface);
+}
+.bb-lib-tr {
+  display: grid;
+  grid-template-columns: 32px 48px minmax(180px, 2fr) minmax(110px, 1fr) minmax(110px, 1fr) 120px 110px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-lib-tr.is-head {
+  border-top: 0;
+  background: var(--bb-surface-2);
+  color: var(--bb-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bb-lib-tr.is-selected {
+  background: color-mix(in srgb, var(--bb-accent) 10%, var(--bb-surface));
+}
+.bb-lib-tr input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+.bb-lib-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bb-lib-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.bb-lib-formats {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--bb-muted);
+}
+.bb-lib-coverbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.bb-lib-coverbtn:hover {
+  outline: 2px solid var(--bb-accent);
+}
+.bb-lib-none {
+  padding: 16px;
+}
+.bb-lib-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (max-width: 900px) {
+  .bb-lib-tr {
+    grid-template-columns: 32px 48px 1fr auto;
+  }
+  .bb-lib-tr > :nth-child(4),
+  .bb-lib-tr > :nth-child(5),
+  .bb-lib-tr > :nth-child(7) {
+    display: none;
+  }
+  .bb-lib-problems li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+/* --- cover editor ------------------------------------------------------------ */
+
+.bb-cover-editor {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 18px 20px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  color: var(--bb-text);
+}
+.bb-cover-editor::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+.bb-cover-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.bb-cover-head h2 {
+  margin: 0;
+}
+.bb-cover-head p {
+  margin: 2px 0 0;
+}
+.bb-cover-body {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 20px;
+  margin-top: 12px;
+}
+.bb-cover-current {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.bb-cover-current-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.bb-cover-upload {
+  position: relative;
+  justify-content: center;
+}
+.bb-cover-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.bb-cover-cands h3 {
+  margin: 0 0 8px;
+  color: var(--bb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bb-cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+.bb-cover-cand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: var(--bb-radius);
+  background: var(--bb-bg);
+  color: var(--bb-text);
+  cursor: pointer;
+}
+.bb-cover-cand img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.bb-cover-cand[aria-checked="true"] {
+  border-color: var(--bb-accent);
+}
+.bb-cropper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 12px;
+}
+.bb-crop-frame {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--bb-bg);
+  outline: 2px solid var(--bb-accent);
+  cursor: grab;
+  touch-action: none;
+}
+.bb-crop-frame:active {
+  cursor: grabbing;
+}
+.bb-crop-frame img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  user-select: none;
+}
+.bb-crop-controls {
+  flex: 1 1 220px;
+}
+.bb-crop-controls input[type="range"] {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .bb-cover-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- convert ---------------------------------------------------------------- */
+
+.bb-lib-convert,
+.bb-lib-jobs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-lib-convert li {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-lib-convert li:first-child,
+.bb-lib-jobs li:first-child {
+  border-top: 0;
+}
+.bb-lib-convert input {
+  width: 20px;
+  height: 20px;
+}
+.bb-lib-jobs li {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-lib-jobs li.is-failed .bb-status {
+  background: color-mix(in srgb, var(--bb-warn) 22%, transparent);
+  color: var(--bb-text);
+}
+.bb-lib-jobs .bb-status {
+  justify-self: start;
+}

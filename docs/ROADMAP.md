@@ -69,11 +69,11 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 Goal: the Calibre desktop app is no longer needed.
 
-- [ ] Library-wide duplicates page (`ws/librarian`; the inbox already shows likely duplicates and merges them)
+- [x] Library-wide duplicates page (`ws/librarian`; the inbox already shows likely duplicates and merges them)
 
-- [ ] Bulk edit, cover editor, library health page (`ws/librarian`)
+- [x] Bulk edit, cover editor, library health page (`ws/librarian`)
 
-- [ ] Format conversion on the job runner with `ebook-convert`, KEPUB ahead of time, optional metadata written into EPUBs (`ws/librarian`)
+- [x] Format conversion on the job runner with `ebook-convert`, KEPUB ahead of time, optional metadata written into EPUBs (`ws/librarian`)
 
 - [ ] Import from Calibre (`metadata.db`), Calibre-Web (`app.db` read status and shelves) and Kavita (progress, collections), with a dry-run report (`ws/migrate`)
 
@@ -82,6 +82,8 @@ Goal: the Calibre desktop app is no longer needed.
 - [x] Discover and trending, series pages, admin-made series, category browsing (`ws/discover`; "Request it" calls `POST /api/requests` once `ws/requests` lands)
 
 - [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
+
+- [x] Family apps: reading time earns Den Duty practice points, Send to kitchen from Cook mode to Nighttime Ninja (`family-apps`)
 
 - [x] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`; physical Kobo test pending)
 
