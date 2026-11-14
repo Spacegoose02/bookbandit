@@ -5,6 +5,7 @@ import { authPlugin } from "./auth/plugin.js";
 import { parseTrustedProxies } from "./auth/trusted-proxy.js";
 import { healthRoutes } from "./routes/health.js";
 import { bookRoutes } from "./routes/books.js";
+import { defaultWebDir, staticRoutes } from "./static.js";
 
 export async function buildApp(config: Config, db: Db): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.LOG_LEVEL } });
@@ -16,6 +17,8 @@ export async function buildApp(config: Config, db: Db): Promise<FastifyInstance>
   });
   await app.register(healthRoutes);
   await app.register(bookRoutes, { db });
+  // Last: the web app and its index.html fallback for client-side routes.
+  await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
   return app;
 }
