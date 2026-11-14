@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Config } from "./config.js";
 import type { Db } from "./db/client.js";
@@ -16,10 +17,15 @@ import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { libraryRoutes } from "./library/routes.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
+import { jobsPlugin } from "./jobs/index.js";
+import { requestsPlugin, type RequestsOptions } from "./requests/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
   integrations?: Pick<IntegrationsOptions, "secretKey" | "fetchImpl" | "makeMailer">;
+  requests?: Pick<RequestsOptions, "fetchImpl" | "pollMs">;
+  /** false: tests drive jobs with app.jobs.drain(). */
+  jobsAutostart?: boolean;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -33,6 +39,8 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(userRoutes, { db });
   await app.register(deviceRoutes, { db, trustedProxies });
   await app.register(healthRoutes);
+  // Before any plugin that registers job handlers (library, requests).
+  await app.register(jobsPlugin, { db, autostart: deps.jobsAutostart });
   await app.register(bookRoutes, { db });
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
@@ -44,6 +52,16 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
+  });
+  await app.register(requestsPlugin, {
+    db,
+    configDir: config.CONFIG_DIR,
+    booksDir: resolve(config.BOOKS_DIR),
+    lookup: config.METADATA_ONLINE
+      ? { googleApiKey: config.GOOGLE_BOOKS_API_KEY, hardcoverToken: config.HARDCOVER_API_TOKEN, fetch: deps.requests?.fetchImpl }
+      : false,
+    secretKey: deps.integrations?.secretKey,
+    ...deps.requests,
   });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
