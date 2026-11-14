@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The app's own pages (setup and offline library). Server pages are remote and get no capabilities.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

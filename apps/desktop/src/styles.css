@@ -1,0 +1,512 @@
+/* BookBandit desktop: the app's own pages. Colors follow the web app's Dark and Paper themes. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #14161b;
+  --surface: #1d2027;
+  --surface-2: #272b34;
+  --text: #eceef2;
+  --muted: #a3a9b6;
+  --accent: #e0a54a;
+  --accent-text: #1b1305;
+  --border: #343945;
+  --focus: #f2c27a;
+  --danger: #f08a7e;
+  --reader-bg: #16181d;
+  --reader-text: #dcdfe5;
+  --radius: 12px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f6f1e7;
+    --surface: #fffdf8;
+    --surface-2: #efe7d8;
+    --text: #2a241b;
+    --muted: #6f6556;
+    --accent: #a8641c;
+    --accent-text: #fff8ee;
+    --border: #ddd2bf;
+    --focus: #a8641c;
+    --danger: #b23a2b;
+    --reader-bg: #fbf7ef;
+    --reader-text: #2a241b;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn.quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.btn[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* --- launcher / setup ------------------------------------------------------- */
+
+.launch {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.card {
+  width: min(460px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.25);
+}
+
+.card .hero {
+  display: block;
+  width: 132px;
+  margin: -8px auto 8px;
+}
+
+.card h1 {
+  margin: 0 0 4px;
+  text-align: center;
+  font-size: 26px;
+}
+
+.card h1 b {
+  color: var(--accent);
+}
+
+.card .lead {
+  margin: 0 0 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.field span {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.field small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field input {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+details.pair {
+  margin: 0 0 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+details.pair summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+details.pair[open] summary {
+  margin-bottom: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actions .btn.primary {
+  flex: 1;
+}
+
+.error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  margin: 8px auto 16px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.foot {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- offline library ------------------------------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px clamp(16px, 3vw, 32px);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.logo img {
+  width: 36px;
+  height: 36px;
+}
+
+.logo b {
+  color: var(--accent);
+}
+
+.topbar .spacer {
+  flex: 1;
+}
+
+.banner {
+  margin: 20px clamp(16px, 3vw, 32px) 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.banner .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.banner.online .dot {
+  background: #5cc98a;
+}
+
+.banner p {
+  margin: 0;
+  flex: 1;
+}
+
+.page {
+  padding: 8px clamp(16px, 3vw, 32px) 48px;
+}
+
+.page h2 {
+  font-size: 22px;
+  margin: 24px 0 4px;
+}
+
+.page .sub {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 24px 20px;
+}
+
+.book {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.book .open {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  border-radius: 10px;
+}
+
+.book .cover {
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  border-radius: 8px;
+  background: var(--surface-2);
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.28);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 12px;
+  font-family: Georgia, serif;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.book .open:hover .cover {
+  transform: translateY(-3px);
+}
+
+.book .title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.book .by {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.book .meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.book .remove {
+  all: unset;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.book .remove:hover {
+  color: var(--danger);
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 48px 16px;
+}
+
+.empty img {
+  width: 180px;
+}
+
+.empty h2 {
+  margin: 8px 0 0;
+}
+
+.empty p {
+  margin: 0;
+  max-width: 460px;
+  color: var(--muted);
+}
+
+kbd {
+  font: 600 12px/1 ui-monospace, monospace;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+/* --- reader ----------------------------------------------------------------- */
+
+.reader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--reader-bg);
+  color: var(--reader-text);
+}
+
+.reader .topbar {
+  position: static;
+  background: var(--reader-bg);
+}
+
+.reader .rtitle {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.reader .stage {
+  position: relative;
+  min-height: 0;
+}
+
+.reader foliate-view,
+.reader iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.reader .turn {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 28px;
+  cursor: pointer;
+  opacity: 0.4;
+  z-index: 1;
+}
+
+.reader .turn:hover {
+  opacity: 1;
+}
+
+.reader .turn.prev {
+  left: 0;
+}
+
+.reader .turn.next {
+  right: 0;
+}
+
+.reader .status {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px clamp(16px, 3vw, 32px);
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+  z-index: 10;
+}
+
+[hidden] {
+  display: none !important;
+}
