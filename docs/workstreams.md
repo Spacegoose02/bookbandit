@@ -69,6 +69,12 @@ none of these touch those paths.
 - **Content lock.** Every new list, search, feed, recommendation and AI answer goes through
   `visibleBooksWhere` / `assertCanSee` with a test (CLAUDE.md rule 1). AI context and OPDS feeds
   count as "returning books".
+- **Styles.** Put a new area's CSS in its own file next to its components (for example
+  `apps/web/src/admin/admin.css`, imported by that area's page) instead of appending to
+  `apps/web/src/styles.css`. Use the theme variables from `styles.css`; only change shared rules
+  there when you must.
+- **Docs.** Change log entries go in your own `docs/changes/<workstream>.md`, never in a shared
+  table (see [Every PR](#every-pr)).
 
 ### Wave 2 briefs
 
@@ -156,6 +162,21 @@ none of these touch those paths.
   admin screens, Docker first-run page) adds screenshots to `docs/screenshots/`
   (`YYYY-MM-DD-<area>-<what>.png`) and embeds them in the PR description. Capture with Playwright at
   a desktop width and a tablet width (for example 1280×800 and 800×1280).
-- **Roadmap.** Tick the matching item in [ROADMAP.md](ROADMAP.md) when it's done.
-- **Handoff.** Add a row to "Recent changes" in [HANDOFF.md](HANDOFF.md), and update "How to run"
-  or "Next up" if your change affects them.
+- **Roadmap.** Tick the matching item in [ROADMAP.md](ROADMAP.md) when it's done. Edit only your
+  own items and keep the blank line between items.
+- **Change log.** Add a bullet at the top of `docs/changes/<workstream>.md` (create it if your
+  workstream has none; see [changes/README.md](changes/README.md)). Don't add rows to HANDOFF.md.
+- **Handoff.** Update "How to run" in [HANDOFF.md](HANDOFF.md) only if your change affects it
+  (new env vars, new services). The lead keeps "Next up" and "Decisions".
+- **Stay mergeable.** You own your PR until it merges, conflicts included. Check it right after
+  every push and again whenever `main` moves (another PR merged):
+
+  ```sh
+  gh api repos/spacegoose02/bookbandit/pulls/<N> --jq '.mergeable_state'
+  ```
+
+  `dirty` means conflicts. Then merge the latest `main` into your branch (don't rebase a branch
+  others may have pulled), resolve every conflict keeping both sides' intent, regenerate your
+  migration if `main` added one so numbering stays linear, run `pnpm typecheck` and `pnpm test`,
+  and push. `unknown` means GitHub is still computing; ask again shortly. Don't wait for the lead
+  or the owner to fix conflicts on your PR.

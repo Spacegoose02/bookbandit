@@ -1,7 +1,7 @@
 # Handoff
 
 Where things stand, how to run it, and what's next. Update this file whenever a PR changes any of
-those. Newest entries at the top of "Recent changes".
+those. Change logs live in [changes/](changes/README.md), one file per workstream.
 
 This file is written so an agent or developer with only this repository can pick up any
 piece of work. You don't need access to any outside chat or document.
@@ -35,7 +35,7 @@ pnpm dev   # API http://localhost:8080, web http://localhost:5173
 ```
 
 Web UI without a server: `pnpm --filter @bookbandit/web demo` (sample books; add `?demo=kid` to the
-URL for kid mode). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
+URL for kid mode; the demo grown-up is an admin, so `/admin` and `/family` work too). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
 `pnpm --filter @bookbandit/web screenshots`.
 
 Sign-in: on an empty database the web app shows "Welcome to BookBandit" and the first person creates
@@ -53,16 +53,27 @@ New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online me
 by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
+Discover pulls Open Library trending lists (and Hardcover's when a Hardcover token is set, in the
+admin settings or `HARDCOVER_API_TOKEN`), cached in memory for 6 hours; turning online lookups off
+turns the outside lists off. An admin imports a Kindle library at `/discover/kindle-import` (or
+`POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
+[discover-api.md](discover-api.md).
+
 Android tablet app: `pnpm --filter @bookbandit/web build && pnpm --filter @bookbandit/android build`,
 then `cap sync android` and `./gradlew assembleDebug` (JDK 21 + Android SDK). CI builds the APK on
 every PR and attaches it to releases. Details and signing: [apps/android/README.md](../apps/android/README.md).
 
 ## Recent changes
 
+Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
+parallel PRs don't fight over one table: [lead](changes/lead.md), [auth](changes/auth.md),
+[web](changes/web.md), [library](changes/library.md), [sync](changes/sync.md),
+[integrations](changes/integrations.md), [docker](changes/docker.md), plus a file per wave 2
+workstream once it lands. Add your entry there, not here.
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
 | 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
-| 2026-11-14 | Android tablet app (`apps/android`, Capacitor 8): QR/typed pairing, native /api proxy (device token stays native), offline downloads and per-person cache with an "On this tablet" shelf, screen pinning for kids, parent-PIN tablet settings, CI APK attached to v* releases. Web hooks: "Save for offline" and "Tablet settings" (`apps/web/src/native/`). See [apps/android/README.md](../apps/android/README.md) | ws/android PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
@@ -77,8 +88,10 @@ every PR and attaches it to releases. Details and signing: [apps/android/README.
 
 1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
-2. Auth: web sign-in screen and own-profile editor.
-3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
+
+Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
+`apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
 
 ## Decisions so far
 

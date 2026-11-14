@@ -17,6 +17,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The parsed JSON error body, when there was one. */
+    public body?: unknown,
   ) {
     super(message);
   }
@@ -26,6 +28,7 @@ export class ApiError extends Error {
   }
 }
 
+/** JSON fetch against the API. Exported so feature folders (audio, storyteller, …) can add their own calls. */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",
@@ -38,13 +41,15 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
+    let body: { message?: string; error?: string } | undefined;
     try {
-      const body = (await res.json()) as { message?: string };
+      body = (await res.json()) as { message?: string; error?: string };
       if (body.message) message = body.message;
+      else if (body.error) message = body.error;
     } catch {
       /* not JSON */
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, body);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -100,6 +105,16 @@ export interface Api {
   bookmarks(bookId: string): Promise<Bookmark[]>;
   addBookmark(b: NewBookmark): Promise<Bookmark>;
   deleteBookmark(id: string): Promise<void>;
+  /** Report active reading/listening time (server caps it by wall-clock time). */
+  readingHeartbeat(beat: ReadingHeartbeat, opts?: { keepalive?: boolean }): Promise<void>;
+}
+
+export interface ReadingHeartbeat {
+  sessionId: string;
+  bookId: string;
+  seconds: number;
+  kind?: "read" | "listen";
+  deviceName?: string;
 }
 
 export const httpApi: Api = {
@@ -133,6 +148,9 @@ export const httpApi: Api = {
     request<{ items: Bookmark[] }>(`/api/books/${encodeURIComponent(bookId)}/bookmarks`).then((r) => r.items),
   addBookmark: (b) => request("/api/bookmarks", { method: "POST", body: json({ id: crypto.randomUUID(), ...b }) }),
   deleteBookmark: (id) => request(`/api/bookmarks/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  readingHeartbeat: async (beat, opts) => {
+    await request("/api/reading/heartbeat", { method: "POST", body: json(beat), keepalive: opts?.keepalive });
+  },
 };
 
 /** `VITE_DEMO=1 pnpm dev` (or `?demo` in the URL) runs the UI on sample data without a server. */
