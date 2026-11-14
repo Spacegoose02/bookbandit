@@ -14,17 +14,33 @@ Every endpoint that returns books filters with `visibleBooksWhere(reader)` or ch
 ```json
 {
   "lists": [
-    { "id": "openlibrary-weekly", "name": "Trending this week", "source": "openlibrary", "items": [DiscoverItem], "error": "optional" }
+    { "id": "openlibrary-weekly", "name": "Trending this week", "source": "openlibrary", "group": "popular", "items": [DiscoverItem], "error": "optional" }
   ],
   "online": true,
   "requests": true
 }
 ```
 
-Lists, in order: `hardcover-trending` (only with a Hardcover token, from the admin settings or `HARDCOVER_API_TOKEN`), `openlibrary-weekly`,
-`openlibrary-yearly`, then `family` ("Popular in your family": books the most household members
-have started, from `reading_progress`). Outside lists are cached in memory for 6 hours (10 minutes
-after a failure, keeping the last good copy) and skipped entirely when online lookups are off (admin settings or `METADATA_ONLINE=false`).
+Rows come in groups (`group`), in this order, and a book only shows in the first row that has it
+(matched library id, ISBN, or title plus first author). Books the reader has already opened are left
+out of every row except `family`.
+
+| Group | Rows (`id`) | Where from |
+| --- | --- | --- |
+| `foryou` | `series-next` "Next in your series" | The next library books in series the reader is part-way through, then (with a Hardcover token) the next books the library is missing, with a note like "Book 3 of Mistborn" |
+| | `because-<bookId>` "Because you read X" (up to 2, `aboutBookId` set) | Barnaby's "more like this" (shared author, series or genre, plus meaning search when embeddings are set up), then Open Library books on the same subjects by other authors |
+| | `author-<name>` "More by X" (up to 2) | Unread library books by the reader's most-read authors, then their popular Open Library books |
+| `popular` | `hardcover-trending` (token only), `openlibrary-weekly`, `openlibrary-new` "New and noteworthy" | Trending lists; "new" is books first published this year or last, sorted by Open Library trending |
+| `genres` | `genre-<category>` (up to 8) | Open Library searches for the curated categories, the reader's favourite genres first. Readers who can't see outside books get rows from their own visible library instead |
+| `awards` | `awards`, `awards-kids` | Hand-picked prize winners in `awards.ts` (Booker, Pulitzer, Hugo, Women's Prize; Caldecott, Newbery, Printz), with English covers looked up weekly |
+| `family` | `family` "Popular in your family" | Books the most household members have started |
+
+Open Library searches ask for English editions (`language:eng`, `lang=en`) and take the English
+edition's cover; trending works are looked up once more for the same reason, and works with no
+English edition are dropped. Outside lists are cached in memory for 6 hours (a week for prize
+lists, 10 minutes after a failure, keeping the last good copy), at most 4 requests at once, and a
+page view waits at most 8 seconds for them (slower lists fill the cache for next time). They're
+skipped entirely when online lookups are off (admin settings or `METADATA_ONLINE=false`).
 Only generic requests leave the server; nothing about the household is sent.
 
 A `DiscoverItem`:
@@ -36,6 +52,8 @@ A `DiscoverItem`:
 | `onKindle` | The household owns it on Kindle (a Kindle-only entry, or a file book with an ASIN) |
 | `coverUrl` | Outside cover, when there's no local one |
 | `title`, `authors`, `year`, `isbn13`, `url`, `source`, `key` | From the list |
+| `note` | Optional reason line: "Book 3 of Pebble Bay", "Also by Ann Leckie", "Caldecott Medal 2024" |
+| `requestable` | Not in the library and this reader may ask for it (shows Request it) |
 
 Matching uses ISBN-13, the Open Library work id or the Hardcover id, then title plus an
 overlapping author. Only books visible to the reader can match, so a locked book shows as
@@ -43,7 +61,9 @@ overlapping author. Only books visible to the reader can match, so a locked book
 
 **Kids and other readers who can't see adult books**: outside books are unrated, and unrated means
 adult, so they only get outside items that matched a book they can already see. `requests` is
-`false` for them and the web app hides the Request button.
+`false` for them. The one exception is the kids' prize list: each prize carries the audience it is
+for (Caldecott `kids`, Newbery `middle_grade`, Printz `teen`), so a kid sees, and can request, the
+winners at or under their own limit. The server still guesses the request's rating itself.
 
 The web app's "Request it" button calls `POST /api/requests` with `{ title, author, isbn13 }`
 (owned by `ws/requests`). Until that exists it says requests aren't switched on yet.

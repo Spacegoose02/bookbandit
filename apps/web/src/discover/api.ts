@@ -21,13 +21,23 @@ export interface DiscoverItem {
   bookId: string | null;
   coverPath: string | null;
   onKindle: boolean;
+  /** Why it's here: "Book 3 of Mistborn", "Also by Ann Leckie", "Caldecott Medal 2024". */
+  note?: string;
+  /** Not in the library and this reader may ask for it (shows Request it). */
+  requestable?: boolean;
 }
+
+/** Section of the page a row belongs to. */
+export type DiscoverGroup = "foryou" | "popular" | "genres" | "awards" | "family";
 
 export interface DiscoverList {
   id: string;
   name: string;
-  source: DiscoverItem["source"];
+  source: DiscoverItem["source"] | "foryou" | "awards";
+  group?: DiscoverGroup;
   items: DiscoverItem[];
+  /** A library book the row is about ("Because you read …" links to it). */
+  aboutBookId?: string;
   error?: string;
 }
 

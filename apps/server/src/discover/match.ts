@@ -30,6 +30,10 @@ export interface DiscoverItem {
   coverPath: string | null;
   /** The household owns it on Kindle (kindle-only entry, or a file book with an ASIN). */
   onKindle: boolean;
+  /** Short line under the card: why it's here ("Book 3 of Mistborn", "Caldecott Medal 2024"). */
+  note?: string;
+  /** Not in the library, and this reader may ask for it (the Request it button). */
+  requestable: boolean;
 }
 
 interface Candidate {
@@ -113,13 +117,14 @@ export function matchExternal(db: Db, reader: Reader, list: ExternalBook[]): Dis
     );
   };
 
-  const showOutside = canSeeOutsideBooks(reader);
   const out: DiscoverItem[] = [];
   for (const b of list) {
     const hits = find(b);
     // Prefer a readable file over a Kindle-only entry when both exist.
     const best = hits.find((h) => !h.kindleOnly) ?? hits[0];
-    if (!best && !showOutside) continue;
+    // Outside books are unrated (so adult) unless a hand-picked list says who they're for.
+    const outsideOk = canSee(reader, b.rating ?? UNRATED_FALLBACK);
+    if (!best && !outsideOk) continue;
     const onKindle = hits.some((h) => h.kindleOnly || !!h.kindleAsin);
     out.push({
       key: `${b.source}:${b.sourceId}`,
@@ -134,6 +139,8 @@ export function matchExternal(db: Db, reader: Reader, list: ExternalBook[]): Dis
       bookId: best?.id ?? null,
       coverPath: best?.coverPath ?? null,
       onKindle,
+      ...(b.note ? { note: b.note } : {}),
+      requestable: !best && outsideOk,
     });
   }
   return out;
