@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "14635de8-262a-4341-9297-46d81bb6c1d3",
+  "id": "1795cdb0-eb8a-4211-9b73-5e7d85a66d84",
   "prevId": "1acccd3d-1da6-4f8d-bfca-5844656b1bfa",
   "tables": {
     "ai_messages": {
@@ -3434,300 +3434,45 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "reading_bedtimes": {
-      "name": "reading_bedtimes",
+    "duplicate_ignores": {
+      "name": "duplicate_ignores",
       "columns": {
-        "kid_id": {
-          "name": "kid_id",
+        "group_key": {
+          "name": "group_key",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "enabled": {
-          "name": "enabled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "start_minute": {
-          "name": "start_minute",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "end_minute": {
-          "name": "end_minute",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "weekend_start_minute": {
-          "name": "weekend_start_minute",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "time_zone": {
-          "name": "time_zone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'UTC'"
-        },
-        "updated_by": {
-          "name": "updated_by",
+        "ignored_by": {
+          "name": "ignored_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "updated_at": {
-          "name": "updated_at",
+        "created_at": {
+          "name": "created_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "reading_bedtimes_kid_id_users_id_fk": {
-          "name": "reading_bedtimes_kid_id_users_id_fk",
-          "tableFrom": "reading_bedtimes",
+        "duplicate_ignores_ignored_by_users_id_fk": {
+          "name": "duplicate_ignores_ignored_by_users_id_fk",
+          "tableFrom": "duplicate_ignores",
           "tableTo": "users",
           "columnsFrom": [
-            "kid_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reading_bedtimes_updated_by_users_id_fk": {
-          "name": "reading_bedtimes_updated_by_users_id_fk",
-          "tableFrom": "reading_bedtimes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
+            "ignored_by"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "reading_goals": {
-      "name": "reading_goals",
-      "columns": {
-        "kid_id": {
-          "name": "kid_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "minutes_per_day": {
-          "name": "minutes_per_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "books_per_month": {
-          "name": "books_per_month",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "time_zone": {
-          "name": "time_zone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'UTC'"
-        },
-        "starts_on": {
-          "name": "starts_on",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "reading_goals_kid_id_users_id_fk": {
-          "name": "reading_goals_kid_id_users_id_fk",
-          "tableFrom": "reading_goals",
-          "tableTo": "users",
-          "columnsFrom": [
-            "kid_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reading_goals_updated_by_users_id_fk": {
-          "name": "reading_goals_updated_by_users_id_fk",
-          "tableFrom": "reading_goals",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "reward_awards": {
-      "name": "reward_awards",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "award": {
-          "name": "award",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "emoji": {
-          "name": "emoji",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "earned_at": {
-          "name": "earned_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "seen_at": {
-          "name": "seen_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "reward_awards_user_award_key_idx": {
-          "name": "reward_awards_user_award_key_idx",
-          "columns": [
-            "user_id",
-            "award",
-            "key"
-          ],
-          "isUnique": true
-        },
-        "reward_awards_user_earned_idx": {
-          "name": "reward_awards_user_earned_idx",
-          "columns": [
-            "user_id",
-            "earned_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "reward_awards_user_id_users_id_fk": {
-          "name": "reward_awards_user_id_users_id_fk",
-          "tableFrom": "reward_awards",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reward_awards_book_id_books_id_fk": {
-          "name": "reward_awards_book_id_books_id_fk",
-          "tableFrom": "reward_awards",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

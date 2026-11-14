@@ -1,6 +1,6 @@
 # Rewards: reading goals, badges, stickers and reading bedtime
 
-Owned by `ws/kids`. Tables live in `schema.ts` (migration `0008_kids`).
+Owned by `ws/kids`. Tables live in `schema.ts` (migration `0009_kids`).
 
 ## Rules
 
