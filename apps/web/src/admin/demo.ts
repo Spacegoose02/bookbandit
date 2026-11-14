@@ -47,7 +47,9 @@ let inbox: InboxItem[] = [
     ratingSource: "folder",
     files: [file("Kids/Juniper Vale/The Owl Who Counted Stars.epub", 2_400_000)],
     addedAt: now - 2 * H,
-    possibleDuplicates: [{ id: "b9", title: "The Owl Who Counted Stars", approved: false }],
+    possibleDuplicates: [
+      { id: "b9", title: "The Owl Who Counted Stars", approved: false, volume: null, isbn13: null, sameIsbn: false, addedAt: now - 26 * H, files: [{ format: "pdf", sizeBytes: 9_800_000 }] },
+    ],
     barnaby: { rating: { rating: "kids", confidence: 0.92, reasons: "A gentle bedtime picture book about counting." }, fixes: [] },
   },
   {
@@ -63,7 +65,9 @@ let inbox: InboxItem[] = [
     ratingSource: "metadata",
     files: [file("_incoming/storm-over-pebble-bay.pdf", 8_100_000)],
     addedAt: now - 5 * H,
-    possibleDuplicates: [{ id: "b4", title: "Storm Over Pebble Bay", approved: true }],
+    possibleDuplicates: [
+      { id: "b4", title: "Storm Over Pebble Bay", approved: true, volume: 1, isbn13: "9780000000019", sameIsbn: true, addedAt: now - 40 * 24 * H, files: [{ format: "epub", sizeBytes: 1_200_000 }] },
+    ],
     barnaby: {
       rating: { rating: "middle_grade", confidence: 0.81, reasons: "Adventure for 8 to 12, a storm but nothing scary." },
       fixes: [

@@ -5,6 +5,7 @@ import { readEpub } from "./epub.js";
 import { readCbz } from "./cbz.js";
 import { readPdf } from "./pdf.js";
 import { metadataFromPath } from "./filename.js";
+import { volumeFromPath, withVolume } from "./volume.js";
 
 export interface ExtractInput {
   absPath: string;
@@ -44,7 +45,9 @@ export async function extractMetadata(input: ExtractInput): Promise<ExtractResul
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
   }
-  return { metadata: mergeMetadata(fromFile, fromPath), error };
+  // The file's title often leaves the book number out ("Diary of a Wimpy Villager") while its name
+  // or folder has it ("(Book 6)"): keep the number, so volumes of a series stay separate books.
+  return { metadata: withVolume(mergeMetadata(fromFile, fromPath), fromPath.seriesPosition ?? volumeFromPath(input.relPath)), error };
 }
 
 /** Fill gaps in `primary` from `fallback`. Arrays are taken whole from whichever has them first. */

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { ContentRating } from "@bookbandit/shared";
 import { BarnabyEmpty } from "../brand/Barnaby";
-import { adminApi, type BarnabyFix, type BarnabyRating, type FixValue, type InboxFilter, type InboxItem, type UnratedBook } from "./api";
+import { adminApi, type BarnabyFix, type BarnabyRating, type FixValue, type InboxFilter, type InboxItem, type PossibleDuplicate, type UnratedBook } from "./api";
 import { BookEditor } from "./BookEditor";
 import { Card, Cover, ErrorNote, formatBytes, RatingButtons, RatingPill, SHORT_RATING, timeAgo, useAction, useLoad } from "./ui";
 
@@ -14,6 +14,17 @@ const FILTERS: { key: InboxFilter; label: string }[] = [
 
 /** Below this, Barnaby's pick is shown as a guess to double-check. */
 const SURE = 0.8;
+
+/** What tells merge targets apart: book number, formats and sizes, ISBN match, when it was added, inbox or library. */
+function duplicateFacts(d: PossibleDuplicate): string {
+  const parts: string[] = [];
+  if (d.volume != null) parts.push(`Book ${d.volume}`);
+  parts.push(d.files.length ? d.files.map((f) => `${f.format.toUpperCase()} ${formatBytes(f.sizeBytes)}`).join(", ") : "no files");
+  if (d.sameIsbn) parts.push("same ISBN");
+  parts.push(`added ${timeAgo(d.addedAt)}`);
+  parts.push(d.approved ? "in the library" : "in the inbox");
+  return parts.join(" · ");
+}
 
 const without = (s: Set<string>, ids: string[]) => {
   const n = new Set(s);
@@ -246,23 +257,30 @@ function InboxRow({
         </div>
         {book.possibleDuplicates.length > 0 && (
           <div className="bb-dupe" role="note">
-            Looks like a book you already have:
-            {book.possibleDuplicates.map((d) => (
-              <button
-                key={d.id}
-                className="bb-btn bb-btn-small"
-                disabled={action.busy}
-                onClick={() =>
-                  action.run(async () => {
-                    await adminApi.mergeBook(book.id, d.id);
-                    onGone();
-                  })
-                }
-                title="Adds this file to the existing book as another format, then removes this inbox entry"
-              >
-                Merge into “{d.title}”{d.approved ? "" : " (inbox)"}
-              </button>
-            ))}
+            <span>Looks like a book you already have:</span>
+            <ul className="bb-dupe-targets">
+              {book.possibleDuplicates.map((d) => (
+                <li key={d.id}>
+                  <button
+                    className="bb-btn bb-btn-small"
+                    disabled={action.busy}
+                    onClick={() =>
+                      action.run(async () => {
+                        await adminApi.mergeBook(book.id, d.id);
+                        onGone();
+                      })
+                    }
+                    title="Adds this file to the existing book as another format, then removes this inbox entry"
+                  >
+                    Merge into “{d.title}”
+                  </button>
+                  <span className="bb-muted bb-small">{duplicateFacts(d)}</span>
+                  <Link className="bb-small" to={`/book/${d.id}`} target="_blank" rel="noreferrer">
+                    Open
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <FixList fixes={book.barnaby.fixes} onDone={fixDone} />

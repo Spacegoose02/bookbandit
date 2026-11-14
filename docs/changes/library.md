@@ -1,3 +1,4 @@
 # Library changes (`ws/library`)
 
+- 2026-11-14: Series volumes are never treated as copies: the scanner, the inbox's "Looks like a book you already have" and the librarian duplicates page compare book numbers (series position, "Book 6" in the title, file name or Calibre folder) and ISBNs. Imports read the series and book number from titles and paths, so a volume whose EPUB title leaves the number out gets one ("…, Book 6"). Inbox merge buttons show the target's book number, formats and sizes, ISBN match, when it was added, and link to it
 - 2026-11-14: Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) (#7)

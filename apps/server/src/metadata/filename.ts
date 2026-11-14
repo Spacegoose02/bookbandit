@@ -7,8 +7,14 @@ import { posix } from "node:path";
 import type { BookMetadata } from "./types.js";
 import { authorDisplayName, collapse } from "./text.js";
 import { findIsbn } from "./isbn.js";
+import { withVolume } from "./volume.js";
 
 export function metadataFromPath(relPath: string, ignoreDirs: ReadonlySet<string> = new Set()): BookMetadata {
+  // "Title (Book 6)" and friends: series and book number from what the path called the title.
+  return withVolume(pathGuess(relPath, ignoreDirs));
+}
+
+function pathGuess(relPath: string, ignoreDirs: ReadonlySet<string>): BookMetadata {
   const parts = relPath.split("/").filter(Boolean);
   const file = parts.pop() ?? relPath;
   const dirs = parts.filter((d) => !ignoreDirs.has(d.toLowerCase()) && !d.startsWith("."));
@@ -39,7 +45,8 @@ export function metadataFromPath(relPath: string, ignoreDirs: ReadonlySet<string
 
   // Calibre library: Author/Title (123)/file
   if (parent && grandparent && /\(\d+\)$/.test(parent)) {
-    out.title = collapse(parent.replace(/\(\d+\)$/, ""));
+    // Calibre writes ":" as "_" in folder names: "Minecraft_ Diary of a Wimpy Villager (Book 6)_ (…)".
+    out.title = collapse(parent.replace(/\(\d+\)$/, "").replace(/_(?=\s|$)/g, ":").replace(/_/g, " ")).replace(/:$/, "");
     out.authors = [authorDisplayName(grandparent)];
     return out;
   }
