@@ -618,6 +618,7 @@ a.bb-tile:hover {
   font-weight: 700;
 }
 .bb-kid-stats small {
+  display: block;
   font-size: 0.75rem;
   color: var(--bb-focus);
 }
@@ -728,4 +729,91 @@ a.bb-tile:hover {
   margin-top: 4px;
   font-size: 0.75rem;
   opacity: 0.85;
+}
+
+/* --- reading time ---------------------------------------------------------- */
+
+.bb-reading-time {
+  grid-column: 1 / -1;
+}
+.bb-rt-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin-bottom: 12px;
+}
+.bb-rt-summary div {
+  display: flex;
+  flex-direction: column;
+}
+.bb-rt-summary strong {
+  font-family: var(--bb-display-font);
+  font-size: 1.6rem;
+}
+.bb-rt-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  height: 180px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-rt-bars li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.bb-rt-value {
+  min-height: 1.2em;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.bb-rt-col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: min(48px, 100%);
+  background: var(--bb-surface-2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.bb-rt-bar.is-read,
+.bb-rt-swatch.is-read {
+  background: var(--bb-accent);
+}
+.bb-rt-bar.is-listen,
+.bb-rt-swatch.is-listen {
+  background: color-mix(in srgb, var(--bb-accent) 45%, var(--bb-surface-2));
+}
+.bb-rt-day {
+  color: var(--bb-muted);
+  font-size: 0.8rem;
+}
+.bb-rt-legend {
+  margin: 10px 0 0;
+}
+.bb-rt-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin: 0 4px 0 8px;
+  border-radius: 2px;
+}
+.bb-rt-swatch:first-child {
+  margin-left: 0;
+}
+.bb-rt-books {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-rt-books li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
 }

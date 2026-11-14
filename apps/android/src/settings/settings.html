@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#14161b" />
+    <title>Tablet settings</title>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="hero">
+        <img src="/brand/barnaby-full.webp" alt="" />
+        <div>
+          <h1>Tablet settings</h1>
+          <p class="muted" id="who">For grown-ups.</p>
+        </div>
+      </div>
+
+      <!-- PIN gate -->
+      <section id="gate" class="card center" hidden>
+        <h2>Enter the parent PIN</h2>
+        <div class="pin-dots" id="dots" aria-hidden="true"></div>
+        <p class="error" id="gate-error" role="alert"></p>
+        <div class="pad" id="pad"></div>
+        <div class="actions" style="justify-content: center">
+          <a class="btn" href="/">Back to books</a>
+        </div>
+      </section>
+
+      <div id="content" hidden>
+        <section class="card">
+          <h2>Offline books</h2>
+          <p class="muted" id="offline-summary">Books saved on this tablet open without wifi.</p>
+          <ul class="list" id="downloads"></ul>
+          <div class="actions">
+            <button class="btn primary" id="download-shelves" type="button">Save this reader's shelves for offline</button>
+          </div>
+          <p class="muted" id="download-status" aria-live="polite"></p>
+        </section>
+
+        <section class="card">
+          <h2>Kid safety</h2>
+          <label class="switch">
+            <span>
+              Pin the screen when a kid is reading
+              <span class="hint">Keeps the tablet in BookBandit. Unpinning needs the parent PIN here, or Android's own unpin gesture.</span>
+            </span>
+            <input type="checkbox" id="auto-pin" />
+          </label>
+          <div class="actions">
+            <button class="btn" id="pin-now" type="button">Pin the screen now</button>
+            <button class="btn" id="unpin" type="button">Unpin the screen</button>
+          </div>
+          <p class="hint">
+            Tip: in Android's Settings → Security → Screen pinning (App pinning), turn on "Ask for PIN before unpinning" so the
+            unpin gesture needs the tablet's lock screen PIN too.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Parent PIN</h2>
+          <div class="row">
+            <input id="new-pin" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN (4 to 8 digits)" aria-label="New PIN" />
+            <input id="new-pin2" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN again" aria-label="New PIN again" />
+          </div>
+          <div class="actions">
+            <button class="btn" id="save-pin" type="button">Change PIN</button>
+          </div>
+          <p class="muted" id="pin-status" aria-live="polite"></p>
+        </section>
+
+        <section class="card">
+          <h2>This tablet</h2>
+          <dl class="kv">
+            <dt>Name</dt>
+            <dd id="device-name"></dd>
+            <dt>Server</dt>
+            <dd id="server"></dd>
+            <dt>Signs in as</dt>
+            <dd id="locked"></dd>
+            <dt>App version</dt>
+            <dd id="version"></dd>
+          </dl>
+          <div class="actions">
+            <button class="btn danger" id="unpair" type="button">Unpair this tablet</button>
+          </div>
+          <p class="error" id="unpair-status" role="alert"></p>
+        </section>
+
+        <div class="actions">
+          <a class="btn primary" href="/">Back to books</a>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./settings.ts"></script>
+  </body>
+</html>
