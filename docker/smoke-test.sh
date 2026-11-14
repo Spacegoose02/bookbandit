@@ -6,7 +6,19 @@ set -euo pipefail
 IMAGE="${1:?usage: smoke-test.sh <image>}"
 NAME="bookbandit-smoke-$$"
 WORK="$(mktemp -d)"
-trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+cleanup() {
+  docker rm -f "$NAME" >/dev/null 2>&1 || true
+  # The container wrote files as uid 99, so remove them from inside a container.
+  docker run --rm --entrypoint sh -v "$WORK:/work" "$IMAGE" -c 'rm -rf /work/*' >/dev/null 2>&1 || true
+  rm -rf "$WORK" 2>/dev/null || true
+}
+trap cleanup EXIT
+on_error() {
+  echo "smoke test FAILED at line $1: $2" >&2
+  docker top "$NAME" -eo pid,uid,args >&2 2>/dev/null || true
+  docker logs --tail 50 "$NAME" >&2 2>/dev/null || true
+}
+trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 echo "== converters"
 if [ "${SMOKE_SKIP_CONVERTERS:-}" != 1 ]; then
@@ -35,6 +47,7 @@ curl -fsS "http://127.0.0.1:$PORT/api/health" | grep -q '"ok":true'
 curl -fsS "http://127.0.0.1:$PORT/" | grep -qi '<div id="root">'
 curl -fsS "http://127.0.0.1:$PORT/some/client/route" | grep -qi '<div id="root">'
 test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/does-not-exist")" = 404
-test "$(docker top "$NAME" -eo pid,uid,args | awk '/apps\/server\/dist\/index.js/ {print $2; exit}')" = 99
+# Match the node process itself, not tini (uid 0) whose args also name index.js.
+test "$(docker top "$NAME" -eo pid,uid,args | awk '$3 == "node" && /apps\/server\/dist\/index.js/ {print $2; exit}')" = 99
 test "$(stat -c %u "$WORK/config/bookbandit.sqlite")" = 99
 echo "server ok (port $PORT, running as uid 99)"
