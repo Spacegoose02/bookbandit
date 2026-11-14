@@ -1,4 +1,5 @@
 import { useSession } from "../app/session";
+import { TabletSettingsButton } from "../native/TabletSettingsButton";
 import { THEME_LIST } from "./themes";
 
 /** Big picture buttons so kids who can't read yet can still pick a theme. */
@@ -43,6 +44,7 @@ export function SettingsPage() {
     <div className="bb-page">
       <h1 className="bb-h1">{me?.isKid ? "Pick your colors" : "Appearance"}</h1>
       <ThemePicker />
+      <TabletSettingsButton />
     </div>
   );
 }

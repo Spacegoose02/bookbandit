@@ -51,10 +51,15 @@ New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online me
 by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
+Android tablet app: `pnpm --filter @bookbandit/web build && pnpm --filter @bookbandit/android build`,
+then `cap sync android` and `./gradlew assembleDebug` (JDK 21 + Android SDK). CI builds the APK on
+every PR and attaches it to releases. Details and signing: [apps/android/README.md](../apps/android/README.md).
+
 ## Recent changes
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Android tablet app (`apps/android`, Capacitor 8): QR/typed pairing, native /api proxy (device token stays native), offline downloads and per-person cache with an "On this tablet" shelf, screen pinning for kids, parent-PIN tablet settings, CI APK attached to v* releases. Web hooks: "Save for offline" and "Tablet settings" (`apps/web/src/native/`). See [apps/android/README.md](../apps/android/README.md) | ws/android PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |

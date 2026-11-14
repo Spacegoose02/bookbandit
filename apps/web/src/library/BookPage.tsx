@@ -5,6 +5,7 @@ import { api, ApiError } from "../api/client";
 import type { BookDetail } from "../api/types";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { READABLE_FORMATS } from "../reader/formats";
+import { OfflineButton } from "../native/OfflineButton";
 import { Cover } from "./BookCard";
 
 export function BookPage() {
@@ -84,6 +85,7 @@ export function BookPage() {
               Open in Kindle
             </a>
           )}
+          <OfflineButton book={book} />
           {audio.length > 0 && book.absItemId && <span className="bb-muted">Audiobook available in Audiobookshelf</span>}
         </div>
         {book.kindleOnly && (
