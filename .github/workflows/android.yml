@@ -27,10 +27,16 @@ on:
   workflow_run:
     workflows: ["Docker image"]
     types: [completed]
+  # The Release workflow starts this on the new tag (a tag it pushes can't trigger workflow_run).
+  # By hand: pick a branch to just build it, or give a tag to build that tag and attach the APK.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach to (for example v0.4.0). Leave empty to just build."
+        required: false
 
 concurrency:
-  group: android-${{ github.event.workflow_run.head_branch || github.ref }}
+  group: android-${{ github.event.workflow_run.head_branch || inputs.tag || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -39,22 +45,23 @@ permissions:
 jobs:
   apk:
     # For workflow_run, only after a successful Docker build of a v* tag (that's what made the release).
-    # The Release workflow starts that Docker build with workflow_dispatch on the tag.
     if: >-
       github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch') &&
+       github.event.workflow_run.event == 'push' &&
        startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
       contents: write
     env:
-      RELEASE_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || '' }}
+      RELEASE_TAG: >-
+        ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch ||
+            inputs.tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha || inputs.tag || github.sha }}
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -128,7 +135,13 @@ jobs:
         if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$RELEASE_TAG" "${{ steps.version.outputs.file }}" --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          # When started by the Release workflow, the Docker workflow may still be creating the page.
+          for i in $(seq 1 30); do
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break
+            echo "Waiting for the release page for $RELEASE_TAG ($i/30)..."; sleep 60
+          done
+          gh release upload "$RELEASE_TAG" "${{ steps.version.outputs.file }}" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Remove the signing key
         if: always()
