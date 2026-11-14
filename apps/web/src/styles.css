@@ -714,6 +714,9 @@ button {
   position: fixed;
   inset: 0;
   display: grid;
+  /* minmax(0, 1fr): without it the column grows to the book view's min-content
+     width (~475px), pushing the next-page zone and toolbar buttons off a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   background: var(--bb-reader-bg);
   color: var(--bb-text);
