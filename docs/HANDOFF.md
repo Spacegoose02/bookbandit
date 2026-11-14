@@ -3,6 +3,19 @@
 Where things stand, how to run it, and what's next. Update this file whenever a PR changes any of
 those. Newest entries at the top of "Recent changes".
 
+This file is written so an agent or developer with only this repository can pick up any
+piece of work. You don't need access to any outside chat or document.
+
+## Picking up work
+
+1. Read [CLAUDE.md](../CLAUDE.md) (rules that must never break, conventions).
+2. Read [architecture.md](architecture.md) (the plan) and [ROADMAP.md](ROADMAP.md) (what's done).
+3. Pick an unchecked roadmap item. Its workstream, branch prefix, owned files and detailed brief
+   are in [workstreams.md](workstreams.md).
+4. Check open pull requests and branches with that prefix first, so you don't redo work in flight.
+5. Branch from `main` (`ws/<area>-<short-topic>`), keep to your area, run `pnpm typecheck` and
+   `pnpm test`, add screenshots for UI changes, tick the roadmap, add a row below, open a PR.
+
 ## Current state
 
 Phase 1 is in progress. `main` has the foundation: monorepo, data model, content lock, Tinyauth
