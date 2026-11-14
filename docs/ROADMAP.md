@@ -93,8 +93,8 @@ Goal: Audiobookshelf can be switched off.
 
 - [ ] Built-in audiobook player (speed, chapters, sleep timer)
 
-- [ ] Audiobook folder scan
+- [x] Audiobook folder scan of `/audiobooks`, served with Range through the same player API (`ws/audio`)
 
-- [ ] Import Audiobookshelf progress
+- [x] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
 
 - [ ] Read-along (EPUB3 media overlays)

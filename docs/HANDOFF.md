@@ -52,6 +52,9 @@ Barnaby AI is optional and off until an admin adds a provider at `/barnaby/setti
 providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
 
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
+Audiobook folders are read from `./data/audiobooks` (`AUDIOBOOKS_DIR`, `/audiobooks` in Docker), scanned at
+startup with the library and from **Admin → Audiobooks**; per-person Audiobookshelf accounts, import and
+write-back are on the same page. Details: `apps/server/src/audio/README.md`.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
 `LIBRARY_SCAN_ON_START=false` to turn that off; a missing or empty folder is skipped). An admin can

@@ -28,6 +28,7 @@ import { storytellerPlugin } from "./storyteller/index.js";
 import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
+import { audioPlugin, type AudioOptions } from "./audio/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -38,6 +39,8 @@ export interface AppDeps {
   discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
   ereader?: Pick<EreaderOptions, "kepub">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
+  /** ABS calls go through integrations.fetchImpl too. */
+  audio?: Pick<AudioOptions, "pullTimeoutMs">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -78,6 +81,17 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
+  });
+  // After storyteller (its bedtime guard covers the audio track route) and integrations.
+  await app.register(audioPlugin, {
+    db,
+    box,
+    audiobooksDir: config.AUDIOBOOKS_DIR,
+    configDir: config.CONFIG_DIR,
+    scanOnStart: config.LIBRARY_SCAN_ON_START,
+    lookup: () => resolveLookup(db, box, config),
+    fetchImpl: deps.integrations?.fetchImpl,
+    ...deps.audio,
   });
   await app.register(requestsPlugin, {
     db,

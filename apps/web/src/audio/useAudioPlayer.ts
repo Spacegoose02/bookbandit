@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resumeSkipSilence, startSkipSilence } from "./skipSilence";
 import { locate, totalDuration } from "./timeline";
 import type { AudioTrack } from "./types";
 
@@ -13,6 +14,8 @@ export interface AudioPlayer {
   loading: boolean;
   error: string | null;
   rate: number;
+  /** Skip silence is on and the narrator is pausing right now (playing faster). */
+  skipping: boolean;
   play(): Promise<void>;
   pause(): void;
   toggle(): void;
@@ -28,7 +31,7 @@ export interface AudioPlayer {
  * One <audio> element playing a multi-track audiobook as if it were a single file.
  * Tracks are switched on `ended`, and seeks across tracks load the right file.
  */
-export function useAudioPlayer(tracks: AudioTrack[] | null, startAt = 0): AudioPlayer {
+export function useAudioPlayer(tracks: AudioTrack[] | null, startAt = 0, opts: { skipSilence?: boolean } = {}): AudioPlayer {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const trackRef = useRef(0);
   const timeRef = useRef(startAt);
@@ -39,6 +42,7 @@ export function useAudioPlayer(tracks: AudioTrack[] | null, startAt = 0): AudioP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rate, setRateState] = useState(1);
+  const [skipping, setSkipping] = useState(false);
   const duration = tracks ? totalDuration(tracks) : 0;
 
   const load = useCallback(
@@ -104,6 +108,12 @@ export function useAudioPlayer(tracks: AudioTrack[] | null, startAt = 0): AudioP
     };
   }, [tracks, load]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!opts.skipSilence || !audio) return;
+    return startSkipSilence(audio, () => rateRef.current, setSkipping);
+  }, [opts.skipSilence, tracks]);
+
   const seek = useCallback(
     (t: number) => {
       if (!tracks?.length) return;
@@ -124,6 +134,7 @@ export function useAudioPlayer(tracks: AudioTrack[] | null, startAt = 0): AudioP
     const audio = audioRef.current;
     if (!audio) return;
     if (ended) seek(0);
+    resumeSkipSilence(audio);
     try {
       await audio.play();
     } catch (e) {
@@ -141,6 +152,7 @@ export function useAudioPlayer(tracks: AudioTrack[] | null, startAt = 0): AudioP
     loading,
     error,
     rate,
+    skipping,
     play,
     pause,
     toggle: () => (audioRef.current?.paused ? void play() : pause()),

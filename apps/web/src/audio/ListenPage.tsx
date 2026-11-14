@@ -4,9 +4,10 @@ import { ApiError } from "../api/client";
 import { useSession } from "../app/session";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { audioApi } from "./api";
+import { BookmarksPanel } from "./Bookmarks";
 import { pendingAudioProgress, saveAudioProgress } from "./progress";
 import { chapterAt, formatTime, sleepLeft, sleepState, SPEEDS, type SleepTimer } from "./timeline";
-import type { AudioBook } from "./types";
+import type { AudioBook, AudioPrefs } from "./types";
 import { useAudioPlayer } from "./useAudioPlayer";
 import "./audio.css";
 
@@ -55,16 +56,55 @@ function startPosition(book: AudioBook): number {
   return book.progress?.finished && !pending ? 0 : t;
 }
 
+/** Speed and skip-silence for this book: the server's copy, else this device's, else defaults. */
+function startPrefs(book: AudioBook): AudioPrefs {
+  if (book.prefs) return book.prefs;
+  try {
+    const raw = localStorage.getItem(`bb-audio-prefs-${book.bookId}`);
+    if (raw) return { speed: 1, skipSilence: false, ...(JSON.parse(raw) as Partial<AudioPrefs>) };
+  } catch {
+    /* ignore */
+  }
+  return { speed: 1, skipSilence: false };
+}
+
+function savePrefs(bookId: string, prefs: Partial<AudioPrefs>) {
+  try {
+    const raw = localStorage.getItem(`bb-audio-prefs-${bookId}`);
+    localStorage.setItem(`bb-audio-prefs-${bookId}`, JSON.stringify({ ...(raw ? JSON.parse(raw) : {}), ...prefs }));
+  } catch {
+    /* ignore */
+  }
+  audioApi.putPrefs(bookId, prefs).catch(() => undefined); // offline: this device still remembers
+}
+
 function Player({ book, kid }: { book: AudioBook; kid: boolean }) {
   const navigate = useNavigate();
   const start = useMemo(() => startPosition(book), [book]);
-  const p = useAudioPlayer(book.tracks, start);
+  const initialPrefs = useMemo(() => startPrefs(book), [book]);
+  const [skipSilence, setSkipSilence] = useState(initialPrefs.skipSilence);
+  const p = useAudioPlayer(book.tracks, start, { skipSilence });
   const [sleep, setSleep] = useState<SleepTimer>({ kind: "off" });
-  const [panel, setPanel] = useState<"none" | "chapters" | "speed" | "sleep">("none");
+  const [panel, setPanel] = useState<"none" | "chapters" | "speed" | "sleep" | "bookmarks">("none");
+  const [bookmarkCount, setBookmarkCount] = useState<number | null>(null);
   const [clock, setClock] = useState(Date.now());
   const [scrub, setScrub] = useState<number | null>(null);
   const chapterIdx = chapterAt(book.chapters, p.time);
   const chapter = book.chapters[chapterIdx];
+
+  // Speed is remembered per book.
+  useEffect(() => {
+    p.setRate(initialPrefs.speed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrefs]);
+  const changeRate = (r: number) => {
+    p.setRate(r);
+    savePrefs(book.bookId, { speed: r });
+  };
+  const toggleSkipSilence = () => {
+    setSkipSilence(!skipSilence);
+    savePrefs(book.bookId, { skipSilence: !skipSilence });
+  };
 
   // --- progress sync --------------------------------------------------------
   const save = useRef((opts?: { keepalive?: boolean }) => {
@@ -157,6 +197,9 @@ function Player({ book, kid }: { book: AudioBook; kid: boolean }) {
             {book.author}
             {book.narrator ? ` · read by ${book.narrator}` : ""}
           </p>
+          {book.source && !kid && (
+            <p className="bb-muted bb-small bb-listen-source">{book.source === "local" ? "From your audiobook folder" : "From Audiobookshelf"}</p>
+          )}
           {chapter && (
             <button className="bb-listen-chapter" onClick={() => setPanel(panel === "chapters" ? "none" : "chapters")}>
               {chapter.title}
@@ -206,6 +249,12 @@ function Player({ book, kid }: { book: AudioBook; kid: boolean }) {
             <button className="bb-btn" aria-expanded={panel === "speed"} onClick={() => setPanel(panel === "speed" ? "none" : "speed")}>
               {p.rate}×
             </button>
+            <button className={`bb-btn${skipSilence ? " bb-btn-primary" : ""}`} aria-pressed={skipSilence} onClick={toggleSkipSilence} title="Play quiet gaps faster">
+              <span aria-hidden>{p.skipping ? "⏩" : "🤫"}</span> Skip silence
+            </button>
+            <button className="bb-btn" aria-expanded={panel === "bookmarks"} onClick={() => setPanel(panel === "bookmarks" ? "none" : "bookmarks")}>
+              <span aria-hidden>🔖</span> Bookmarks{bookmarkCount ? ` (${bookmarkCount})` : ""}
+            </button>
             <button
               className={`bb-btn${sleep.kind !== "off" ? " bb-btn-primary" : ""}`}
               aria-expanded={panel === "sleep"}
@@ -224,7 +273,7 @@ function Player({ book, kid }: { book: AudioBook; kid: boolean }) {
           {panel === "speed" && (
             <div className="bb-listen-panel" role="radiogroup" aria-label="Speed">
               {SPEEDS.map((s) => (
-                <button key={s} role="radio" aria-checked={p.rate === s} className="bb-chip" onClick={() => (p.setRate(s), setPanel("none"))}>
+                <button key={s} role="radio" aria-checked={p.rate === s} className="bb-chip" onClick={() => (changeRate(s), setPanel("none"))}>
                   {s}×
                 </button>
               ))}
@@ -257,6 +306,11 @@ function Player({ book, kid }: { book: AudioBook; kid: boolean }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Kept mounted (hidden) so the count on the button stays right. */}
+      <div hidden={panel !== "bookmarks"}>
+        <BookmarksPanel api={audioApi} bookId={book.bookId} now={p.now} onSeek={p.seek} onCount={setBookmarkCount} />
       </div>
 
       {panel === "chapters" && (

@@ -113,6 +113,7 @@ ENV NODE_ENV=production \
     BOOKBANDIT_VERSION=$VERSION \
     CONFIG_DIR=/config \
     BOOKS_DIR=/books \
+    AUDIOBOOKS_DIR=/audiobooks \
     WEB_DIR=/app/apps/web/dist \
     PORT=8080 \
     PUID=1000 \

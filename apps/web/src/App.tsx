@@ -23,6 +23,7 @@ import { AiSettingsPage } from "./ai/AiSettingsPage";
 import { BarnabyPage } from "./ai/BarnabyPage";
 import { FamilyAiPage } from "./ai/FamilyAiPage";
 import { ListenPage } from "./audio/ListenPage";
+import { AudioAdminPage } from "./audio/AudioAdminPage";
 import { StorytellerGate } from "./storyteller/StorytellerGate";
 import { StorytellerPage } from "./storyteller/StorytellerPage";
 import { StorytellerSetup } from "./storyteller/StorytellerSetup";
@@ -75,6 +76,7 @@ export function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="audio" element={<AudioAdminPage />} />
         </Route>
         <Route path="family" element={<AdminLayout area="family" />}>
           <Route index element={<FamilyPage />} />

@@ -34,6 +34,7 @@ import { httpError, requireAdmin } from "../auth/plugin.js";
 import { useAuthErrors } from "../auth/errors.js";
 import { setBookAuthors } from "../library/store.js";
 import { collapse, sortTitle } from "../metadata/text.js";
+import { moveAudioToBook } from "../audio/files.js";
 
 const IdParams = z.object({ id: z.string().min(1).max(64) });
 const Page = z.object({
@@ -312,6 +313,7 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
       }
       tx.update(bookmarks).set({ bookId: intoId, updatedAt: Date.now() }).where(eq(bookmarks.bookId, id)).run();
       tx.update(aiMessages).set({ bookId: intoId }).where(eq(aiMessages.bookId, id)).run();
+      moveAudioToBook(tx, id, intoId); // ws/audio: audiobooks, listening positions and bookmarks
 
       // Fill gaps on the target; never overwrite what it already has.
       const gaps: Partial<typeof books.$inferInsert> = { updatedAt: Date.now() };
