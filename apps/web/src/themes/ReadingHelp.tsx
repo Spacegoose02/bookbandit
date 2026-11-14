@@ -1,7 +1,6 @@
 import type { ReaderPrefs } from "../reader/readerCss";
 import { useReaderPrefs } from "../reader/useReaderPrefs";
 import { useSession } from "../app/session";
-import "./themes.css";
 
 /**
  * Reading helps with big picture buttons, so a kid (or a parent helping) can switch them on

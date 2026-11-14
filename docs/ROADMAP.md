@@ -113,11 +113,11 @@ Goal: Audiobookshelf can be switched off.
 
 Goal: the kids' side feels finished and the server looks after itself.
 
-- [ ] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
+- [x] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
 
-- [ ] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
+- [x] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
 
-- [ ] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
+- [x] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
 
 - [ ] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
 

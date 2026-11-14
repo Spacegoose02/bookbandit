@@ -1,5 +1,6 @@
 import { DEFAULT_THEME, isThemeId, THEME_IDS, type ThemeId } from "@bookbandit/shared";
 import { installAppFonts } from "./fonts";
+import "./themes.css";
 
 /**
  * Every theme sets the same tokens, so components only ever use `var(--bb-*)`.
@@ -122,7 +123,7 @@ export const THEMES: Record<ThemeId, Theme> = {
       surface2: "#ead3a6",
       text: "#3b2412",
       muted: "#6e4f33",
-      accent: "#c2462b",
+      accent: "#9e3519",
       accentText: "#fff6e6",
       border: "#c9a877",
       focus: "#1f7a72",
@@ -145,7 +146,7 @@ export const THEMES: Record<ThemeId, Theme> = {
       surface2: "#ffe0ee",
       text: "#4a1631",
       muted: "#874268",
-      accent: "#d6247a",
+      accent: "#b81d68",
       accentText: "#ffffff",
       border: "#f5b8d4",
       focus: "#9b2c8c",
@@ -321,6 +322,7 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
   installAppFonts(root.ownerDocument);
   for (const [k, v] of themeVars(theme)) root.style.setProperty(k, v);
   root.dataset.theme = theme.id;
+  root.dataset.scheme = theme.scheme;
   root.style.colorScheme = theme.scheme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.colors.bg);
 }

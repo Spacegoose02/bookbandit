@@ -77,7 +77,9 @@ export function KidHome() {
             <span aria-hidden>📖</span> Keep reading
           </h2>
           <Link to={bookLink(hero)} className="bb-kid-hero">
-            <Cover book={hero} className="bb-kid-hero-cover" />
+            <span className="bb-kid-hero-cover">
+              <Cover book={hero} />
+            </span>
             <span className="bb-kid-hero-body">
               <span className="bb-kid-hero-title">{hero.title}</span>
               {hero.percent != null && hero.percent > 0 && <Stars percent={hero.percent} />}
