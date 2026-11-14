@@ -50,7 +50,7 @@ database with `CONFIG_DIR/secret.key` and are never sent back to the browser.
 | llama.cpp `llama-server` | OpenAI-compatible | `http://<host>:8080/v1` | anything (it serves one model) | `--api-key` if you set one |
 | vLLM, LocalAI, OpenRouter | OpenAI-compatible | their `/v1` URL | per server | per server |
 | OpenAI | OpenAI-compatible | `https://api.openai.com/v1` | use **Load models** to pick | platform.openai.com → API keys |
-| Anthropic (Claude) | Anthropic | default (`https://api.anthropic.com`) | `claude-haiku-5-5` (cheap, fast), `claude-sonnet-5-5` | console.anthropic.com → API keys |
+| Anthropic (Claude) | Anthropic | default (`https://api.anthropic.com`) | `claude-haiku-5-5` (cheap, fast), `claude-sonnet-5-5`, `claude-opus-5-5` (most capable) | console.anthropic.com → API keys |
 | Google Gemini | Gemini | default (`https://generativelanguage.googleapis.com/v1beta`) | `gemini-2.5-flash` | aistudio.google.com → Get API key |
 
 **Load models** lists what the provider offers. **Test** sends "say hello" and shows the answer and time.

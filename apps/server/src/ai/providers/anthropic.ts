@@ -1,4 +1,10 @@
-/** Anthropic Messages API (Claude). */
+/**
+ * Anthropic Messages API (Claude).
+ *
+ * Sampling settings (temperature, top_p, top_k) are never sent: current Claude models reject them
+ * with a 400, and the API applies its own defaults. Moderation and rating ask for JSON in the
+ * system prompt, so they do not depend on temperature 0.
+ */
 import { postJson, trimSlash, type AiProvider, type ChatRequest, type ChatResult, type FetchLike, type ProviderConfig } from "./types.js";
 
 interface MessagesResponse {
@@ -22,8 +28,9 @@ export function anthropicProvider(config: ProviderConfig, fetchImpl: FetchLike):
           model: config.model,
           system,
           messages: req.messages,
-          max_tokens: req.maxTokens ?? 800,
-          temperature: req.temperature ?? 0.6,
+          // Current Claude models think before answering and that counts toward max_tokens, so short
+          // answers (moderation, rating) get room for it. Only tokens actually used are billed.
+          max_tokens: Math.max(req.maxTokens ?? 800, 1024),
         },
         timeoutMs,
         label: config.name,
