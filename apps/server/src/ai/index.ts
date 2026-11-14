@@ -8,8 +8,8 @@ import type { Db } from "../db/client.js";
 import { loadOrCreateKey, secretBox, type SecretBox } from "../integrations/secrets.js";
 import type { FetchLike } from "./providers/types.js";
 import type { AiContext } from "./context.js";
-import { aiAdminRoutes } from "./admin-routes.js";
-import { createRatingRunner } from "./rating.js";
+import { aiAdminJobRoutes, aiAdminRoutes } from "./admin-routes.js";
+import { registerAiJobs } from "./jobs.js";
 import { aiRoutes } from "./routes.js";
 
 export interface AiOptions {
@@ -34,8 +34,11 @@ export async function aiPlugin(app: FastifyInstance, opts: AiOptions) {
     if (err instanceof ZodError) return reply.code(400).send({ error: "Bad request", message: "Invalid request", issues: err.issues });
     return reply.send(err);
   });
-  await app.register(aiRoutes, ctx);
-  await app.register(aiAdminRoutes, { ...ctx, runner: createRatingRunner(ctx) });
+  // app.jobs comes from the jobs plugin, registered before this one (app.ts).
+  registerAiJobs(ctx, app.jobs);
+  await app.register(aiRoutes, { ...ctx, runner: app.jobs });
+  await app.register(aiAdminRoutes, { ...ctx, runner: app.jobs });
+  await app.register(aiAdminJobRoutes, { ...ctx, runner: app.jobs });
 }
 
 function lazyBox(key: () => Buffer): SecretBox {
