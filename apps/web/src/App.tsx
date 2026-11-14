@@ -10,6 +10,10 @@ import { HomePage } from "./library/HomePage";
 import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
 import { SettingsPage } from "./themes/ThemePicker";
+import { ListenPage } from "./audio/ListenPage";
+import { StorytellerGate } from "./storyteller/StorytellerGate";
+import { StorytellerPage } from "./storyteller/StorytellerPage";
+import { StorytellerSetup } from "./storyteller/StorytellerSetup";
 
 export function App() {
   const { me } = useSession();
@@ -26,11 +30,14 @@ export function App() {
   return (
     <Routes>
       <Route path="/read/:id" element={me ? <ReaderPage /> : null} />
+      <Route path="/storyteller" element={me ? <StorytellerPage /> : null} />
       <Route element={<Layout />}>
-        <Route index element={me?.isKid ? <KidHome /> : <HomePage />} />
+        <Route index element={me?.isKid ? <StorytellerGate fallback={<KidHome />} /> : <HomePage />} />
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="listen/:id" element={<ListenPage />} />
+        <Route path="storyteller/setup" element={<StorytellerSetup />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

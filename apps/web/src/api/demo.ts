@@ -66,7 +66,14 @@ const RAW: [string, string, number, ContentRating | null, string?, number?][] = 
   ["Weeknight Soups", "Lena Park", 2022, "adult"],
   ["The Long Winter Road", "Margot Lindqvist", 1987, "adult"],
   ["Untitled Manuscript", "Unknown", 2010, null],
+  // Picture books for the toddler storyteller screen
+  ["Little Fox Says Goodnight", "Wren Calloway", 2024, "kids"],
+  ["Moon and the Sleepy Sea", "Odette Finch", 2023, "kids"],
+  ["Six Muddy Ducks", "Barnaby Press", 2025, "kids"],
 ];
+
+/** Demo books that also have an "audiobook" (a generated tune, see src/audio/demoAudio.ts). */
+const DEMO_AUDIO = new Set(["b1", "b3", "b9", "b15", "b16"]);
 
 const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i) => ({
   id: `b${i + 1}`,
@@ -82,7 +89,7 @@ const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i
   coverPath: coverSvg(title, author, i),
   kindleOnly: i === 10,
   kindleAsin: i === 10 ? "B000DEMO00" : null,
-  absItemId: null,
+  absItemId: DEMO_AUDIO.has(`b${i + 1}`) ? `abs-b${i + 1}` : null,
   authors: [{ id: `a-${author}`, name: author }],
   series: series ? [{ id: `series:${series}`, name: series, position: pos ?? null }] : [],
   files: i === 10 ? [] : [{ id: `f${i + 1}`, format: "epub", sizeBytes: 120_000 }],

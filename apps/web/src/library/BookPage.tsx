@@ -6,6 +6,8 @@ import type { BookDetail } from "../api/types";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { READABLE_FORMATS } from "../reader/formats";
 import { Cover } from "./BookCard";
+import { ListenButton } from "../audio/ListenButton";
+import { SendToKindleButton } from "../kindle/SendToKindleButton";
 
 export function BookPage() {
   const { id = "" } = useParams();
@@ -38,7 +40,6 @@ export function BookPage() {
   if (!book) return <div className="bb-page bb-muted">Loading…</div>;
 
   const readable = book.files?.filter((f) => READABLE_FORMATS.includes(f.format)) ?? [];
-  const audio = book.files?.filter((f) => f.format === "m4b" || f.format === "mp3") ?? [];
   const pct = book.percent ? Math.round(book.percent * 100) : 0;
 
   return (
@@ -84,7 +85,8 @@ export function BookPage() {
               Open in Kindle
             </a>
           )}
-          {audio.length > 0 && book.absItemId && <span className="bb-muted">Audiobook available in Audiobookshelf</span>}
+          <ListenButton book={book} />
+          <SendToKindleButton book={book} />
         </div>
         {book.kindleOnly && (
           <p className="bb-muted bb-small">This book lives in your Kindle library, so it opens in Amazon's Kindle reader.</p>

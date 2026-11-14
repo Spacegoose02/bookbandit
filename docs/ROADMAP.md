@@ -20,15 +20,15 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 - [x] Theme system: Dark, Nuclear, Retro, Pink, School, Gaming, Dinosaur, Storm (`ws/web`)
 - [x] Barnaby branding: logo, icon, empty states (`ws/web`)
 - [ ] Docker image serving the web app, ebook-convert, kepubify, PUID/PGID, GHCR, Unraid template (`ws/docker`)
-- [ ] Audiobookshelf: link and play audiobooks, listening progress (`ws/integrations`; server API done, player UI is `ws/web`)
-- [ ] Send to Kindle by email (`ws/integrations`; server API done, button and settings UI are `ws/web`)
+- [x] Audiobookshelf: link and play audiobooks, listening progress (`ws/integrations` server API, `ws/listen` web player with speed, ±30 s, chapters, sleep timer)
+- [x] Send to Kindle by email (`ws/integrations` server API, `ws/listen` button and address setting)
 
 ## Phase 2: Tablets and requests
 
 Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Android tablet app (Capacitor) with offline downloads
-- [ ] Storyteller mode for toddlers (big covers, play button, bedtime limits, screen pinning)
+- [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning is `ws/android`
 - [ ] Book requests with parent/admin approval
 - [ ] Shelfmark, sabnzbd and direct downloader (admin only)
 - [ ] Browser uploads into the inbox

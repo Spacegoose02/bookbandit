@@ -20,6 +20,15 @@ Web-side types: `apps/web/src/api/types.ts`. Shared types: `@bookbandit/shared`.
 | GET | `/api/books/:bookId/bookmarks` | ws/sync, merged | `{ items: BookmarkRecord[] }` |
 | POST | `/api/bookmarks` | ws/sync, merged | The web app sends its own UUID `id`, so a retry can't duplicate. |
 | DELETE | `/api/bookmarks/:id` | ws/sync, merged | Soft delete. |
+| GET | `/api/books/:id/audio`, `/audio/tracks/:index` | ws/integrations, merged | Audiobook tracks, chapters, the reader's position; `src/audio/`. |
+| PUT | `/api/books/:id/audio/progress` | ws/integrations, merged | `{ currentTime, duration, finished?, deviceName, clientUpdatedAt }`, newest wins. |
+| GET, PUT, DELETE | `/api/kindle/me`, `/api/kindle/addresses/:userId` | ws/integrations, merged | Send to Kindle address; `src/kindle/`. |
+| POST | `/api/books/:id/send-to-kindle` | ws/integrations, merged | EPUB preferred, then PDF. |
+| GET | `/api/storyteller/kids/:kidId` (`me` ok) | ws/listen | Storyteller shelf, settings, tonight's allowance; `src/storyteller/`. |
+| PUT | `/api/storyteller/kids/:kidId/settings` | ws/listen | Parent/admin only. |
+| GET | `/api/storyteller/kids/:kidId/history` | ws/listen | What was played lately. |
+| POST | `/api/storyteller/stories`, `/sessions/:id/beat`, `/sessions/:id/end` | ws/listen | Kid only. 409 `{ goodnight, tonight }` when tonight is used up. |
+| PUT | `/api/shelves/kids/:kidId/books/:bookId` | ws/sync, merged | `{ storyteller: true }` puts a book in story time. |
 
 ## Locators
 
