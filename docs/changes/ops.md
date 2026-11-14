@@ -2,6 +2,7 @@
 
 Backups, end-to-end tests, hardening, performance and releases (`ws/ops`). Newest first.
 
+- 2026-11-14: **Release workflow**: Actions > Release > Run workflow with a version such as `0.4.0` checks CI passed on main, creates the `v0.4.0` tag and starts the Docker and desktop release builds (the Android APK follows the Docker run), so nobody has to push a tag by hand. Pushing a tag by hand still works.
 - 2026-11-14: Nightly SQLite backups to `/config/backups` (keep 7), **Back up now** and downloads on the
   Admin page, and a `restore` command (`docker run … restore latest`) that also restores into a fresh
   container ([backup README](../../apps/server/src/backup/README.md), [Docker README](../../docker/README.md#backups)).
