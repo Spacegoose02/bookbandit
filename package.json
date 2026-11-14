@@ -1,0 +1,17 @@
+{
+  "name": "bookbandit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Self-hosted family book library and reader",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

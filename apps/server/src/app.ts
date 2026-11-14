@@ -1,0 +1,21 @@
+import Fastify, { type FastifyInstance } from "fastify";
+import type { Config } from "./config.js";
+import type { Db } from "./db/client.js";
+import { authPlugin } from "./auth/plugin.js";
+import { parseTrustedProxies } from "./auth/trusted-proxy.js";
+import { healthRoutes } from "./routes/health.js";
+import { bookRoutes } from "./routes/books.js";
+
+export async function buildApp(config: Config, db: Db): Promise<FastifyInstance> {
+  const app = Fastify({ logger: { level: config.LOG_LEVEL } });
+
+  await app.register(authPlugin, {
+    db,
+    emailHeader: config.AUTH_HEADER_EMAIL,
+    trustedProxies: parseTrustedProxies(config.TRUSTED_PROXIES),
+  });
+  await app.register(healthRoutes);
+  await app.register(bookRoutes, { db });
+
+  return app;
+}
