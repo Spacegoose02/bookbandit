@@ -43,7 +43,7 @@ Settings live in the `settings` table under `family-apps:<householdId>`, so ther
 | PUT / DELETE | `/api/admin/family-apps/kitchen` | admin | `{ url, homeId, token? }` / unlink |
 | POST | `/api/admin/family-apps/kitchen/check` | admin | Test the Nighttime Ninja link |
 | PUT | `/api/admin/family-apps/public-url` | admin | `{ publicUrl }` (null clears) |
-| GET | `/api/family-apps` | reader | `{ kitchen }`: whether Send to kitchen shows (never for kids) |
+| GET | `/api/family-apps` | reader | `{ kitchen, denDuty }`: whether Send to kitchen shows (never for kids), and whether this kid's reading goes to a Den Duty habit |
 | POST | `/api/family-apps/kitchen/recipes` | grown-up | `{ bookId, title, href?, blocks }` → `{ id, url, title, ingredients, steps }` |
 
 A token left out of a PUT keeps the stored one; `null` clears it. Errors from the other app come

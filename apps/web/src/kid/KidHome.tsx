@@ -9,6 +9,9 @@ import { Cover } from "../library/BookCard";
 import { rewardsApi } from "./api";
 import { wakeTime } from "./Bedtime";
 import { BadgeShelf, Celebration, GoalPanel } from "./Rewards";
+import { BookSpinner } from "./BookSpinner";
+import { KidScene } from "./Garden";
+import { familyAppsApi } from "../family-apps/api";
 import "./kid.css";
 
 /** Kid-friendly names for the age groups a kid can see. */
@@ -29,11 +32,13 @@ export function KidHome() {
   const [shelves, setShelves] = useState<Shelf[] | null>(null);
   const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [error, setError] = useState(false);
+  const [denDuty, setDenDuty] = useState(false);
 
   useEffect(() => {
     api.shelves().then(setShelves, () => setError(true));
     // Rewards are a bonus: the home still works if they can't load.
     rewardsApi.summary("me").then(setRewards, () => undefined);
+    familyAppsApi.linked().then((l) => setDenDuty(!!l.denDuty), () => undefined);
   }, []);
 
   if (error) return <BarnabyEmpty title="Uh oh! Ask a grown-up to check the library." />;
@@ -51,12 +56,24 @@ export function KidHome() {
 
   return (
     <div className="bb-page bb-kid">
+      <KidScene />
       <div className="bb-kid-top">
         <BarnabySays size={72}>
           <span className="bb-kid-hello">Hi {me?.displayName}! Pick a book!</span>
         </BarnabySays>
         {rewards && <GoalPanel s={rewards} />}
       </div>
+
+      {(all.length > 1 || denDuty) && (
+        <div className="bb-kid-actions">
+          <BookSpinner books={all.length ? all : keepReading} linkFor={bookLink} />
+          {denDuty && (
+            <p className="bb-kid-denduty">
+              <span aria-hidden>🧹</span> Your reading minutes count for Den Duty too!
+            </p>
+          )}
+        </div>
+      )}
 
       {rewards && <Celebration fresh={rewards.fresh} onDone={() => setRewards({ ...rewards, fresh: [] })} />}
 

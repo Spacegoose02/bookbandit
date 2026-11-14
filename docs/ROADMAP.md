@@ -125,6 +125,8 @@ Goal: the kids' side feels finished and the server looks after itself.
 
 - [x] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
 
+- [x] More themes (6 reading themes, 6 kid picture themes), buddy picker, "Pick a book for me", reading garden, confetti, Den Duty note (`ws/kids`)
+
 - [x] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
 
 - [x] Playwright end-to-end suite in CI, including the content lock through every door (`ws/ops`)

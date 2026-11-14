@@ -14,6 +14,20 @@ export const THEME_IDS = [
   "storm",
   /** High contrast: black, white and yellow, for low vision and bright sunlight. */
   "contrast",
+  // Grown-up reading themes
+  "sepia",
+  "eink",
+  "amoled",
+  "solarized",
+  "forest",
+  "ocean",
+  // Kid themes, each with a picture scene and matching buddies
+  "space",
+  "sea",
+  "jungle",
+  "unicorn",
+  "builder",
+  "castle",
 ] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
