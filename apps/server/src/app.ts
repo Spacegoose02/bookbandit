@@ -21,11 +21,14 @@ import { loadOrCreateKey } from "./integrations/secrets.js";
 import { adminLibraryRoutes } from "./routes/admin-library.js";
 import { adminSettingsRoutes, resolveLookup } from "./routes/admin-settings.js";
 import { familyRoutes } from "./routes/admin-family.js";
+import { storytellerPlugin } from "./storyteller/index.js";
+import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
   integrations?: Pick<IntegrationsOptions, "secretKey" | "fetchImpl" | "makeMailer">;
+  discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
 }
 
@@ -55,6 +58,8 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(libraryRoutes, { db, config, resolveLookup: () => resolveLookup(db, box, config) });
   await app.register(homeShelfRoutes, { db });
   await app.register(readingTimeRoutes, { db });
+  // Before integrations: its audio guard hook must exist when the track routes are added.
+  await app.register(storytellerPlugin, { db });
   await app.register(adminLibraryRoutes, { db });
   await app.register(adminSettingsRoutes, { db, box, config });
   await app.register(familyRoutes, { db });
@@ -63,6 +68,12 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
+  });
+  await app.register(discoverPlugin, {
+    db,
+    config,
+    resolveLookup: () => resolveLookup(db, box, config),
+    ...deps.discover,
   });
   await app.register(aiPlugin, {
     db,

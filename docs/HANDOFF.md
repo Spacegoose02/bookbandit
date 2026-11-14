@@ -56,6 +56,12 @@ New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online me
 by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
+Discover pulls Open Library trending lists (and Hardcover's when a Hardcover token is set, in the
+admin settings or `HARDCOVER_API_TOKEN`), cached in memory for 6 hours; turning online lookups off
+turns the outside lists off. An admin imports a Kindle library at `/discover/kindle-import` (or
+`POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
+[discover-api.md](discover-api.md).
+
 ## Recent changes
 
 Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
@@ -85,7 +91,6 @@ workstream once it lands. Add your entry there, not here.
 
 Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
 `apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
-Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 

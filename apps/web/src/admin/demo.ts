@@ -392,6 +392,29 @@ export const demoAdminApi: AdminApi = {
     return delay({ kid: card(k), ...d });
   },
   familyChat: (_kid, conversationId) => delay(chats[conversationId] ?? notFound()),
+  async readingStats(userId, days = 7) {
+    const k = people.find((p) => p.id === userId) ?? notFound();
+    const pattern: Record<string, number[]> = {
+      "u-kid": [12, 0, 18, 25, 9, 31, 14],
+      "u-kid2": [40, 35, 0, 52, 47, 61, 22],
+    };
+    const mins = pattern[userId] ?? Array(7).fill(0);
+    const daysOut = Array.from({ length: days }, (_, i) => {
+      const m = mins[(i + mins.length - (days % mins.length)) % mins.length] ?? 0;
+      return { date: new Date(now - (days - 1 - i) * D).toISOString().slice(0, 10), readSeconds: m * 60, listenSeconds: i % 3 === 0 ? 600 : 0 };
+    });
+    const reading = kidDetails[userId]?.reading ?? [];
+    const total = daysOut.reduce((n, d) => n + d.readSeconds + d.listenSeconds, 0);
+    let streak = 0;
+    for (let i = daysOut.length - 1; i >= 0 && daysOut[i]!.readSeconds + daysOut[i]!.listenSeconds > 0; i--) streak++;
+    return delay({
+      user: { id: k.id, displayName: k.displayName },
+      totalSeconds: total,
+      streakDays: streak,
+      days: daysOut,
+      books: reading.map((r, i) => ({ id: r.bookId, title: r.title, coverPath: r.coverPath, seconds: Math.round(total * [0.6, 0.3, 0.1][i]!) || 0 })),
+    });
+  },
 };
 
 function emptyStats(): KidStats {
