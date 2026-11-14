@@ -1,6 +1,9 @@
-import type { ContentRating, ReadingLocator, Role, ThemeId } from "@bookbandit/shared";
+import type { BookmarkKind, BookmarkRecord, ContentRating, ProgressRecord, ReadingLocator, Role, ThemeId } from "@bookbandit/shared";
 
-/** GET /api/me */
+export type { ProgressRecord };
+export type Bookmark = BookmarkRecord;
+
+/** The signed-in reader, derived from GET /api/users/me (see `toMe` in client.ts). */
 export interface Me {
   id: string;
   displayName: string;
@@ -65,7 +68,7 @@ export interface Page<T> {
   total?: number;
 }
 
-/** GET /api/shelves: named rows on the home screen. */
+/** GET /api/shelves: named rows on the home screen. The id also works as `?shelf=` on /api/books. */
 export interface Shelf {
   id: string;
   name: string;
@@ -73,26 +76,26 @@ export interface Shelf {
   books: BookSummary[];
 }
 
-/** GET /api/progress/:bookId */
-export interface ProgressRecord {
+/** POST /api/bookmarks. Send our own UUID so a retry (or an offline upload) can't duplicate it. */
+export interface NewBookmark {
+  id?: string;
   bookId: string;
-  locator: ReadingLocator;
-  percent: number;
-  finished: boolean;
-  deviceName: string | null;
-  /** ISO 8601, the client time of the device that wrote it */
-  updatedAt: string;
-}
-
-export interface Bookmark {
-  id: string;
-  bookId: string;
-  kind: "bookmark" | "highlight" | "sticker";
+  kind: BookmarkKind;
   locator: ReadingLocator;
   text: string | null;
   note: string | null;
   color: string | null;
-  createdAt: number;
 }
 
-export type NewBookmark = Omit<Bookmark, "id" | "createdAt">;
+/** Reply to PUT /api/progress/:bookId. On "stale" the server already had a newer position. */
+export interface ProgressPutResult {
+  bookId: string;
+  status: "applied" | "stale";
+  progress: ProgressRecord;
+}
+
+/** Reply to POST /api/progress/batch */
+export interface ProgressBatchResult {
+  results: ({ bookId: string; status: "applied" | "stale"; progress: ProgressRecord } | { bookId: string; status: "not_found" })[];
+}
+

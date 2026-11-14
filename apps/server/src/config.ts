@@ -14,6 +14,11 @@ const Env = z.object({
   AUTH_HEADER_EMAIL: z.string().default("remote-email"),
   /** Comma-separated IPs/CIDRs of the reverse proxy. Empty = never trust auth headers. */
   TRUSTED_PROXIES: z.string().default(""),
+  /** Built web app to serve (index.html + assets). Defaults to apps/web/dist next to the server. */
+  WEB_DIR: z.string().optional(),
+  /** Calibre's converter (installed in the Docker image) and kepubify, for format conversion. */
+  EBOOK_CONVERT_PATH: z.string().default("ebook-convert"),
+  KEPUBIFY_PATH: z.string().default("kepubify"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });
 

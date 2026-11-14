@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProgressUpdate } from "@bookbandit/shared";
 import type { ProgressRecord } from "../api/types";
+import { locatorPercent } from "@bookbandit/shared";
 import {
   defaultDeviceName,
   flushAllPending,
-  locatorPercent,
   ProgressSync,
   resolveStartPosition,
   type KeyValueStore,
@@ -30,6 +30,18 @@ class MemoryStore implements KeyValueStore {
   }
 }
 
+function record(u: ProgressUpdate): ProgressRecord {
+  return {
+    bookId: u.bookId,
+    locator: u.locator,
+    percent: locatorPercent(u.locator),
+    finished: !!u.finished,
+    deviceName: u.deviceName,
+    clientUpdatedAt: Date.parse(u.updatedAt),
+    serverUpdatedAt: Date.parse(u.updatedAt),
+  };
+}
+
 function fakeApi(server: ProgressRecord | null = null) {
   const sent: ProgressUpdate[] = [];
   let fail = false;
@@ -38,6 +50,12 @@ function fakeApi(server: ProgressRecord | null = null) {
     putProgress: async (u) => {
       if (fail) throw new Error("offline");
       sent.push(u);
+      return { bookId: u.bookId, status: "applied", progress: record(u) };
+    },
+    putProgressBatch: async (us) => {
+      if (fail) throw new Error("offline");
+      sent.push(...us);
+      return { results: us.map((u) => ({ bookId: u.bookId, status: "applied" as const, progress: record(u) })) };
     },
   };
   return { api, sent, setFail: (v: boolean) => (fail = v) };
@@ -95,7 +113,8 @@ describe("resolveStartPosition", () => {
     percent: 0.4,
     finished: false,
     deviceName: "Phone",
-    updatedAt: "2026-11-10T10:00:00Z",
+    clientUpdatedAt: Date.parse("2026-11-10T10:00:00Z"),
+    serverUpdatedAt: Date.parse("2026-11-10T10:00:05Z"),
   };
 
   it("uses the server position when nothing is pending here", async () => {

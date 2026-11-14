@@ -3,7 +3,7 @@
  * Never used in production builds unless `?demo` is in the URL. Respects the same rating rules
  * as the server so kid mode looks right.
  */
-import { ratingRank, UNRATED_FALLBACK, type ContentRating, type ProgressUpdate } from "@bookbandit/shared";
+import { locatorPercent, ratingRank, UNRATED_FALLBACK, type ContentRating, type ProgressUpdate } from "@bookbandit/shared";
 import type { Api } from "./client";
 import type { Bookmark, BookDetail, BookSummary, Me, NewBookmark, Page, ProgressRecord, Shelf } from "./types";
 
@@ -84,7 +84,7 @@ const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i
   kindleAsin: i === 10 ? "B000DEMO00" : null,
   absItemId: null,
   authors: [{ id: `a-${author}`, name: author }],
-  series: series ? [{ id: `s-${series}`, name: series, position: pos ?? null }] : [],
+  series: series ? [{ id: `series:${series}`, name: series, position: pos ?? null }] : [],
   files: i === 10 ? [] : [{ id: `f${i + 1}`, format: "epub", sizeBytes: 120_000 }],
   added: Date.UTC(2026, 10, 14) - i * 86_400_000,
 }));
@@ -139,6 +139,21 @@ function notFound(): never {
   throw e;
 }
 
+function saveProgress(u: ProgressUpdate): ProgressRecord {
+  const percent = locatorPercent(u.locator);
+  const record: ProgressRecord = {
+    bookId: u.bookId,
+    locator: u.locator,
+    percent,
+    finished: u.finished ?? percent >= 0.99,
+    deviceName: u.deviceName,
+    clientUpdatedAt: Date.parse(u.updatedAt),
+    serverUpdatedAt: Date.now(),
+  };
+  store.set(`bb-demo-progress-${who().id}-${u.bookId}`, record);
+  return record;
+}
+
 export const demoApi: Api = {
   me: () => delay(who()),
   async setTheme(theme) {
@@ -160,7 +175,7 @@ export const demoApi: Api = {
       shelves.push({ id: "recent", name: "Recently added", kind: "recent", books: [...books].sort((a, b) => b.added - a.added).slice(0, 8).map((b) => summary(b, me)) });
       const series = new Map<string, DemoBook[]>();
       for (const b of books) for (const s of b.series ?? []) series.set(s.name, [...(series.get(s.name) ?? []), b]);
-      for (const [name, list] of series) shelves.push({ id: `s-${name}`, name, kind: "series", books: list.map((b) => summary(b, me)) });
+      for (const [name, list] of series) shelves.push({ id: `series:${name}`, name, kind: "series", books: list.map((b) => summary(b, me)) });
     }
     return delay(shelves);
   },
@@ -208,22 +223,17 @@ export const demoApi: Api = {
     return delay(store.get<ProgressRecord | null>(`bb-demo-progress-${who().id}-${bookId}`, null));
   },
   async putProgress(u: ProgressUpdate) {
-    const percent = u.locator.kind === "epub" ? u.locator.percent : u.locator.kind === "page" ? u.locator.page / u.locator.totalPages : 0;
-    store.set(`bb-demo-progress-${who().id}-${u.bookId}`, {
-      bookId: u.bookId,
-      locator: u.locator,
-      percent,
-      finished: !!u.finished,
-      deviceName: u.deviceName,
-      updatedAt: u.updatedAt,
-    } satisfies ProgressRecord);
+    return delay({ bookId: u.bookId, status: "applied" as const, progress: saveProgress(u) });
+  },
+  async putProgressBatch(updates) {
+    return delay({ results: updates.map((u) => ({ bookId: u.bookId, status: "applied" as const, progress: saveProgress(u) })) });
   },
   async bookmarks(bookId) {
     return delay(store.get<Bookmark[]>(`bb-demo-bookmarks-${who().id}`, []).filter((b) => b.bookId === bookId));
   },
   async addBookmark(nb: NewBookmark) {
     const all = store.get<Bookmark[]>(`bb-demo-bookmarks-${who().id}`, []);
-    const b: Bookmark = { ...nb, id: crypto.randomUUID(), createdAt: Date.now() };
+    const b: Bookmark = { ...nb, id: nb.id ?? crypto.randomUUID(), createdAt: Date.now(), deletedAt: null };
     store.set(`bb-demo-bookmarks-${who().id}`, [...all, b]);
     return b;
   },

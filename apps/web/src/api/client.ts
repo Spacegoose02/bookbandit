@@ -1,5 +1,16 @@
-import type { ProgressUpdate, ThemeId } from "@bookbandit/shared";
-import type { Bookmark, BookDetail, BookSummary, Me, NewBookmark, Page, ProgressRecord, Shelf } from "./types";
+import { DEFAULT_THEME, isThemeId, maxAllowedRating, type ProgressUpdate, type Role, type ThemeId } from "@bookbandit/shared";
+import type {
+  Bookmark,
+  BookDetail,
+  BookSummary,
+  Me,
+  NewBookmark,
+  Page,
+  ProgressBatchResult,
+  ProgressPutResult,
+  ProgressRecord,
+  Shelf,
+} from "./types";
 import { demoApi } from "./demo";
 
 export class ApiError extends Error {
@@ -37,6 +48,35 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 const json = (body: unknown) => JSON.stringify(body);
 
+/** What GET /api/users/me returns (family accounts workstream). */
+interface UserMe {
+  id: string;
+  displayName: string;
+  role: Role;
+  avatar: string | null;
+  theme: string;
+  birthYear: number | null;
+  explicitOptIn: boolean;
+}
+
+/** The UI's view of the signed-in reader. maxRating only trims filter options; the server enforces it. */
+export function toMe(u: UserMe, today: Date = new Date()): Me {
+  const isKid = u.role === "kid";
+  return {
+    id: u.id,
+    displayName: u.displayName,
+    role: u.role,
+    isKid,
+    avatar: u.avatar,
+    theme: themeIdOr(u.theme),
+    maxRating: maxAllowedRating({ birthYear: u.birthYear, isKid, explicitOptIn: !isKid && u.explicitOptIn }, today),
+  };
+}
+
+function themeIdOr(t: string): ThemeId {
+  return isThemeId(t) ? t : DEFAULT_THEME;
+}
+
 /**
  * Everything the web app asks the server for. The endpoint list is written down in
  * `apps/web/API_CONTRACT.md` so the server workstreams can match it.
@@ -51,15 +91,20 @@ export interface Api {
   coverUrl(book: Pick<BookSummary, "id" | "coverPath">): string | null;
   fileUrl(bookId: string, fileId: string): string;
   getProgress(bookId: string): Promise<ProgressRecord | null>;
-  putProgress(update: ProgressUpdate, opts?: { keepalive?: boolean }): Promise<void>;
+  putProgress(update: ProgressUpdate, opts?: { keepalive?: boolean }): Promise<ProgressPutResult>;
+  putProgressBatch(updates: ProgressUpdate[]): Promise<ProgressBatchResult>;
   bookmarks(bookId: string): Promise<Bookmark[]>;
   addBookmark(b: NewBookmark): Promise<Bookmark>;
   deleteBookmark(id: string): Promise<void>;
 }
 
 export const httpApi: Api = {
-  me: () => request("/api/me"),
-  setTheme: (theme) => request("/api/me", { method: "PATCH", body: json({ theme }) }),
+  me: () => request<UserMe>("/api/users/me").then(toMe),
+  setTheme: async (theme) => {
+    await request("/api/users/me", { method: "PATCH", body: json({ theme }) });
+  },
+
+  /** Home rows. Shelf ids: continue, recent, kid, series:<id>, collection:<id>, tag:<id>. */
   shelves: () => request<{ items: Shelf[] }>("/api/shelves").then((r) => r.items),
   books: (query) => request(`/api/books?${query}`),
   authors: (q) =>
@@ -69,23 +114,20 @@ export const httpApi: Api = {
   book: (id) => request(`/api/books/${encodeURIComponent(id)}`),
   coverUrl: (b) => (b.coverPath ? `/api/books/${encodeURIComponent(b.id)}/cover` : null),
   fileUrl: (bookId, fileId) => `/api/books/${encodeURIComponent(bookId)}/files/${encodeURIComponent(fileId)}`,
-  getProgress: async (bookId) => {
-    try {
-      return await request<ProgressRecord>(`/api/progress/${encodeURIComponent(bookId)}`);
-    } catch (e) {
-      if (e instanceof ApiError && e.notFound) return null;
-      throw e;
-    }
-  },
-  putProgress: (update, opts) =>
-    request(`/api/progress/${encodeURIComponent(update.bookId)}`, {
+  getProgress: (bookId) =>
+    request<{ progress: ProgressRecord | null }>(`/api/progress/${encodeURIComponent(bookId)}`).then((r) => r.progress),
+  putProgress: (update, opts) => {
+    const { bookId, ...body } = update;
+    return request(`/api/progress/${encodeURIComponent(bookId)}`, {
       method: "PUT",
-      body: json(update),
+      body: json(body),
       keepalive: opts?.keepalive,
-    }),
+    });
+  },
+  putProgressBatch: (updates) => request("/api/progress/batch", { method: "POST", body: json({ updates }) }),
   bookmarks: (bookId) =>
-    request<{ items: Bookmark[] }>(`/api/bookmarks?${new URLSearchParams({ bookId })}`).then((r) => r.items),
-  addBookmark: (b) => request("/api/bookmarks", { method: "POST", body: json(b) }),
+    request<{ items: Bookmark[] }>(`/api/books/${encodeURIComponent(bookId)}/bookmarks`).then((r) => r.items),
+  addBookmark: (b) => request("/api/bookmarks", { method: "POST", body: json({ id: crypto.randomUUID(), ...b }) }),
   deleteBookmark: (id) => request(`/api/bookmarks/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };
 

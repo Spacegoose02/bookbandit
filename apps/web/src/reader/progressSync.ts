@@ -1,10 +1,11 @@
-import { isNewerProgress, type ProgressUpdate, type ReadingLocator } from "@bookbandit/shared";
-import type { ProgressRecord } from "../api/types";
+import type { ProgressUpdate, ReadingLocator } from "@bookbandit/shared";
+import type { ProgressBatchResult, ProgressPutResult, ProgressRecord } from "../api/types";
 
 /** The parts of the API progress sync needs; lets tests pass a fake. */
 export interface ProgressApi {
   getProgress(bookId: string): Promise<ProgressRecord | null>;
-  putProgress(update: ProgressUpdate, opts?: { keepalive?: boolean }): Promise<void>;
+  putProgress(update: ProgressUpdate, opts?: { keepalive?: boolean }): Promise<ProgressPutResult>;
+  putProgressBatch(updates: ProgressUpdate[]): Promise<ProgressBatchResult>;
 }
 
 export interface KeyValueStore {
@@ -17,17 +18,6 @@ export interface KeyValueStore {
 
 const PENDING_PREFIX = "bb-progress-pending:";
 const pendingKey = (bookId: string) => PENDING_PREFIX + bookId;
-
-export function locatorPercent(locator: ReadingLocator): number {
-  switch (locator.kind) {
-    case "epub":
-      return locator.percent;
-    case "page":
-      return locator.totalPages > 0 ? locator.page / locator.totalPages : 0;
-    case "audio":
-      return locator.durationSeconds > 0 ? locator.seconds / locator.durationSeconds : 0;
-  }
-}
 
 function readPending(store: KeyValueStore, bookId: string): ProgressUpdate | null {
   try {
@@ -54,10 +44,12 @@ export async function resolveStartPosition(
   } catch {
     // Offline: fall back to whatever this device has.
   }
-  if (local && isNewerProgress(server, local)) {
+  // Same rule as the server: newest by the device clock wins.
+  if (local && (!server || Date.parse(local.updatedAt) > server.clientUpdatedAt)) {
     return { locator: local.locator, fromDevice: local.deviceName, updatedAt: local.updatedAt };
   }
-  if (server) return { locator: server.locator, fromDevice: server.deviceName, updatedAt: server.updatedAt };
+  if (server)
+    return { locator: server.locator, fromDevice: server.deviceName, updatedAt: new Date(server.clientUpdatedAt).toISOString() };
   return null;
 }
 
@@ -76,7 +68,7 @@ export interface ProgressSyncOptions {
  */
 export class ProgressSync {
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private inFlight: Promise<void> | null = null;
+  private inFlight: Promise<unknown> | null = null;
   private readonly debounceMs: number;
   private readonly now: () => Date;
 
@@ -135,26 +127,43 @@ export class ProgressSync {
   }
 }
 
-/** On start-up or when the network comes back, send positions saved while offline. */
+/**
+ * On start-up or when the network comes back, upload positions saved while offline in one
+ * batch. "stale" and "not_found" are final answers too (a newer position exists, or the book
+ * is gone or locked), so those are cleared as well. Returns how many were cleared.
+ */
 export async function flushAllPending(api: ProgressApi, store: KeyValueStore): Promise<number> {
-  const keys: string[] = [];
+  const pending: { key: string; raw: string; update: ProgressUpdate }[] = [];
   for (let i = 0; i < store.length; i++) {
-    const k = store.key(i);
-    if (k?.startsWith(PENDING_PREFIX)) keys.push(k);
-  }
-  let sent = 0;
-  for (const k of keys) {
-    const raw = store.getItem(k);
+    const key = store.key(i);
+    if (!key?.startsWith(PENDING_PREFIX)) continue;
+    const raw = store.getItem(key);
     if (!raw) continue;
     try {
-      await api.putProgress(JSON.parse(raw) as ProgressUpdate);
-      if (store.getItem(k) === raw) store.removeItem(k);
-      sent++;
+      pending.push({ key, raw, update: JSON.parse(raw) as ProgressUpdate });
     } catch {
-      /* try again later */
+      store.removeItem(key);
     }
   }
-  return sent;
+  if (!pending.length) return 0;
+  let cleared = 0;
+  for (let i = 0; i < pending.length; i += 500) {
+    const chunk = pending.slice(i, i + 500);
+    try {
+      const { results } = await api.putProgressBatch(chunk.map((p) => p.update));
+      const answered = new Set(results.map((r) => r.bookId));
+      for (const p of chunk) {
+        // Leave it if a newer page turn was saved while the request was in flight.
+        if (answered.has(p.update.bookId) && store.getItem(p.key) === p.raw) {
+          store.removeItem(p.key);
+          cleared++;
+        }
+      }
+    } catch {
+      /* still offline; try again later */
+    }
+  }
+  return cleared;
 }
 
 /** A readable name for this device, shown as "Last read on ..." elsewhere. */

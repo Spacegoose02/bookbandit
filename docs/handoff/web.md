@@ -1,6 +1,6 @@
 # Web app handoff (ws/web)
 
-Status as of 2026-11-14. Screenshots: `docs/screenshots/`.
+Status as of 2026-11-14. Screenshots: `docs/screenshots/2026-11-14-web-*.png`.
 
 ## What's built
 
@@ -13,12 +13,12 @@ Status as of 2026-11-14. Screenshots: `docs/screenshots/`.
 - **Reader** (foliate-js): EPUB, AZW3/MOBI, FB2, CBZ. Paginated or scrolling, font size,
   font (incl. dyslexia-friendly), line spacing, contents, bookmarks, position slider,
   keyboard arrows, big tap zones, hide-toolbar mode. PDF opens in the browser viewer for now.
-- **Progress sync**: every page turn is saved on the device at once and sent to the
-  server after 2s, and on tab hide/close. Positions saved offline are sent when the
-  network returns. On open, the newest of server and device wins, with a "picked up where
-  you left off on <device>" note.
+- **Progress sync** (against [sync-api.md](../sync-api.md)): every page turn is saved on the
+  device at once and sent to the server after 2s, and on tab hide/close. Positions saved
+  offline go up through `POST /api/progress/batch` when the network returns. On open, the
+  newest of server and device wins, with a "picked up where you left off on <device>" note.
 - **Themes**: Dark, Light, Nuclear, Retro, Pink, School, Gaming, Dinosaur, Storm. Picture
-  buttons, saved per profile (`PATCH /api/me`) and cached per device. A test keeps every
+  buttons, saved per profile (`PATCH /api/users/me`) and cached per device. A test keeps every
   theme at WCAG AA contrast. The book page follows the theme too.
 - **Kid mode** (role `kid`): no search or filters, big covers that open straight into the
   book, star progress, two-item nav (Books, Colors), giant page-turn buttons, Barnaby
@@ -42,8 +42,9 @@ pnpm --filter @bookbandit/web screenshots
 
 ## What the server needs to provide
 
-See `apps/web/API_CONTRACT.md`. Until those endpoints land, the real (non-demo) app will
-show "Barnaby can't reach the server" because `/api/me` doesn't exist yet.
+See `apps/web/API_CONTRACT.md`. Sync is merged. `/api/users/me` comes from the auth PR, the
+shelves/books/authors endpoints from the lead, and covers/files from the library workstream.
+Until those land, the real (non-demo) app shows "Barnaby can't reach the server".
 
 ## Roadmap for the web app
 
