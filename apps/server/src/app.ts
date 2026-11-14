@@ -12,6 +12,7 @@ import { bookRoutes } from "./routes/books.js";
 import { progressRoutes } from "./routes/progress.js";
 import { bookmarkRoutes } from "./routes/bookmarks.js";
 import { shelfRoutes } from "./routes/shelves.js";
+import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
 
@@ -35,6 +36,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
   await app.register(shelfRoutes, { db });
+  await app.register(homeShelfRoutes, { db });
   await app.register(integrationsPlugin, {
     db,
     configDir: config.CONFIG_DIR,
