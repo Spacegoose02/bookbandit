@@ -120,6 +120,8 @@ export interface ProviderSettings {
   baseUrl?: string;
   model: string;
   timeoutMs?: number;
+  /** $ per million tokens, for cost estimates. Unset: built-in table, local servers free. */
+  price?: { input: number; output: number };
   hasApiKey?: boolean;
   /** Only sent when changing it; "" removes it. */
   apiKey?: string | null;
@@ -137,6 +139,7 @@ export interface AiSettings {
 }
 
 export interface RatingRunStatus {
+  jobId?: string | null;
   running: boolean;
   total: number;
   done: number;
@@ -144,7 +147,41 @@ export interface RatingRunStatus {
   applied: number;
   failed: number;
   lastError: string | null;
+  /** Where the whole library stands (not just the last run). */
+  progress?: BatchProgress;
+  estimate?: CostEstimate;
+  spent?: Spend;
 }
+
+export interface BatchProgress {
+  /** Books the tool is about: unrated books for the rating helper, every book for metadata cleanup. */
+  total: number;
+  /** Books still to look at; 0 with nothing failed means done. */
+  remaining: number;
+  /** Suggestions waiting for an admin (metadata: books with fixes; `fixes` counts the fields). */
+  waiting: number;
+  fixes?: number;
+  /** Books that failed and are skipped until tried again. */
+  failed: number;
+}
+
+export interface CostEstimate {
+  provider: string | null;
+  model: string | null;
+  source: "local" | "custom" | "table" | "unknown";
+  free: boolean;
+  perBook: number | null;
+  basis: "history" | "guess";
+}
+
+export interface Spend {
+  dollars: number;
+  calls: number;
+  partial: boolean;
+}
+
+/** How many books a batch run takes: the next `limit`, everything left, or the ones that failed. */
+export type BatchRun = { limit?: number; all?: boolean; retryFailed?: boolean };
 
 export interface RatingSuggestion {
   bookId: string;
@@ -180,7 +217,7 @@ export interface AiApi {
   embeddings(): Promise<EmbeddingStatus>;
   startEmbeddings(): Promise<EmbeddingStatus>;
   metadataStatus(): Promise<RatingRunStatus>;
-  startMetadata(limit: number): Promise<RatingRunStatus>;
+  startMetadata(run: BatchRun): Promise<RatingRunStatus>;
   metadataSuggestions(): Promise<MetadataSuggestion[]>;
   acceptMetadata(id: string, value?: MetadataValue): Promise<void>;
   dismissMetadata(id: string): Promise<void>;
@@ -197,7 +234,9 @@ export interface AiApi {
   models(providerId: string): Promise<string[]>;
   testSearch(q: string, kid: boolean): Promise<{ ok: boolean; error?: string; items: { title: string; url: string }[] }>;
   ratingStatus(): Promise<RatingRunStatus>;
-  startRating(limit: number): Promise<RatingRunStatus>;
+  startRating(run: BatchRun): Promise<RatingRunStatus>;
+  /** Stop a running batch (the job runner's cancel). */
+  cancelJob(jobId: string): Promise<void>;
   suggestions(): Promise<RatingSuggestion[]>;
   acceptSuggestion(bookId: string, rating?: string): Promise<void>;
   dismissSuggestion(bookId: string): Promise<void>;
@@ -284,7 +323,7 @@ export const httpAiApi: AiApi = {
   embeddings: () => request("/api/admin/ai/embeddings"),
   startEmbeddings: () => request("/api/admin/ai/embeddings/run", post({})),
   metadataStatus: () => request("/api/admin/ai/metadata/run"),
-  startMetadata: (limit) => request("/api/admin/ai/metadata/run", post({ limit })),
+  startMetadata: (run) => request("/api/admin/ai/metadata/run", post(run)),
   metadataSuggestions: () =>
     request<{ items: MetadataSuggestion[] }>("/api/admin/ai/metadata/suggestions").then((r) => r.items),
   acceptMetadata: (id, value) =>
@@ -305,7 +344,8 @@ export const httpAiApi: AiApi = {
   models: (providerId) => request<{ items: string[] }>(`/api/admin/ai/providers/${enc(providerId)}/models`).then((r) => r.items),
   testSearch: (q, kid) => request("/api/admin/ai/search/test", post({ q, kid })),
   ratingStatus: () => request("/api/admin/ai/rating/run"),
-  startRating: (limit) => request("/api/admin/ai/rating/run", post({ limit })),
+  startRating: (run) => request("/api/admin/ai/rating/run", post(run)),
+  cancelJob: (jobId) => request(`/api/admin/jobs/${enc(jobId)}/cancel`, post({})),
   suggestions: () => request<{ items: RatingSuggestion[] }>("/api/admin/ai/rating/suggestions").then((r) => r.items),
   acceptSuggestion: (bookId, rating) =>
     request(`/api/admin/ai/rating/suggestions/${enc(bookId)}/accept`, post(rating ? { rating } : {})),
@@ -657,7 +697,18 @@ export const demoAiApi: AiApi = {
     job: { id: "j1", status: "running", progress: 0.6, lastError: null, finishedAt: null },
   }),
   startEmbeddings: async () => demoAiApi.embeddings(),
-  metadataStatus: async () => ({ running: false, total: 25, done: 25, suggested: 3, applied: 5, failed: 0, lastError: null }),
+  metadataStatus: async () => ({
+    running: false,
+    total: 25,
+    done: 25,
+    suggested: 3,
+    applied: 5,
+    failed: 2,
+    lastError: "Couldn't read the model's suggestions for \"Scan 0042\"",
+    progress: { total: 902, remaining: 412, waiting: 3, fixes: 5, failed: 2 },
+    estimate: { provider: "Claude", model: "claude-sonnet-5-5", source: "table", free: false, perBook: 0.0049, basis: "history" },
+    spent: { dollars: 2.39, calls: 488, partial: false },
+  }),
   startMetadata: async () => ({ running: true, total: 25, done: 0, suggested: 0, applied: 0, failed: 0, lastError: null }),
   metadataSuggestions: async () => structuredClone(DEMO_METADATA),
   acceptMetadata: async (mid) => void DEMO_METADATA.splice(DEMO_METADATA.findIndex((m) => m.id === mid), 1),
@@ -748,8 +799,21 @@ export const demoAiApi: AiApi = {
     ok: true,
     items: [{ title: "Dinosaur - Britannica Kids", url: "https://kids.britannica.com/kids/article/dinosaur/353043" }],
   }),
-  ratingStatus: async () => ({ running: false, total: 3, done: 3, suggested: 3, applied: 1, failed: 0, lastError: null }),
+  ratingStatus: async () => ({
+    jobId: "demo-rating",
+    running: true,
+    total: 290,
+    done: 112,
+    suggested: 112,
+    applied: 9,
+    failed: 0,
+    lastError: null,
+    progress: { total: 902, remaining: 178, waiting: 487, failed: 2 },
+    estimate: { provider: "Ollama", model: "llama3.2", source: "local", free: true, perBook: 0, basis: "history" },
+    spent: { dollars: 0, calls: 726, partial: false },
+  }),
   startRating: async () => ({ running: true, total: 3, done: 0, suggested: 0, applied: 0, failed: 0, lastError: null }),
+  cancelJob: async () => {},
   suggestions: async () => [
     {
       bookId: "b3",

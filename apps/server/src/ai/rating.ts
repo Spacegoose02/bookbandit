@@ -3,7 +3,7 @@
  * Suggestions go to the admin review queue. A suggestion is applied on its own only when
  * it's stricter than what the book has now, so the helper can lock a book but never unlock one.
  */
-import { and, eq, isNull, notExists, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, notExists, notInArray, sql } from "drizzle-orm";
 import { CONTENT_RATINGS, ratingRank, UNRATED_FALLBACK, type ContentRating } from "@bookbandit/shared";
 import { authors, bookAuthors, bookFiles, books, bookTags, tags } from "../db/schema.js";
 import type { AiContext } from "./context.js";
@@ -41,21 +41,50 @@ export function parseRatingReply(text: string): { rating: ContentRating; confide
   }
 }
 
-/** Unrated books with no open suggestion yet. */
-export function ratingCandidates(ctx: AiContext, limit: number): string[] {
+/** Unrated books Barnaby hasn't suggested anything for yet. */
+function unratedUnseen(ctx: AiContext) {
+  return and(
+    isNull(books.rating),
+    eq(books.kindleOnly, false),
+    notExists(ctx.db.select({ x: sql`1` }).from(aiRatingSuggestions).where(eq(aiRatingSuggestions.bookId, books.id))),
+  );
+}
+
+/** Unrated books with no suggestion yet (pending, applied or dismissed), minus `skip` (earlier failures). */
+export function ratingCandidates(ctx: AiContext, limit: number, skip: string[] = []): string[] {
   return ctx.db
     .select({ id: books.id })
     .from(books)
-    .where(
-      and(
-        isNull(books.rating),
-        eq(books.kindleOnly, false),
-        notExists(ctx.db.select({ x: sql`1` }).from(aiRatingSuggestions).where(eq(aiRatingSuggestions.bookId, books.id))),
-      ),
-    )
+    .where(and(unratedUnseen(ctx), skip.length ? notInArray(books.id, skip) : undefined))
+    .orderBy(books.addedAt)
     .limit(limit)
     .all()
     .map((r) => r.id);
+}
+
+export interface BatchProgress {
+  /** Books this tool is about (rating: unrated books; metadata: every book). */
+  total: number;
+  /** Books Barnaby still has to look at. Zero (and nothing failed) means the tool is done. */
+  remaining: number;
+  /** Suggestions waiting for an admin to accept or dismiss. */
+  waiting: number;
+  /** Books that failed and are skipped until someone tries them again. */
+  failed: number;
+}
+
+/** Where the rating helper stands over the whole library. `failedIds` from earlier runs. */
+export function ratingProgress(ctx: AiContext, failedIds: string[]): BatchProgress {
+  const { db } = ctx;
+  const n = (where: ReturnType<typeof and>) => db.select({ n: count() }).from(books).where(where).get()?.n ?? 0;
+  const unseen = unratedUnseen(ctx);
+  const failed = failedIds.length ? n(and(unseen, inArray(books.id, failedIds))) : 0;
+  return {
+    total: n(and(isNull(books.rating), eq(books.kindleOnly, false))),
+    remaining: n(unseen) - failed,
+    waiting: db.select({ n: count() }).from(aiRatingSuggestions).where(eq(aiRatingSuggestions.status, "pending")).get()?.n ?? 0,
+    failed,
+  };
 }
 
 /**
