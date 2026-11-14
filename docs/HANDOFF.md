@@ -53,6 +53,12 @@ New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online me
 by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
 are optional. Details: `apps/server/src/library/README.md`.
 
+Discover pulls Open Library trending lists (and Hardcover's when a Hardcover token is set, in the
+admin settings or `HARDCOVER_API_TOKEN`), cached in memory for 6 hours; turning online lookups off
+turns the outside lists off. An admin imports a Kindle library at `/discover/kindle-import` (or
+`POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
+[discover-api.md](discover-api.md).
+
 ## Recent changes
 
 Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
@@ -63,6 +69,7 @@ workstream once it lands. Add your entry there, not here.
 | Date | Change | PR |
 | --- | --- | --- |
 | 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
+| 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
@@ -81,7 +88,6 @@ workstream once it lands. Add your entry there, not here.
 
 Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
 `apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
-Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 

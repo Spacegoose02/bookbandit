@@ -16,6 +16,7 @@ through `visibleBooksWhere` for the parent (rule 1).
 | POST | `/api/admin/books/:id/metadata/refresh` | `library/routes.ts` (now reads the metadata settings below) |
 | GET/POST/PATCH/PUT/DELETE | `/api/users…` | `routes/users.ts` |
 | GET/POST/PATCH/DELETE | `/api/devices…` | `routes/devices.ts` |
+| GET | `/api/reading/stats?userId=<kid>&days=7&utcOffset=` | `routes/reading-time.ts` (lead; minutes per day, streak, top books on the family pages) |
 | GET/PUT/POST | `/api/admin/integrations/audiobookshelf[/test]`, `/api/admin/integrations/smtp[/test]` | `integrations/` |
 
 ## Added by ws/admin

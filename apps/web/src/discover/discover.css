@@ -1,0 +1,442 @@
+/* Discover, series, categories and Cook mode. Uses the theme tokens from styles.css. */
+
+.bb-explore {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.bb-explore-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  color: var(--bb-text);
+  text-decoration: none;
+  font-weight: 600;
+}
+.bb-explore-link:hover {
+  border-color: var(--bb-accent);
+}
+.bb-explore-link.active {
+  background: var(--bb-accent);
+  border-color: var(--bb-accent);
+  color: var(--bb-accent-text);
+}
+
+.bb-discover-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bb-discover-head > :first-child {
+  flex: 1 1 280px;
+}
+.bb-h2 {
+  margin: 24px 0 8px;
+  font-size: 1.25rem;
+}
+.bb-spacer {
+  flex: 1;
+}
+.bb-btn.bb-btn-small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.9rem;
+}
+.bb-btn.bb-btn-danger {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #fff;
+}
+.bb-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* --- Discover --------------------------------------------------------------- */
+
+.bb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: var(--bb-muted);
+}
+.bb-legend .bb-dbadge {
+  position: static;
+}
+.bb-dbadge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.bb-dbadge.is-library {
+  background: #2b9348;
+  color: #fff;
+}
+.bb-dbadge.is-kindle {
+  background: #ff9900;
+  color: #1b1305;
+}
+.bb-dbadge.is-request {
+  background: var(--bb-surface-2);
+  color: var(--bb-text);
+  border: 1px solid var(--bb-border);
+}
+.bb-dcard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.bb-dcard-cover {
+  position: relative;
+  display: block;
+}
+.bb-dcard-cover .bb-dbadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.bb-dcard .bb-card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+.bb-dcard-action {
+  margin-top: 4px;
+}
+.bb-btn.is-kindle {
+  border-color: #ff9900;
+}
+
+/* --- categories and series tiles ------------------------------------------- */
+
+.bb-cat-filter {
+  max-width: 280px;
+}
+.bb-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 18px;
+  margin-top: 16px;
+}
+.bb-cat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.bb-cat-tile:hover,
+.bb-cat-tile:focus-visible {
+  border-color: var(--bb-accent);
+  transform: translateY(-2px);
+}
+.bb-cat-tile.is-section {
+  background: color-mix(in srgb, var(--bb-accent) 12%, var(--bb-surface));
+}
+.bb-cat-name {
+  margin-top: 8px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.bb-stack {
+  position: relative;
+  height: 120px;
+}
+.bb-stack > * {
+  position: absolute;
+  top: 0;
+  height: 112px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  background: var(--bb-surface-2);
+}
+.bb-stack > :nth-child(1) {
+  left: 0;
+  z-index: 3;
+}
+.bb-stack > :nth-child(2) {
+  left: 42px;
+  top: 4px;
+  z-index: 2;
+}
+.bb-stack > :nth-child(3) {
+  left: 84px;
+  top: 8px;
+  z-index: 1;
+}
+.bb-stack-blank {
+  display: block;
+  border: 1px solid var(--bb-border);
+}
+
+/* --- series page ----------------------------------------------------------- */
+
+.bb-series-list {
+  list-style: none;
+  margin: 16px 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.bb-series-row {
+  display: grid;
+  grid-template-columns: 2.2em 56px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  color: inherit;
+  text-decoration: none;
+}
+a.bb-series-row:hover {
+  border-color: var(--bb-accent);
+}
+.bb-series-pos {
+  font-family: var(--bb-display-font);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--bb-accent);
+  text-align: center;
+}
+.bb-series-cover .bb-cover {
+  width: 56px;
+}
+.bb-series-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.bb-series-state {
+  color: var(--bb-muted);
+  font-weight: 600;
+}
+.bb-series-list.is-editing .bb-series-row {
+  grid-template-columns: 1.5em 2.2em 56px 1fr auto;
+}
+.bb-series-list.is-editing li {
+  border-radius: var(--bb-radius);
+}
+.bb-series-list li.is-dragging {
+  opacity: 0.45;
+}
+.bb-series-list li.is-over .bb-series-row {
+  border-color: var(--bb-accent);
+  box-shadow: 0 -3px 0 var(--bb-accent);
+}
+.bb-drag {
+  cursor: grab;
+  font-size: 1.3rem;
+  color: var(--bb-muted);
+  user-select: none;
+}
+.bb-series-tools {
+  display: flex;
+  gap: 4px;
+}
+.bb-series-results {
+  max-width: 560px;
+}
+.bb-series-edit .bb-field {
+  max-width: 560px;
+}
+@media (max-width: 560px) {
+  .bb-series-row {
+    grid-template-columns: 1.8em 44px 1fr;
+  }
+  .bb-series-state {
+    grid-column: 3;
+  }
+  .bb-series-list.is-editing .bb-series-row {
+    grid-template-columns: 1.2em 44px 1fr;
+  }
+  .bb-series-list.is-editing .bb-series-pos {
+    display: none;
+  }
+  .bb-series-tools {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+/* --- Kindle import --------------------------------------------------------- */
+
+.bb-kindle-import {
+  max-width: 760px;
+}
+.bb-steps {
+  padding-left: 1.2em;
+  color: var(--bb-muted);
+}
+.bb-csv {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+.bb-report {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+}
+.bb-report h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+.bb-report-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 0;
+  list-style: none;
+}
+.bb-report-stats strong {
+  font-size: 1.4rem;
+  color: var(--bb-accent);
+}
+
+/* --- Cook mode --------------------------------------------------------------- */
+
+.bb-cook {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--bb-reader-bg);
+  color: var(--bb-reader-text);
+}
+.bb-cook-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px var(--bb-gutter);
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--bb-surface);
+  border-bottom: 1px solid var(--bb-border);
+  color: var(--bb-text);
+}
+.bb-cook-bar .bb-icon-btn {
+  color: inherit;
+  text-decoration: none;
+}
+.bb-cook-title {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.bb-cook-title strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1.1rem;
+}
+.bb-cook-awake {
+  color: #2b9348;
+  font-weight: 700;
+}
+.bb-cook-size {
+  display: flex;
+  gap: 6px;
+}
+.bb-cook-size .bb-btn {
+  min-width: var(--bb-tap);
+  font-size: 1.1rem;
+}
+.bb-cook-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  min-height: 0;
+}
+.bb-cook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow-y: auto;
+  border-right: 1px solid var(--bb-border);
+  background: var(--bb-surface);
+  color: var(--bb-text);
+}
+.bb-cook-item {
+  font-size: 1.05rem;
+}
+.bb-cook-item.depth-1 {
+  padding-left: 22px;
+}
+.bb-cook-item.depth-2 {
+  padding-left: 36px;
+  font-size: 0.95rem;
+}
+.bb-cook-item[aria-current="true"] {
+  color: var(--bb-accent);
+  font-weight: 700;
+}
+.bb-cook-stage {
+  position: relative;
+  min-height: 0;
+}
+.bb-cook-stage .bb-reader-host {
+  position: absolute;
+  inset: 0;
+}
+.bb-btn.bb-cook-recipes-btn {
+  display: none;
+}
+@media (max-width: 860px) {
+  .bb-cook-body {
+    grid-template-columns: 1fr;
+  }
+  .bb-btn.bb-cook-recipes-btn {
+    display: inline-flex;
+  }
+  .bb-cook-list {
+    display: none;
+    position: absolute;
+    z-index: 5;
+    inset: 64px 0 0 0;
+    border-right: 0;
+  }
+  .bb-cook.is-list-open .bb-cook-list {
+    display: flex;
+  }
+}
+
+.bb-chip-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bb-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.bb-chip-link:hover {
+  border-color: var(--bb-accent);
+}
+.bb-book-cats {
+  margin: 12px 0;
+}
