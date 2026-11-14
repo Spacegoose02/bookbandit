@@ -45,5 +45,5 @@ Kids' AI use for word help and quizzes has its own cap (40 a day) and doesn't us
 days of quizzes with every question and answer, and the words the kid tapped. Book titles are
 filtered through the viewer's content lock. Shown on the family page as **Quizzes and words**.
 
-Tables (this folder's `schema.ts`, migration `0008_readaloud`): `learning_words`, `learning_lookups`,
+Tables (this folder's `schema.ts`, migration `0009_readaloud`): `learning_words`, `learning_lookups`,
 `learning_quizzes`.

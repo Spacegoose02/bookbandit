@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e0295d1f-c495-4f07-89c2-74bbaac15b2f",
+  "id": "1795cdb0-eb8a-4211-9b73-5e7d85a66d84",
   "prevId": "1acccd3d-1da6-4f8d-bfca-5844656b1bfa",
   "tables": {
     "ai_messages": {
@@ -3434,373 +3434,40 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "narration_prefs": {
-      "name": "narration_prefs",
+    "duplicate_ignores": {
+      "name": "duplicate_ignores",
       "columns": {
-        "user_id": {
-          "name": "user_id",
+        "group_key": {
+          "name": "group_key",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "voice": {
-          "name": "voice",
+        "ignored_by": {
+          "name": "ignored_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "speed": {
-          "name": "speed",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
+        "created_at": {
+          "name": "created_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "narration_prefs_user_id_users_id_fk": {
-          "name": "narration_prefs_user_id_users_id_fk",
-          "tableFrom": "narration_prefs",
+        "duplicate_ignores_ignored_by_users_id_fk": {
+          "name": "duplicate_ignores_ignored_by_users_id_fk",
+          "tableFrom": "duplicate_ignores",
           "tableTo": "users",
           "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "narration_prefs_updated_by_users_id_fk": {
-          "name": "narration_prefs_updated_by_users_id_fk",
-          "tableFrom": "narration_prefs",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "learning_lookups": {
-      "name": "learning_lookups",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "word": {
-          "name": "word",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "learning_lookups_user_idx": {
-          "name": "learning_lookups_user_idx",
-          "columns": [
-            "user_id",
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "learning_lookups_user_id_users_id_fk": {
-          "name": "learning_lookups_user_id_users_id_fk",
-          "tableFrom": "learning_lookups",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "learning_lookups_book_id_books_id_fk": {
-          "name": "learning_lookups_book_id_books_id_fk",
-          "tableFrom": "learning_lookups",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "learning_quizzes": {
-      "name": "learning_quizzes",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "section": {
-          "name": "section",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "chapter_label": {
-          "name": "chapter_label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "questions": {
-          "name": "questions",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "score": {
-          "name": "score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "learning_quizzes_user_idx": {
-          "name": "learning_quizzes_user_idx",
-          "columns": [
-            "user_id",
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "learning_quizzes_user_id_users_id_fk": {
-          "name": "learning_quizzes_user_id_users_id_fk",
-          "tableFrom": "learning_quizzes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "learning_quizzes_book_id_books_id_fk": {
-          "name": "learning_quizzes_book_id_books_id_fk",
-          "tableFrom": "learning_quizzes",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "learning_words": {
-      "name": "learning_words",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "household_id": {
-          "name": "household_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "word": {
-          "name": "word",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "meaning": {
-          "name": "meaning",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "example": {
-          "name": "example",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "learning_words_household_word_idx": {
-          "name": "learning_words_household_word_idx",
-          "columns": [
-            "household_id",
-            "word"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "learning_words_household_id_households_id_fk": {
-          "name": "learning_words_household_id_households_id_fk",
-          "tableFrom": "learning_words",
-          "tableTo": "households",
-          "columnsFrom": [
-            "household_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "learning_words_updated_by_users_id_fk": {
-          "name": "learning_words_updated_by_users_id_fk",
-          "tableFrom": "learning_words",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
+            "ignored_by"
           ],
           "columnsTo": [
             "id"

@@ -270,65 +270,77 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
     const { id } = IdParams.parse(req.params);
     const { intoId } = MergeBody.parse(req.body);
     if (id === intoId) throw httpError(400, "Pick a different book to merge into");
-    const source = loadBook(id);
-    const target = loadBook(intoId);
-
-    db.transaction((tx) => {
-      tx.update(bookFiles).set({ bookId: intoId }).where(eq(bookFiles.bookId, id)).run();
-
-      if (!tx.select().from(bookAuthors).where(eq(bookAuthors.bookId, intoId)).get()) {
-        for (const r of tx.select().from(bookAuthors).where(eq(bookAuthors.bookId, id)).all()) {
-          tx.insert(bookAuthors).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
-        }
-      }
-      for (const r of tx.select().from(bookTags).where(eq(bookTags.bookId, id)).all()) {
-        tx.insert(bookTags).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
-      }
-      if (!tx.select().from(bookSeries).where(eq(bookSeries.bookId, intoId)).get()) {
-        for (const r of tx.select().from(bookSeries).where(eq(bookSeries.bookId, id)).all()) {
-          tx.insert(bookSeries).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
-        }
-      }
-      for (const r of tx.select().from(kidShelf).where(eq(kidShelf.bookId, id)).all()) {
-        tx.insert(kidShelf).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
-      }
-      for (const r of tx.select().from(collectionBooks).where(eq(collectionBooks.bookId, id)).all()) {
-        tx.insert(collectionBooks).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
-      }
-      for (const p of tx.select().from(readingProgress).where(eq(readingProgress.bookId, id)).all()) {
-        const existing = tx
-          .select()
-          .from(readingProgress)
-          .where(and(eq(readingProgress.userId, p.userId), eq(readingProgress.bookId, intoId)))
-          .get();
-        if (!existing) tx.insert(readingProgress).values({ ...p, bookId: intoId }).run();
-        else if (p.clientUpdatedAt > existing.clientUpdatedAt) {
-          const { userId: _u, bookId: _b, ...rest } = p;
-          tx.update(readingProgress)
-            .set(rest)
-            .where(and(eq(readingProgress.userId, p.userId), eq(readingProgress.bookId, intoId)))
-            .run();
-        }
-      }
-      tx.update(bookmarks).set({ bookId: intoId, updatedAt: Date.now() }).where(eq(bookmarks.bookId, id)).run();
-      tx.update(aiMessages).set({ bookId: intoId }).where(eq(aiMessages.bookId, id)).run();
-
-      // Fill gaps on the target; never overwrite what it already has.
-      const gaps: Partial<typeof books.$inferInsert> = { updatedAt: Date.now() };
-      const fill = ["subtitle", "description", "language", "publishedYear", "isbn13", "publisher", "coverPath", "pageCount", "absItemId", "hardcoverId", "openLibraryId", "googleBooksId", "kindleAsin"] as const;
-      for (const k of fill) {
-        if (target[k] == null && source[k] != null) (gaps as Record<string, unknown>)[k] = source[k];
-      }
-      if (target.rating == null && source.rating != null) {
-        gaps.rating = source.rating;
-        gaps.ratingSource = source.ratingSource;
-      }
-      if (!target.approved && source.approved) gaps.approved = true;
-      if (target.kindleOnly && !source.kindleOnly) gaps.kindleOnly = false;
-      tx.update(books).set(gaps).where(eq(books.id, intoId)).run();
-
-      tx.delete(books).where(eq(books.id, id)).run();
-    });
+    loadBook(id);
+    loadBook(intoId);
+    mergeBooks(db, id, intoId);
     return { merged: id, into: oneBook(intoId) };
+  });
+}
+
+/**
+ * Merge book `id` into `intoId` (another record of the same work). Files, shelves, tags,
+ * collections, bookmarks and reading progress (newest wins) move to the target; the target keeps
+ * its own metadata and fills only the gaps. Exported for the librarian duplicates page.
+ */
+export function mergeBooks(db: Db, id: string, intoId: string): void {
+  const source = db.select().from(books).where(eq(books.id, id)).get();
+  const target = db.select().from(books).where(eq(books.id, intoId)).get();
+  if (!source || !target) throw httpError(404, "Not found");
+
+  db.transaction((tx) => {
+    tx.update(bookFiles).set({ bookId: intoId }).where(eq(bookFiles.bookId, id)).run();
+
+    if (!tx.select().from(bookAuthors).where(eq(bookAuthors.bookId, intoId)).get()) {
+      for (const r of tx.select().from(bookAuthors).where(eq(bookAuthors.bookId, id)).all()) {
+        tx.insert(bookAuthors).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
+      }
+    }
+    for (const r of tx.select().from(bookTags).where(eq(bookTags.bookId, id)).all()) {
+      tx.insert(bookTags).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
+    }
+    if (!tx.select().from(bookSeries).where(eq(bookSeries.bookId, intoId)).get()) {
+      for (const r of tx.select().from(bookSeries).where(eq(bookSeries.bookId, id)).all()) {
+        tx.insert(bookSeries).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
+      }
+    }
+    for (const r of tx.select().from(kidShelf).where(eq(kidShelf.bookId, id)).all()) {
+      tx.insert(kidShelf).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
+    }
+    for (const r of tx.select().from(collectionBooks).where(eq(collectionBooks.bookId, id)).all()) {
+      tx.insert(collectionBooks).values({ ...r, bookId: intoId }).onConflictDoNothing().run();
+    }
+    for (const p of tx.select().from(readingProgress).where(eq(readingProgress.bookId, id)).all()) {
+      const existing = tx
+        .select()
+        .from(readingProgress)
+        .where(and(eq(readingProgress.userId, p.userId), eq(readingProgress.bookId, intoId)))
+        .get();
+      if (!existing) tx.insert(readingProgress).values({ ...p, bookId: intoId }).run();
+      else if (p.clientUpdatedAt > existing.clientUpdatedAt) {
+        const { userId: _u, bookId: _b, ...rest } = p;
+        tx.update(readingProgress)
+          .set(rest)
+          .where(and(eq(readingProgress.userId, p.userId), eq(readingProgress.bookId, intoId)))
+          .run();
+      }
+    }
+    tx.update(bookmarks).set({ bookId: intoId, updatedAt: Date.now() }).where(eq(bookmarks.bookId, id)).run();
+    tx.update(aiMessages).set({ bookId: intoId }).where(eq(aiMessages.bookId, id)).run();
+
+    // Fill gaps on the target; never overwrite what it already has.
+    const gaps: Partial<typeof books.$inferInsert> = { updatedAt: Date.now() };
+    const fill = ["subtitle", "description", "language", "publishedYear", "isbn13", "publisher", "coverPath", "pageCount", "absItemId", "hardcoverId", "openLibraryId", "googleBooksId", "kindleAsin"] as const;
+    for (const k of fill) {
+      if (target[k] == null && source[k] != null) (gaps as Record<string, unknown>)[k] = source[k];
+    }
+    if (target.rating == null && source.rating != null) {
+      gaps.rating = source.rating;
+      gaps.ratingSource = source.ratingSource;
+    }
+    if (!target.approved && source.approved) gaps.approved = true;
+    if (target.kindleOnly && !source.kindleOnly) gaps.kindleOnly = false;
+    tx.update(books).set(gaps).where(eq(books.id, intoId)).run();
+
+    tx.delete(books).where(eq(books.id, id)).run();
   });
 }

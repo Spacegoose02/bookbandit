@@ -58,5 +58,5 @@ then estimates each word's timing from its position in the sentence.
 | POST | `/api/admin/narration/test` | admin |
 | DELETE | `/api/admin/narration/cache` | admin |
 
-Tables: `narration_prefs` (this folder's `schema.ts`, migration `0008_readaloud`). Settings live in
+Tables: `narration_prefs` (this folder's `schema.ts`, migration `0009_readaloud`). Settings live in
 the `settings` table under `narration.settings`; the API key is sealed with `CONFIG_DIR/secret.key`.
