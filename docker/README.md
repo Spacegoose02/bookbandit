@@ -57,7 +57,7 @@ docker build -t bookbandit .
 docker/smoke-test.sh bookbandit   # converts a sample book, starts the server, checks it
 ```
 
-Build args: `CALIBRE_VERSION` (default `latest`; CI passes the current release so a new Calibre
+Build args: `CALIBRE_VERSION` (default `latest`, the newest GitHub release of Calibre; CI passes the current release so a new Calibre
 busts the cache) and `KEPUBIFY_VERSION`.
 
 ## Publishing (maintainers)

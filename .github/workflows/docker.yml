@@ -47,7 +47,13 @@ jobs:
       # Pass the current Calibre release in explicitly so a new Calibre busts the build cache.
       - name: Current Calibre version
         id: calibre
-        run: echo "version=$(curl -fsSL https://code.calibre-ebook.com/latest)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(gh api repos/kovidgoyal/calibre/releases/latest --jq '.tag_name | ltrimstr("v")')"
+          test -n "$version"
+          echo "Calibre $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3

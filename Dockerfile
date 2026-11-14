@@ -44,7 +44,7 @@ RUN CI=true pnpm install --prod --frozen-lockfile --filter "@bookbandit/server..
 # 3. Calibre (for ebook-convert) and kepubify, downloaded for the target CPU.
 FROM debian:${DEBIAN_RELEASE}-slim AS tools
 ARG TARGETARCH
-# "latest" asks calibre-ebook.com for the current release; pin e.g. --build-arg CALIBRE_VERSION=8.16.2
+# "latest" looks up the newest GitHub release of kovidgoyal/calibre; pin e.g. --build-arg CALIBRE_VERSION=8.16.2
 ARG CALIBRE_VERSION=latest
 ARG KEPUBIFY_VERSION=4.0.4
 RUN apt-get update \
@@ -57,10 +57,16 @@ RUN set -eux; \
       *) echo "unsupported arch $TARGETARCH" >&2; exit 1 ;; \
     esac; \
     version="$CALIBRE_VERSION"; \
-    if [ "$version" = "latest" ]; then version="$(curl -fsSL https://code.calibre-ebook.com/latest)"; fi; \
+    if [ "$version" = "latest" ]; then \
+      version="$(curl -fsSL https://api.github.com/repos/kovidgoyal/calibre/releases/latest \
+        | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -n1)"; \
+    fi; \
+    test -n "$version"; \
     mkdir -p /opt/calibre; \
-    curl -fsSL "https://download.calibre-ebook.com/${version}/calibre-${version}-${calibre_arch}.txz" \
-      | tar -xJ -C /opt/calibre; \
+    curl -fsSL -o /tmp/calibre.txz \
+      "https://github.com/kovidgoyal/calibre/releases/download/v${version}/calibre-${version}-${calibre_arch}.txz"; \
+    tar -xJf /tmp/calibre.txz -C /opt/calibre; \
+    rm /tmp/calibre.txz; \
     echo "$version" > /opt/calibre/BOOKBANDIT_CALIBRE_VERSION; \
     curl -fsSL -o /usr/local/bin/kepubify \
       "https://github.com/pgaskin/kepubify/releases/download/v${KEPUBIFY_VERSION}/kepubify-linux-${kepub_arch}"; \
