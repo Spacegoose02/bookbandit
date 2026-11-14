@@ -6,8 +6,8 @@ import { eq } from "drizzle-orm";
 import { buildApp } from "../../src/app.js";
 import { openDb, type Db } from "../../src/db/client.js";
 import { loadConfig } from "../../src/config.js";
-import { books, households, userIdentities, users } from "../../src/db/schema.js";
-import { makeEpub, tempDir } from "./fixtures.js";
+import { bookFiles, books, households, userIdentities, users } from "../../src/db/schema.js";
+import { makeEpub, makePdf, tempDir } from "./fixtures.js";
 
 let app: FastifyInstance;
 let db: Db;
@@ -75,6 +75,61 @@ describe("library admin API", () => {
       expect((await req(who, "PUT", "/api/admin/books/x/rating", { rating: "kids" })).statusCode).toBe(403);
       expect((await req(who, "GET", "/api/admin/library/duplicates")).statusCode).toBe(403);
     }
+  });
+
+  it("imports series volumes as separate books and never offers one as a copy of another", async () => {
+    const folder = (n: number, id: number) =>
+      `Kid, Cube/Minecraft_ Diary of a Wimpy Villager (Book ${n})_ (An unofficial Minecraft book) (${id})/Minecraft_ Diary of a Wimpy Villager (Book - Kid, Cube`;
+    // The EPUBs' own titles leave the book number out; only the Calibre folders have it.
+    await makeEpub(join(booksDir, `${folder(4, 261)}.epub`), { title: "Minecraft: Diary of a Wimpy Villager", authors: ["Cube Kid"], salt: "v4" });
+    await makeEpub(join(booksDir, `${folder(6, 262)}.epub`), { title: "Minecraft: Diary of a Wimpy Villager", authors: ["Cube Kid"], salt: "v6" });
+    await makePdf(join(booksDir, `${folder(6, 263)}.pdf`), {});
+    const report = await scanNow();
+    expect(report).toMatchObject({ added: 2, attached: 1 }); // the PDF is another format of Book 6
+
+    const inbox = (await req("admin", "GET", "/api/admin/inbox")).json();
+    const byTitle = Object.fromEntries(inbox.items.map((b: { title: string }) => [b.title, b]));
+    expect(Object.keys(byTitle).sort()).toEqual(["Minecraft: Diary of a Wimpy Villager, Book 4", "Minecraft: Diary of a Wimpy Villager, Book 6"]);
+    expect(byTitle["Minecraft: Diary of a Wimpy Villager, Book 6"].files).toHaveLength(2);
+    for (const item of inbox.items) expect(item.possibleDuplicates).toEqual([]);
+    const series = (await req("admin", "GET", "/api/admin/librarian/duplicates")).json();
+    expect(series.sameWork).toEqual([]);
+  });
+
+  it("suggests only same-volume copies for books imported before volumes were read", async () => {
+    // Older imports: identical titles, the number only in the folder name.
+    const add = (n: number, id: number, format: "epub" | "pdf", isbn13: string | null = null) => {
+      const [b] = db
+        .insert(books)
+        .values({ title: "Minecraft: Diary of a Wimpy Villager", sortTitle: "minecraft: diary of a wimpy villager", isbn13, approved: false, addedAt: Date.now() - id })
+        .returning()
+        .all();
+      db.insert(bookFiles)
+        .values({ bookId: b!.id, relPath: `Kid, Cube/Minecraft_ Diary of a Wimpy Villager (Book ${n})_ (${id})/x.${format}`, format, sizeBytes: 1000 * id })
+        .run();
+      return b!.id;
+    };
+    const four = add(4, 261, "epub");
+    const six = add(6, 262, "epub");
+    const sixPdf = add(6, 263, "pdf");
+    const sixOtherIsbn = add(6, 264, "epub", "9780306406157");
+
+    const inbox = (await req("admin", "GET", "/api/admin/inbox")).json();
+    const dupes = (id: string) => inbox.items.find((b: { id: string }) => b.id === id).possibleDuplicates;
+    expect(dupes(four)).toEqual([]);
+    // An ISBN only one side has doesn't separate them; another volume does.
+    expect(dupes(six).map((d: { id: string }) => d.id).sort()).toEqual([sixPdf, sixOtherIsbn].sort());
+    expect(dupes(six).find((d: { id: string }) => d.id === sixPdf)).toMatchObject({
+      volume: 6,
+      approved: false,
+      sameIsbn: false,
+      files: [{ format: "pdf", sizeBytes: 263000 }],
+    });
+    expect(dupes(sixOtherIsbn).map((d: { id: string }) => d.id).sort()).toEqual([six, sixPdf].sort());
+
+    const groups = (await req("admin", "GET", "/api/admin/librarian/duplicates")).json().sameWork;
+    expect(groups).toHaveLength(1);
+    expect(groups[0].books.map((b: { id: string }) => b.id).sort()).toEqual([six, sixPdf, sixOtherIsbn].sort());
   });
 
   it("keeps new books in the inbox until approved, then applies the content lock", async () => {

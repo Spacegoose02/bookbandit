@@ -97,8 +97,22 @@ export interface InboxItem {
   ratingSource: RatingSource | null;
   files: AdminFile[];
   addedAt: number;
-  possibleDuplicates: { id: string; title: string; approved: boolean }[];
+  possibleDuplicates: PossibleDuplicate[];
   barnaby: { rating: BarnabyRating | null; fixes: BarnabyFix[] };
+}
+
+/** A book the inbox book may be another copy or format of. Never a different volume of a series. */
+export interface PossibleDuplicate {
+  id: string;
+  title: string;
+  approved: boolean;
+  /** Its number in a series, when known. */
+  volume: number | null;
+  isbn13: string | null;
+  /** Matched by ISBN rather than by title. */
+  sameIsbn: boolean;
+  addedAt: number;
+  files: { format: string; sizeBytes: number }[];
 }
 
 export interface AdminBook {

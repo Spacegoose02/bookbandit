@@ -398,6 +398,21 @@ a.bb-tile:hover {
   background: color-mix(in srgb, var(--bb-accent) 14%, transparent);
   font-size: 0.9rem;
 }
+.bb-dupe-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-dupe-targets li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
 .bb-inbox-side {
   display: flex;
   flex-direction: column;
