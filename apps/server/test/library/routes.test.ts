@@ -173,3 +173,28 @@ describe("library admin API", () => {
     expect((await req("admin", "POST", `/api/admin/books/${id}/metadata/refresh`)).statusCode).toBe(409);
   });
 });
+
+describe("startup scan", () => {
+  it("scans when the server starts listening, and skips an empty folder", async () => {
+    const make = async (dir: string) => {
+      const { db: d, close: c } = openDb(":memory:");
+      const cfg = loadConfig({ LOG_LEVEL: "error", BOOKS_DIR: dir, CONFIG_DIR: await tempDir("bb-config-"), METADATA_ONLINE: "false" } as NodeJS.ProcessEnv);
+      const a = await buildApp(cfg, d);
+      await a.listen({ port: 0, host: "127.0.0.1" });
+      return { a, d, c };
+    };
+    const full = await tempDir("bb-books-");
+    await makeEpub(join(full, "Boot.epub"), { title: "Boot", authors: ["B"] });
+    const one = await make(full);
+    for (let i = 0; i < 100 && !one.d.select().from(books).get(); i++) await new Promise((r) => setTimeout(r, 20));
+    expect(one.d.select().from(books).all().map((b) => b.title)).toEqual(["Boot"]);
+    await one.a.close();
+    one.c();
+
+    const two = await make(join(await tempDir("bb-none-"), "missing"));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(two.d.select().from(books).all()).toEqual([]);
+    await two.a.close();
+    two.c();
+  });
+});

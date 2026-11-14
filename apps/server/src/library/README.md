@@ -33,6 +33,11 @@ Hardcover (when `HARDCOVER_API_TOKEN` is set), Google Books (`GOOGLE_BOOKS_API_K
 and Open Library. ISBN first, then title + author with a plausibility check. Turn off with
 `METADATA_ONLINE=false`. Lookups fill empty fields only; titles and authors from the file win.
 
+## Scanning
+
+A scan runs when the server starts (`LIBRARY_SCAN_ON_START=false` turns it off; it's skipped
+when `BOOKS_DIR` is missing or empty) and whenever an admin calls `POST /api/admin/library/scan`.
+
 ## Admin API (all `requireAdmin`)
 
 | Method | Path | What |

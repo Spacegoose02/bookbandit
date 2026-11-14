@@ -7,7 +7,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { mkdir, rename, rm } from "node:fs/promises";
+import { mkdir, readdir, rename, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import { CONTENT_RATINGS } from "@bookbandit/shared";
@@ -74,6 +74,19 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
   await app.register(serveRoutes, { db, booksDir: booksRoot, configDir: config.CONFIG_DIR });
 
   const service = new LibraryService({ db, booksDir: booksRoot, configDir: config.CONFIG_DIR, online: lookup, log: app.log });
+
+  // Scan at boot. onListen only fires for a real server (not app.inject in tests).
+  if (config.LIBRARY_SCAN_ON_START) {
+    app.addHook("onListen", async () => {
+      if (!(await hasEntries(booksRoot))) {
+        app.log.info({ booksDir: booksRoot }, "books folder is missing or empty; skipping startup scan");
+        return;
+      }
+      service.startScan().catch(() => {
+        // reported through getStatus().lastError and the log
+      });
+    });
+  }
 
   /** Authors and files for a page of books, keyed by book id. */
   function details(ids: string[]) {
@@ -285,4 +298,12 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
     }));
     return { sameFile, sameWork };
   });
+}
+
+async function hasEntries(dir: string): Promise<boolean> {
+  try {
+    return (await readdir(dir)).some((n) => !n.startsWith("."));
+  } catch {
+    return false;
+  }
 }

@@ -24,6 +24,11 @@ const Env = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  /** Scan BOOKS_DIR when the server starts listening (skipped if the folder is missing or empty). */
+  LIBRARY_SCAN_ON_START: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   /** Optional: raises Google Books' anonymous quota. */
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
   /** Optional: enables Hardcover lookups (hardcover.app → Account → API). */
