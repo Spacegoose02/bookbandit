@@ -54,7 +54,7 @@ export function RequestsPage() {
   const changed = () => setRefresh((n) => n + 1);
 
   return (
-    <div className="bb-page bb-requests">
+    <div className="bb-page bb-rq-page">
       <h1 className="bb-h1">Requests</h1>
       <div className="bb-tabs" role="tablist" aria-label="Requests">
         {tabs.map((t) => (

@@ -3,7 +3,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import type { Db } from "../db/client.js";
-import { loadOrCreateKey, secretBox, type SecretBox } from "../integrations/secrets.js";
+import type { SecretBox } from "../integrations/secrets.js";
 import type { LookupOptions } from "../metadata/lookup.js";
 import type { FetchLike } from "../metadata/providers/http.js";
 import { downloadRoutes } from "../downloads/routes.js";
@@ -15,11 +15,11 @@ import { requestDownloadHooks, setRequest, type RequestRow } from "./service.js"
 
 export interface RequestsOptions {
   db: Db;
-  configDir: string;
+  /** The app's SecretBox (CONFIG_DIR/secret.key, shared with integrations and admin settings). */
+  box: SecretBox;
   booksDir: string;
-  lookup: LookupOptions | false;
-  /** Tests: fixed key instead of CONFIG_DIR/secret.key (same key file as integrations). */
-  secretKey?: Buffer;
+  /** Online lookup for the rating guess, read fresh each time (admins can change it); false = off. */
+  resolveLookup: () => LookupOptions | false;
   fetchImpl?: FetchLike;
   pollMs?: { shelfmark: number; sabnzbd: number };
 }
@@ -28,7 +28,7 @@ export async function requestsPlugin(app: FastifyInstance, opts: RequestsOptions
   if (!app.hasDecorator("jobs")) throw new Error("requestsPlugin needs jobsPlugin registered first");
   const runner = app.jobs;
   const fetchImpl = opts.fetchImpl ?? fetch;
-  const box = lazyBox(() => opts.secretKey ?? loadOrCreateKey(opts.configDir));
+  const box = opts.box;
 
   registerDownloadJobs(runner, {
     db: opts.db,
@@ -57,13 +57,6 @@ export async function requestsPlugin(app: FastifyInstance, opts: RequestsOptions
     return jobId;
   }
 
-  await app.register(requestRoutes, { db: opts.db, fetchImpl, lookup: opts.lookup, startDownload });
+  await app.register(requestRoutes, { db: opts.db, fetchImpl, resolveLookup: opts.resolveLookup, startDownload });
   await app.register(downloadRoutes, { db: opts.db, box, booksDir: opts.booksDir, fetchImpl, runner });
-}
-
-/** The key file is only created once a secret is actually stored or read. */
-function lazyBox(key: () => Buffer): SecretBox {
-  let box: SecretBox | null = null;
-  const get = () => (box ??= secretBox(key()));
-  return { seal: (p) => get().seal(p), open: (s) => get().open(s) };
 }

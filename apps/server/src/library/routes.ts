@@ -45,6 +45,11 @@ export interface LibraryRouteOptions {
   config: Config;
   /** Tests inject a fake fetch; defaults to global fetch. */
   lookup?: LookupOptions;
+  /**
+   * Current lookup settings, read on each use so the admin settings page applies without a
+   * restart (routes/admin-settings.ts). Defaults to the env vars.
+   */
+  resolveLookup?: () => LookupOptions | false;
 }
 
 /** zod parse that answers 400 instead of a 500 on bad input. */
@@ -66,14 +71,17 @@ function notFound(): Error {
 
 export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOptions) {
   const { db, config } = opts;
-  const lookup: LookupOptions | false = config.METADATA_ONLINE
-    ? { googleApiKey: config.GOOGLE_BOOKS_API_KEY, hardcoverToken: config.HARDCOVER_API_TOKEN, ...opts.lookup }
-    : false;
+  const currentLookup: () => LookupOptions | false =
+    opts.resolveLookup ??
+    (() =>
+      config.METADATA_ONLINE
+        ? { googleApiKey: config.GOOGLE_BOOKS_API_KEY, hardcoverToken: config.HARDCOVER_API_TOKEN, ...opts.lookup }
+        : false);
   const booksRoot = resolve(config.BOOKS_DIR);
   // Reader-facing: covers and book files (content lock applies).
   await app.register(serveRoutes, { db, booksDir: booksRoot, configDir: config.CONFIG_DIR });
 
-  const service = new LibraryService({ db, booksDir: booksRoot, configDir: config.CONFIG_DIR, online: lookup, log: app.log });
+  const service = new LibraryService({ db, booksDir: booksRoot, configDir: config.CONFIG_DIR, online: currentLookup, log: app.log });
 
   // Job runner hook (ws/requests): downloads and uploads scan as a job step. If a scan is
   // already running it may have missed the new files, so wait for it and scan once more.
@@ -251,9 +259,10 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
     requireAdmin(req);
     const { id } = parse(IdParams, req.params);
     if (!db.select({ id: books.id }).from(books).where(eq(books.id, id)).get()) throw notFound();
+    const lookup = currentLookup();
     if (!lookup) {
       reply.code(409);
-      return { error: "Online metadata lookup is turned off (METADATA_ONLINE=false)" };
+      return { error: "Online metadata lookup is turned off (Admin → Settings, or METADATA_ONLINE=false)" };
     }
     const result = await enrichBook({ db, configDir: config.CONFIG_DIR, bookId: id, lookup });
     return { ...result, book: db.select().from(books).where(eq(books.id, id)).get() };

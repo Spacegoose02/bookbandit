@@ -72,8 +72,8 @@ const DownloadBody = z
 export interface RequestRouteOptions {
   db: Db;
   fetchImpl: FetchLike;
-  /** Online lookup for the server's rating guess; false when METADATA_ONLINE=false. */
-  lookup: LookupOptions | false;
+  /** Online lookup for the server's rating guess; false when online lookup is off. */
+  resolveLookup: () => LookupOptions | false;
   /** Starts the download for an approved request when auto-download is on and a downloader is set up. */
   startDownload: (row: RequestRow, opts: { via: "auto" | "shelfmark" | "sabnzbd" | "direct"; url?: string; auto: boolean }) => string | null;
 }
@@ -159,7 +159,7 @@ export async function requestRoutes(app: FastifyInstance, opts: RequestRouteOpti
     }
 
     // The server's own guess; the client can't lower it.
-    const guess = await guessRating({ title: body.title, author, isbn13 }, opts.lookup);
+    const guess = await guessRating({ title: body.title, author, isbn13 }, opts.resolveLookup());
     const start = initialStatus(reader, guess?.rating ?? null);
     const now = Date.now();
     const [row] = db

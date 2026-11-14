@@ -257,8 +257,8 @@
   white-space: nowrap;
   font-weight: 600;
 }
-.bb-job-progress,
-.bb-upload-progress {
+.bb-job .bb-job-progress,
+.bb-upload-row .bb-upload-progress {
   position: static;
   display: block;
   height: 4px;
