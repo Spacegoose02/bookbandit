@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BookBandit</string>
+    <string name="title_activity_main">BookBandit</string>
+    <string name="package_name">app.bookbandit.tablet</string>
+    <string name="custom_url_scheme">app.bookbandit.tablet</string>
+</resources>

@@ -13,4 +13,4 @@ If you don't know the PR number yet, write `(this PR)` and fix it in a follow-up
 without a file creates one named after its branch suffix (for example `ws/listen` → `listen.md`).
 
 Files: [lead](lead.md), [auth](auth.md), [web](web.md), [library](library.md), [sync](sync.md),
-[integrations](integrations.md), [docker](docker.md). Wave 2 workstreams add their own.
+[integrations](integrations.md), [docker](docker.md), [ereader](ereader.md). Wave 2 workstreams add their own.

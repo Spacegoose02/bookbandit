@@ -45,8 +45,8 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 Goal: kids read on their own tablets and Kavita is switched off.
 
-- [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`)
-- [x] Windows desktop app (Tauri): server setup and pairing, offline reading with progress sync, installer attached to releases (`ws/desktop`)
+- [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`): built (QR pairing, offline downloads and cache, screen pinning, PIN-locked settings, CI APK on releases); tick once tested on a real Fire and Android tablet
+- [ ] Windows desktop app (Tauri) (`ws/desktop`): built (server setup and pairing, offline reading with progress sync, installer attached to releases); tick once tested on a real Windows PC
 
 - [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
 
@@ -75,7 +75,7 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
 
-- [ ] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`)
+- [x] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`; physical Kobo test pending)
 
 - [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 

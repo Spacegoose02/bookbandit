@@ -23,11 +23,13 @@ import { adminSettingsRoutes, resolveLookup } from "./routes/admin-settings.js";
 import { familyRoutes } from "./routes/admin-family.js";
 import { storytellerPlugin } from "./storyteller/index.js";
 import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
+import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
   integrations?: Pick<IntegrationsOptions, "secretKey" | "fetchImpl" | "makeMailer">;
   discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
+  ereader?: Pick<EreaderOptions, "kepub">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -73,6 +75,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     resolveLookup: () => resolveLookup(db, box, config),
     ...deps.discover,
   });
+  await app.register(ereaderPlugin, { db, config, trustedProxies, ...deps.ereader });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
