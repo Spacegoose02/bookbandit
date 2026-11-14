@@ -38,9 +38,11 @@ Web UI without a server: `pnpm --filter @bookbandit/web demo` (sample books; add
 URL for kid mode). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
 `pnpm --filter @bookbandit/web screenshots`.
 
-Local auth: the API only trusts the Tinyauth email header from `TRUSTED_PROXIES`. For local
-development set `TRUSTED_PROXIES=127.0.0.1` and send `Remote-Email: you@example.com`, after adding a
-matching row to `user_identities`. (The auth workstream will add a dev seed and local login.)
+Sign-in: on an empty database the web app shows "Welcome to BookBandit" and the first person creates
+the admin with a username and password. After that, grown-ups sign in with username/password, or
+with Google through Tinyauth (the email header is trusted only from `TRUSTED_PROXIES`; set
+`GOOGLE_SIGN_IN_URL` to show a Google button). Paired tablets show "Who's reading?" and kids sign in
+with a PIN or pictures. API details: `apps/server/src/auth/` and `apps/web/API_CONTRACT.md`.
 
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
@@ -59,6 +61,7 @@ every PR and attaches it to releases. Details and signing: [apps/android/README.
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
 | 2026-11-14 | Android tablet app (`apps/android`, Capacitor 8): QR/typed pairing, native /api proxy (device token stays native), offline downloads and per-person cache with an "On this tablet" shelf, screen pinning for kids, parent-PIN tablet settings, CI APK attached to v* releases. Web hooks: "Save for offline" and "Tablet settings" (`apps/web/src/native/`). See [apps/android/README.md](../apps/android/README.md) | ws/android PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |

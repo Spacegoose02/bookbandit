@@ -1,5 +1,6 @@
 import { useSession } from "../app/session";
 import { TabletSettingsButton } from "../native/TabletSettingsButton";
+import { AccountPanel } from "../auth/AccountPanel";
 import { THEME_LIST } from "./themes";
 
 /** Big picture buttons so kids who can't read yet can still pick a theme. */
@@ -42,6 +43,7 @@ export function SettingsPage() {
   const { me } = useSession();
   return (
     <div className="bb-page">
+      {me && !me.isKid && <AccountPanel />}
       <h1 className="bb-h1">{me?.isKid ? "Pick your colors" : "Appearance"}</h1>
       <ThemePicker />
       <TabletSettingsButton />
