@@ -19,6 +19,7 @@ import { hashSecret, pictureSecret, verifySecret } from "./secrets.js";
 import { sessionCookie, type SessionPayload, type SessionSigner } from "./sessions.js";
 import { Lockout, TooManyAttemptsError } from "./rate-limit.js";
 import { useAuthErrors } from "./errors.js";
+import { ipMatches } from "./trusted-proxy.js";
 import { profileCard, userView } from "./view.js";
 import type { UserRow } from "./permissions.js";
 
@@ -28,6 +29,10 @@ export interface AuthRouteOptions {
   trustedProxies: string[];
   /** Per person (+ address for passwords). Exposed for tests. */
   lockout?: Lockout;
+  /** Where the web app's "Sign in with Google" button points (Tinyauth login page). */
+  googleSignInUrl?: string;
+  /** Header the proxy sets with the signed-in email (to explain an unlinked Google account). */
+  emailHeader?: string;
   /** Per account across all addresses, looser, so one bad actor can't lock a grown-up out for long. */
   accountLockout?: Lockout;
 }
@@ -80,10 +85,9 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
       throw httpError(403, "This device belongs to someone else");
     }
     const { token, expiresAt } = sessions.issue({ u: u.id, h: u.householdId, d: req.device?.id ?? null, m: method });
-    // Browsers get an HttpOnly cookie; apps (which send Authorization) keep the token themselves.
-    if (!req.headers.authorization) {
-      reply.header("set-cookie", sessionCookie(token, expiresAt - Date.now(), isSecureRequest(req, opts.trustedProxies)));
-    }
+    // Browsers use the HttpOnly cookie (it also covers <img> covers and file downloads);
+    // apps send `token` back as a Bearer token.
+    reply.header("set-cookie", sessionCookie(token, expiresAt - Date.now(), isSecureRequest(req, opts.trustedProxies)));
     return { token, expiresAt, user: userView(db, u) };
   }
 
@@ -94,12 +98,21 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
 
   useAuthErrors(app);
 
+  function proxyEmail(req: FastifyRequest): string | null {
+    if (!opts.emailHeader || !ipMatches(req.socket.remoteAddress ?? "", opts.trustedProxies)) return null;
+    const raw = req.headers[opts.emailHeader.toLowerCase()];
+    return (Array.isArray(raw) ? raw[0] : raw)?.trim().toLowerCase() || null;
+  }
+
   app.get("/api/auth/status", async (req) => ({
     setupRequired: userCount() === 0,
     signedIn: !!req.reader,
     via: req.authVia,
     user: req.reader ? userView(db, db.select().from(users).where(eq(users.id, req.reader.userId)).get()!) : null,
     device: req.device ? { id: req.device.id, name: req.device.name, lockedTo: req.device.userId } : null,
+    google: opts.googleSignInUrl ? { url: opts.googleSignInUrl } : null,
+    /** Signed in to Google through the proxy, but no one here has that email yet. */
+    unlinkedEmail: req.reader ? null : proxyEmail(req),
     limits: { pin: PIN_LENGTH, pictures: PICTURE_SEQUENCE_LENGTH, passwordMin: PASSWORD_MIN_LENGTH },
   }));
 
