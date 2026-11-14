@@ -18,7 +18,6 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 - [x] Reading progress, bookmarks, highlights, stickers, Continue reading and kid shelves API (`ws/sync`)
 - [x] Web app: shelves, filters (author, year range, age group), series, kids section (`ws/web`; needs the lead's `/api/shelves` and `/api/books` filters to show real data)
 - [x] Web reader for EPUB, AZW3/MOBI, FB2, CBZ (foliate-js) and PDF (pdf.js) with progress sync
-- [ ] Web reader (foliate-js) for EPUB, PDF and CBZ with progress sync: EPUB, AZW3/MOBI, FB2, CBZ and sync done; PDF progress still to do (lead)
 - [x] Theme system: Dark, Nuclear, Retro, Pink, School, Gaming, Dinosaur, Storm (`ws/web`)
 - [x] Barnaby branding: logo, icon, empty states (`ws/web`)
 - [x] Docker image serving the web app, ebook-convert, kepubify, PUID/PGID, GHCR, Unraid template (`ws/docker`), released as v0.1.0
