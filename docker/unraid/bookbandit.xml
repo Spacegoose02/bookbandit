@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>bookbandit</Name>
+  <Repository>ghcr.io/spacegoose02/bookbandit:latest</Repository>
+  <Registry>https://github.com/spacegoose02/bookbandit/pkgs/container/bookbandit</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/spacegoose02/bookbandit/issues</Support>
+  <Project>https://github.com/spacegoose02/bookbandit</Project>
+  <Overview>Bookbandit is a self-hosted family book library and reader. It reads your ebooks and comics from a plain folder, gives every family member their own shelves, progress and bookmarks that sync between devices, and keeps kids to age-appropriate books. Calibre's ebook-convert and kepubify are built in for format conversion.[br][br]Put it behind a reverse proxy with Tinyauth (or another forward-auth provider) and set Trusted proxies to that proxy's IP or Docker network.</Overview>
+  <Category>MediaServer:Books Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/spacegoose02/bookbandit/main/docker/unraid/bookbandit.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/spacegoose02/bookbandit/main/docker/unraid/bookbandit.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>A reverse proxy with forward auth (for example Tinyauth with Google sign-in) in front of the web UI.</Requires>
+  <Config Name="WebUI port" Target="8080" Default="8080" Mode="tcp" Description="Port for the web app and API." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/bookbandit" Mode="rw" Description="Database, covers and caches. Keep this on the cache pool." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/bookbandit</Config>
+  <Config Name="Books" Target="/books" Default="/mnt/user/media/books" Mode="rw" Description="Your book library (plain files). Bookbandit never changes file ownership here." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/books</Config>
+  <Config Name="Trusted proxies" Target="TRUSTED_PROXIES" Default="" Mode="" Description="Comma-separated IPs or CIDRs of your reverse proxy (for example 172.18.0.0/16). Sign-in headers from anywhere else are ignored. Empty means nobody can sign in through the proxy." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Auth email header" Target="AUTH_HEADER_EMAIL" Default="remote-email" Mode="" Description="Header your proxy sets with the signed-in email. Tinyauth uses remote-email." Type="Variable" Display="advanced" Required="false" Mask="false">remote-email</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User id that owns files Bookbandit writes (99 = nobody on Unraid)." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group id that owns files Bookbandit writes (100 = users on Unraid)." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="File permission mask for new files. Use 002 to let the users group write." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
+  <Config Name="Log level" Target="LOG_LEVEL" Default="info" Mode="" Description="fatal, error, warn, info, debug or trace." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+</Container>
