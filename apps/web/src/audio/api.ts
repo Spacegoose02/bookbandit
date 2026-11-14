@@ -14,6 +14,16 @@ export interface AudioApi {
   addBookmark(bookId: string, time: number, note?: string): Promise<AudioBookmark>;
   editBookmark(id: string, patch: { note?: string | null; time?: number }): Promise<AudioBookmark>;
   deleteBookmark(id: string): Promise<void>;
+  /** The reader's unfinished audiobooks, newest first (the home page's "Continue reading" row). */
+  continueListening(): Promise<ListeningItem[]>;
+}
+
+/** GET /api/audio/continue */
+export interface ListeningItem {
+  id: string;
+  title: string;
+  coverPath: string | null;
+  progress: AudioProgress;
 }
 
 const enc = encodeURIComponent;
@@ -34,6 +44,7 @@ export const httpAudioApi: AudioApi = {
   deleteBookmark: async (id) => {
     await request<void>(`/api/audio/bookmarks/${enc(id)}`, { method: "DELETE" });
   },
+  continueListening: async () => (await request<{ items: ListeningItem[] }>("/api/audio/continue")).items,
 };
 
 /** Demo books that "have" an audiobook (see DEMO_AUDIO_BOOKS in api/demo.ts). */
@@ -165,6 +176,23 @@ export const demoAudioApi: AudioApi = {
       /* ignore */
     }
     return { applied: true, progress };
+  },
+  async continueListening() {
+    const out: ListeningItem[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const bookId = key?.startsWith("bb-demo-audio-") ? key.slice("bb-demo-audio-".length) : null;
+      if (!bookId || bookId.startsWith("prefs-") || key === DEMO_BOOKMARKS) continue;
+      const progress = readDemo<AudioProgress>(key!);
+      if (!progress || progress.finished || !progress.currentTime) continue;
+      try {
+        const b = await api.book(bookId);
+        out.push({ id: b.id, title: b.title, coverPath: b.coverPath, progress });
+      } catch {
+        /* not visible to this profile */
+      }
+    }
+    return out.sort((a, b) => b.progress.serverUpdatedAt - a.progress.serverUpdatedAt);
   },
 };
 

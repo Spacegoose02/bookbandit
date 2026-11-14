@@ -128,6 +128,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(discoverPlugin, {
     db,
     config,
+    box,
     resolveLookup: () => resolveLookup(db, box, config),
     ...deps.discover,
   });

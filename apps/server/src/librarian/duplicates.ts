@@ -4,7 +4,8 @@
  * - "copies": the same bytes at more than one path (the scanner attaches them to one book).
  *   Fix: keep one path and set the other copies aside.
  * - "same work": separate book records that look like one work (same ISBN, or the same title and
- *   an overlapping author, or the same title with no authors to compare). Fix: merge their formats
+ *   an overlapping author, or the same title with no authors to compare). Records with different
+ *   book numbers ("Book 4" vs "Book 6") are never grouped, and a title match never crosses ISBNs. Fix: merge their formats
  *   into one book, keep one and set the others' files aside, or mark them "not duplicates".
  *
  * Nothing is deleted: set-aside files move to BOOKS_DIR/.duplicates, which scans skip.
@@ -13,6 +14,7 @@ import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { authors, bookAuthors, bookFiles, books } from "../db/schema.js";
 import { matchKey } from "../metadata/text.js";
+import { bookVolumes } from "../library/store.js";
 import { describeBooks, loadBooks, readerCounts, type LibrarianBook } from "./books.js";
 import { duplicateIgnores } from "./schema.js";
 
@@ -36,7 +38,7 @@ export const groupKey = (ids: string[]) => [...ids].sort().join(",");
 
 /** Groups of book ids that look like the same work. Pure function of the rows, for tests. */
 export function findWorkGroups(
-  rows: { id: string; title: string; isbn13: string | null }[],
+  rows: { id: string; title: string; isbn13: string | null; volume?: number | null }[],
   authorsBy: Map<string, string[]>,
 ): { reason: DuplicateReason; ids: string[] }[] {
   // Union-find, so A~B by ISBN and B~C by title end up as one group.
@@ -48,10 +50,24 @@ export function findWorkGroups(
     parent.set(x, p);
     return p;
   };
+  // What each group already holds: a group never takes in a second book number or (by title) a second ISBN,
+  // so "Book 4 ~ untitled copy ~ Book 6" can't chain two volumes together.
+  const volumeOf = new Map<string, number>();
+  const isbnOf = new Map<string, string>();
+  for (const r of rows) {
+    if (r.volume != null) volumeOf.set(r.id, r.volume);
+    if (r.isbn13) isbnOf.set(r.id, r.isbn13);
+  }
   const rank: Record<DuplicateReason, number> = { isbn: 0, title_author: 1, title: 2 };
   const union = (a: string, b: string, why: DuplicateReason) => {
     const ra = find(a);
     const rb = find(b);
+    const [va, vb] = [volumeOf.get(ra), volumeOf.get(rb)];
+    if (va != null && vb != null && va !== vb) return;
+    const [ia, ib] = [isbnOf.get(ra), isbnOf.get(rb)];
+    if (why !== "isbn" && ia && ib && ia !== ib) return;
+    if (va == null && vb != null) volumeOf.set(ra, vb);
+    if (!ia && ib) isbnOf.set(ra, ib);
     const best = [reasonOf.get(ra), reasonOf.get(rb), why].filter(Boolean).sort((x, y) => rank[x!] - rank[y!])[0]!;
     if (ra !== rb) parent.set(rb, ra);
     reasonOf.set(ra, best);
@@ -87,7 +103,9 @@ export function findWorkGroups(
 }
 
 export function listDuplicates(db: Db): { sameWork: WorkGroup[]; copies: CopyGroup[]; ignored: number } {
-  const rows = db.select({ id: books.id, title: books.title, isbn13: books.isbn13 }).from(books).all();
+  const plain = db.select({ id: books.id, title: books.title, isbn13: books.isbn13 }).from(books).all();
+  const volumes = bookVolumes(db);
+  const rows = plain.map((r) => ({ ...r, volume: volumes.get(r.id) }));
   const authorsBy = new Map<string, string[]>();
   for (const r of db
     .select({ bookId: bookAuthors.bookId, name: authors.name })
