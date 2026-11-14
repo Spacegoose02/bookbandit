@@ -43,7 +43,10 @@ export function Layout() {
                 Home
               </NavLink>
               <NavLink to="/browse">Library</NavLink>
-              <NavLink to="/settings">Appearance</NavLink>
+              <NavLink to="/settings" end>
+                Appearance
+              </NavLink>
+              <NavLink to="/settings/ereaders">E-readers</NavLink>
             </>
           )}
         </nav>

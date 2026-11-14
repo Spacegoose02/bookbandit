@@ -4,6 +4,7 @@ import { api } from "./api/client";
 import { Layout } from "./app/Layout";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
+import { EreadersPage } from "./ereader/EreadersPage";
 import { BookPage } from "./library/BookPage";
 import { BrowsePage } from "./library/BrowsePage";
 import { HomePage } from "./library/HomePage";
@@ -31,6 +32,7 @@ export function App() {
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/ereaders" element={<EreadersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
