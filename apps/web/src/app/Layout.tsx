@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { isDemo } from "../api/client";
 import { BarnabyEmpty, BarnabyLogo } from "../brand/Barnaby";
 import { SignIn } from "../auth/SignIn";
+import { AdminNavLinks } from "../admin/AdminLayout";
 import { useSession } from "./session";
 
 export function Layout() {
@@ -44,6 +45,7 @@ export function Layout() {
                 Home
               </NavLink>
               <NavLink to="/browse">Library</NavLink>
+              <AdminNavLinks role={me.role} />
               <NavLink to="/settings" end>
                 Settings
               </NavLink>

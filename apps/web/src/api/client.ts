@@ -17,6 +17,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The parsed JSON error body, when there was one. */
+    public body?: unknown,
   ) {
     super(message);
   }
@@ -26,6 +28,7 @@ export class ApiError extends Error {
   }
 }
 
+/** JSON fetch against the API. Exported so feature folders (audio, storyteller, …) can add their own calls. */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",
@@ -38,13 +41,15 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
+    let body: { message?: string; error?: string } | undefined;
     try {
-      const body = (await res.json()) as { message?: string };
+      body = (await res.json()) as { message?: string; error?: string };
       if (body.message) message = body.message;
+      else if (body.error) message = body.error;
     } catch {
       /* not JSON */
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, body);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

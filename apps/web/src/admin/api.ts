@@ -280,6 +280,15 @@ export interface ChatMessage {
   createdAt: number;
 }
 
+/** GET /api/reading/stats (docs/sync-api.md#reading-time) */
+export interface ReadingStats {
+  user: { id: string; displayName: string };
+  totalSeconds: number;
+  streakDays: number;
+  days: { date: string; readSeconds: number; listenSeconds: number }[];
+  books: { id: string; title: string; coverPath: string | null; seconds: number }[];
+}
+
 export interface AdminApi {
   overview(): Promise<Overview>;
   scanStatus(): Promise<ScanStatus>;
@@ -319,6 +328,7 @@ export interface AdminApi {
   familyKids(): Promise<(KidCard & { stats: KidStats })[]>;
   familyKid(id: string): Promise<KidDetail>;
   familyChat(kidId: string, conversationId: string): Promise<ChatMessage[]>;
+  readingStats(userId: string, days?: number): Promise<ReadingStats>;
 }
 
 export const httpAdminApi: AdminApi = {
@@ -369,6 +379,8 @@ export const httpAdminApi: AdminApi = {
   familyKid: (id) => request(`/api/family/kids/${enc(id)}`),
   familyChat: (kidId, conversationId) =>
     request<{ messages: ChatMessage[] }>(`/api/family/kids/${enc(kidId)}/chats/${enc(conversationId)}`).then((r) => r.messages),
+  readingStats: (userId, days = 7) =>
+    request(`/api/reading/stats?${new URLSearchParams({ userId, days: String(days), utcOffset: String(-new Date().getTimezoneOffset()) })}`),
 };
 
 export const adminApi: AdminApi = isDemo ? demoAdminApi : httpAdminApi;

@@ -37,9 +37,9 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 - [x] Docker image serving the web app, ebook-convert, kepubify, PUID/PGID, GHCR, Unraid template (`ws/docker`), released as v0.1.0
 
-- [ ] Audiobookshelf: link and play audiobooks, listening progress (server API done; web player is `ws/listen`)
+- [x] Audiobookshelf: link and play audiobooks, listening progress (`ws/integrations` server API, `ws/listen` web player with speed, ±30 s, chapters, sleep timer)
 
-- [ ] Send to Kindle by email (server API done; button and address setting are `ws/listen`)
+- [x] Send to Kindle by email (`ws/integrations` server API, `ws/listen` button and address setting)
 
 ## Phase 2: Tablets and requests
 
@@ -47,7 +47,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Android tablet app (Capacitor) with offline downloads (`ws/android`)
 
-- [ ] Storyteller mode for toddlers: big covers, play button, bedtime limits (`ws/listen`); screen pinning (`ws/android`)
+- [ ] Storyteller mode for toddlers: big covers, play button, sleep timer, server-enforced nightly limits, read-aloud fallback and Barnaby's goodnight are done (`ws/listen`); screen pinning (`ws/android`)
 
 - [ ] Book requests with parent/admin approval (`ws/requests`)
 
@@ -60,7 +60,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 - [ ] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; reading-time API done by the lead)
 
 - [x] Admin UI: inbox approval with metadata edit and merge, rating review, scan status, users and kids, paired devices, Audiobookshelf/SMTP/metadata settings (`ws/admin`)
-- [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them, minutes read wait for reading sessions)
+- [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them)
 - [ ] AI provider settings (Ollama / OpenAI-compatible / cloud), AI rating helper, AI metadata cleanup (`ws/ai`)
 
 ## Phase 3: Polish and devices
@@ -70,13 +70,13 @@ Goal: the Calibre desktop app is no longer needed.
 - [ ] Duplicate finder UI (`ws/admin`; detection exists in the library service)
 
 - [ ] Duplicate finder UI (`ws/admin`; the inbox shows likely duplicates and merges them, a library-wide duplicates page is still to do)
-- [ ] Discover and trending, series pages, admin-made series, category browsing (`ws/discover`)
+- [x] Discover and trending, series pages, admin-made series, category browsing (`ws/discover`; "Request it" calls `POST /api/requests` once `ws/requests` lands)
 
-- [ ] Cookbook view (`ws/discover`)
+- [x] Cookbook view (`ws/discover`: Cook mode keeps the screen on, big scrolling text, recipe index)
 
 - [x] Kobo sync, KOReader sync, OPDS feed (`ws/ereader`; physical Kobo test pending)
 
-- [ ] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
+- [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 
 - [ ] AI: ask your library, more like this, spoiler-free chat, smart requests, web answers via SearXNG (`ws/ai`)
 
