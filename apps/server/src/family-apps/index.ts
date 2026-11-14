@@ -257,7 +257,11 @@ export const familyAppsPlugin = fp(async (app: FastifyInstance, opts: FamilyApps
     r.get("/api/family-apps", async (req) => {
       const reader = requireReader(req);
       const s = readStored(db, reader.householdId);
-      return { kitchen: !reader.isKid && !!s.kitchen?.token };
+      return {
+        kitchen: !reader.isKid && !!s.kitchen?.token,
+        // A kid whose reading minutes go to a Den Duty habit (the kid home says so).
+        denDuty: reader.isKid && !!s.denDuty?.enabled && !!s.denDuty.kids[reader.userId],
+      };
     });
 
     r.post("/api/family-apps/kitchen/recipes", async (req) => {

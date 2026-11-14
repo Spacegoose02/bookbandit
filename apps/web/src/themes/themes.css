@@ -108,3 +108,101 @@
 :root .bb-scan-details.is-warn summary {
   color: var(--bb-text);
 }
+
+/* --- Theme picker groups, picture swatches and buddies (ThemePicker.tsx) --------------------- */
+
+.bb-theme-groups {
+  display: grid;
+  gap: 18px;
+}
+.bb-theme-groups.is-compact {
+  gap: 10px;
+}
+.bb-theme-group-h {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--bb-muted);
+  font-weight: 700;
+}
+.is-compact .bb-theme-group-h {
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+.bb-theme-swatch {
+  position: relative;
+  overflow: hidden;
+}
+.bb-theme-swatch.has-scene {
+  padding-top: 52px;
+}
+.bb-theme-scene {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 44px;
+  background-size: cover;
+  background-position: center;
+}
+.is-compact .bb-theme-swatch.has-scene {
+  padding-top: 34px;
+}
+.is-compact .bb-theme-scene {
+  height: 28px;
+}
+.bb-theme-swatch > :not(.bb-theme-scene) {
+  position: relative;
+}
+
+.bb-buddies {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+.bb-buddy-group {
+  width: 100%;
+}
+.bb-buddy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+}
+.bb-buddy {
+  min-height: 64px;
+  font-size: 2.1rem;
+  line-height: 1;
+  border: 3px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  cursor: pointer;
+}
+.bb-buddy:hover {
+  border-color: var(--bb-accent);
+}
+.bb-buddy[aria-checked="true"] {
+  border-color: var(--bb-accent);
+  background: var(--bb-surface-2);
+  box-shadow: 0 0 0 3px var(--bb-focus);
+}
+
+/* --- E-ink paper: no motion, no shadows, no gradients; every edge is a solid line. ----------- */
+
+[data-theme="eink"] *,
+[data-theme="eink"] *::before,
+[data-theme="eink"] *::after {
+  animation: none !important;
+  transition: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+[data-theme="eink"] .bb-btn,
+[data-theme="eink"] .bb-input,
+[data-theme="eink"] .bb-theme-swatch[aria-checked="true"],
+[data-theme="eink"] .bb-buddy[aria-checked="true"] {
+  border: 2px solid #000;
+}
+[data-theme="eink"] a:not(.bb-btn):not(.bb-kid-book):not(.bb-kid-hero) {
+  text-decoration: underline;
+}
+[data-theme="eink"] :focus-visible {
+  outline: 3px solid #000 !important;
+  outline-offset: 2px;
+}

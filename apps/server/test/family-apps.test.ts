@@ -85,6 +85,14 @@ describe("family app settings", () => {
     expect((await req("admin", "PUT", "/api/admin/family-apps/kitchen", { url: "ftp://kitchen.test", homeId: "k1", token: "t" })).statusCode).toBe(400);
   });
 
+  it("tell a matched kid that reading counts for Den Duty, and nobody else", async () => {
+    await linkDen([{ userId: f.ids.otherKid, kidId: "dk2", habitId: "hab2" }]);
+    expect((await req("kid", "GET", "/api/family-apps")).json()).toEqual({ kitchen: false, denDuty: false });
+    await linkDen([{ userId: f.ids.kid, kidId: "dk1", habitId: "hab1" }]);
+    expect((await req("kid", "GET", "/api/family-apps")).json()).toEqual({ kitchen: false, denDuty: true });
+    expect((await req("parent", "GET", "/api/family-apps")).json()).toEqual({ kitchen: false, denDuty: false });
+  });
+
   it("list Den Duty's kids with their habits", async () => {
     await linkDen();
     const res = await req("admin", "GET", "/api/admin/family-apps/den-duty/kids");
@@ -187,7 +195,7 @@ describe("Send to kitchen", () => {
   it("sends a recipe a grown-up can see, with a link back and no public sharing", async () => {
     const book = f.book("Weekend Cooking", "kids");
     await linkKitchen();
-    expect((await req("parent", "GET", "/api/family-apps")).json()).toEqual({ kitchen: true });
+    expect((await req("parent", "GET", "/api/family-apps")).json()).toEqual({ kitchen: true, denDuty: false });
     const res = await f.app.inject({
       method: "POST",
       url: "/api/family-apps/kitchen/recipes",
@@ -224,7 +232,7 @@ describe("Send to kitchen", () => {
     await linkKitchen();
     expect((await req("parent", "POST", "/api/family-apps/kitchen/recipes", { bookId: locked, title: "X", blocks })).statusCode).toBe(404);
     expect((await req("kid", "POST", "/api/family-apps/kitchen/recipes", { bookId: kidsBook, title: "X", blocks })).statusCode).toBe(403);
-    expect((await req("kid", "GET", "/api/family-apps")).json()).toEqual({ kitchen: false });
+    expect((await req("kid", "GET", "/api/family-apps")).json()).toEqual({ kitchen: false, denDuty: false });
     expect(fake.calls).toHaveLength(0);
   });
 

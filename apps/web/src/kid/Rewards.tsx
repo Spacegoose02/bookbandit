@@ -4,6 +4,7 @@ import { STICKER_REASON_LABELS, type NewAward, type RewardBadge, type RewardsSum
 import { BarnabySays } from "../brand/Barnaby";
 import { useLoad } from "../admin/ui";
 import { rewardsApi } from "./api";
+import { Confetti, KidScene, ReadingGarden } from "./Garden";
 import "./kid.css";
 
 /** "14 of 20 minutes" as a ring a 7 year old can read at a glance. */
@@ -130,6 +131,7 @@ export function Celebration({ fresh, onDone }: { fresh: NewAward[]; onDone: () =
   };
   return (
     <section className="bb-celebrate" role="status" aria-live="polite">
+      <Confetti />
       <div className="bb-celebrate-burst" aria-hidden>
         {["🎉", "⭐", "✨", "🎈", "⭐", "🎉"].map((e, i) => (
           <span key={i} style={{ ["--i" as string]: i }}>
@@ -196,6 +198,7 @@ export function StickerBookPage() {
   const s = res.data;
   return (
     <div className="bb-page bb-kid bb-stickerbook">
+      <KidScene />
       <p>
         <Link to="/" className="bb-btn bb-btn-big">
           <span aria-hidden>⬅️</span> Back to my books
@@ -209,6 +212,7 @@ export function StickerBookPage() {
       {res.error && <p className="bb-muted">Barnaby can't find your sticker book right now.</p>}
       {s && (
         <>
+          <ReadingGarden s={s} />
           <h2 className="bb-kid-h2">
             <span aria-hidden>🏅</span> My badges
           </h2>

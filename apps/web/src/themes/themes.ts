@@ -1,5 +1,6 @@
 import { DEFAULT_THEME, isThemeId, THEME_IDS, type ThemeId } from "@bookbandit/shared";
 import { installAppFonts } from "./fonts";
+import { SCENES } from "./scenes";
 import "./themes.css";
 
 /**
@@ -31,17 +32,34 @@ export interface Theme {
   radius: string;
   /** Optional page background decoration (CSS `background-image`) */
   pattern?: string;
+  /** Where the picker lists it: calm reading themes, fun themes, or easiest to see. */
+  group: ThemeGroup;
+  /** Kid themes: a picture scene for the kid home banner (an SVG). */
+  scene?: string;
+  /** Kid themes: buddies (avatars) that go with it, offered first in the buddy picker. */
+  buddies?: string[];
 }
+
+export type ThemeGroup = "calm" | "fun" | "easy";
+
+export const THEME_GROUPS: { id: ThemeGroup; grownUp: string; kid: string }[] = [
+  { id: "fun", grownUp: "Fun", kid: "Fun worlds" },
+  { id: "calm", grownUp: "Calm reading", kid: "Calm colors" },
+  { id: "easy", grownUp: "Easiest to see", kid: "Easy to see" },
+];
 
 const SYSTEM = `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 const ROUNDED = `"Nunito", "Varela Round", ui-rounded, ${SYSTEM}`;
 const MONO = `"Press Start 2P", "VT323", ui-monospace, "SFMono-Regular", Menlo, monospace`;
+
+const BOOKISH = `"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`;
 
 const svgUrl = (svg: string) => `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 
 export const THEMES: Record<ThemeId, Theme> = {
   dark: {
     id: "dark",
+    group: "calm",
     name: "Dark",
     emoji: "🌙",
     scheme: "dark",
@@ -65,6 +83,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   light: {
     id: "light",
+    group: "calm",
     name: "Light",
     emoji: "☀️",
     scheme: "light",
@@ -88,6 +107,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   nuclear: {
     id: "nuclear",
+    group: "fun",
     name: "Nuclear",
     emoji: "☢️",
     scheme: "dark",
@@ -114,6 +134,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   retro: {
     id: "retro",
+    group: "calm",
     name: "Retro",
     emoji: "📻",
     scheme: "light",
@@ -137,6 +158,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   pink: {
     id: "pink",
+    group: "fun",
     name: "Pink",
     emoji: "🌸",
     scheme: "light",
@@ -163,6 +185,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   school: {
     id: "school",
+    group: "fun",
     name: "School",
     emoji: "✏️",
     scheme: "light",
@@ -189,6 +212,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   gaming: {
     id: "gaming",
+    group: "fun",
     name: "Gaming",
     emoji: "🎮",
     scheme: "dark",
@@ -215,7 +239,10 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   dinosaur: {
     id: "dinosaur",
+    group: "fun",
     name: "Dinosaur",
+    scene: svgUrl(SCENES.dinosaur),
+    buddies: ["🦖", "🦕", "🥚", "🌋", "🌴"],
     emoji: "🦖",
     scheme: "light",
     colors: {
@@ -227,7 +254,7 @@ export const THEMES: Record<ThemeId, Theme> = {
       accent: "#2f7420",
       accentText: "#ffffff",
       border: "#b9d6a0",
-      focus: "#e07b00",
+      focus: "#b05a00",
       readerBg: "#fbfdf7",
       readerText: "#1f3316",
       readerLink: "#2f7420",
@@ -241,6 +268,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   storm: {
     id: "storm",
+    group: "calm",
     name: "Storm",
     emoji: "⛈️",
     scheme: "dark",
@@ -267,6 +295,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   contrast: {
     id: "contrast",
+    group: "easy",
     name: "High contrast",
     emoji: "🔆",
     scheme: "dark",
@@ -288,6 +317,336 @@ export const THEMES: Record<ThemeId, Theme> = {
     displayFont: `"Atkinson Hyperlegible", ${SYSTEM}`,
     radius: "8px",
   },
+  // --- Grown-up reading themes ------------------------------------------------------------
+
+  sepia: {
+    id: "sepia",
+    group: "calm",
+    name: "Sepia",
+    emoji: "📜",
+    scheme: "light",
+    colors: {
+      bg: "#f4ecd8",
+      surface: "#fbf6e9",
+      surface2: "#ebe0c5",
+      text: "#3d2f1f",
+      muted: "#6b5640",
+      accent: "#7a4a1e",
+      accentText: "#fffaf0",
+      border: "#d8c9a6",
+      focus: "#a0522d",
+      readerBg: "#f4ecd8",
+      readerText: "#3a2c1b",
+      readerLink: "#7a4a1e",
+    },
+    font: SYSTEM,
+    displayFont: BOOKISH,
+    radius: "10px",
+  },
+  eink: {
+    id: "eink",
+    group: "easy",
+    name: "E-ink paper",
+    emoji: "📃",
+    scheme: "light",
+    colors: {
+      bg: "#f2f2ee",
+      surface: "#ffffff",
+      surface2: "#e4e4df",
+      text: "#000000",
+      muted: "#3a3a3a",
+      accent: "#111111",
+      accentText: "#ffffff",
+      border: "#7a7a7a",
+      focus: "#000000",
+      readerBg: "#ffffff",
+      readerText: "#000000",
+      readerLink: "#000000",
+    },
+    font: SYSTEM,
+    displayFont: BOOKISH,
+    radius: "4px",
+  },
+  amoled: {
+    id: "amoled",
+    group: "calm",
+    name: "True black",
+    emoji: "🖤",
+    scheme: "dark",
+    colors: {
+      bg: "#000000",
+      surface: "#0b0b0b",
+      surface2: "#171717",
+      text: "#e8e8e8",
+      muted: "#a8a8a8",
+      accent: "#8ab4f8",
+      accentText: "#000000",
+      border: "#2a2a2a",
+      focus: "#c6dafc",
+      readerBg: "#000000",
+      readerText: "#cfcfcf",
+      readerLink: "#8ab4f8",
+    },
+    font: SYSTEM,
+    displayFont: SYSTEM,
+    radius: "12px",
+  },
+  solarized: {
+    id: "solarized",
+    group: "calm",
+    name: "Solarized",
+    emoji: "🌗",
+    scheme: "dark",
+    colors: {
+      bg: "#002b36",
+      surface: "#073642",
+      surface2: "#0d4250",
+      text: "#eee8d5",
+      muted: "#a3b0b0",
+      accent: "#b58900",
+      accentText: "#002b36",
+      border: "#1f4f5c",
+      focus: "#268bd2",
+      readerBg: "#002b36",
+      readerText: "#e4ddc8",
+      readerLink: "#2aa198",
+    },
+    font: SYSTEM,
+    displayFont: SYSTEM,
+    radius: "8px",
+  },
+  forest: {
+    id: "forest",
+    group: "calm",
+    name: "Forest",
+    emoji: "🌲",
+    scheme: "dark",
+    colors: {
+      bg: "#12201a",
+      surface: "#1a2b23",
+      surface2: "#23392e",
+      text: "#e4efe6",
+      muted: "#a3bfae",
+      accent: "#7fc28e",
+      accentText: "#0d1a12",
+      border: "#2f4a3c",
+      focus: "#e8c56b",
+      readerBg: "#14231c",
+      readerText: "#dbe8de",
+      readerLink: "#9fd6ab",
+    },
+    font: SYSTEM,
+    displayFont: BOOKISH,
+    radius: "14px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="70" height="70"><g fill="#7fc28e" fill-opacity=".06"><path d="M15 4 25 22H19L28 38H2L11 22H5Z"/><path d="M52 36 60 50H55L62 62H42L49 50H44Z"/></g></svg>`,
+    ),
+  },
+  ocean: {
+    id: "ocean",
+    group: "calm",
+    name: "Deep ocean",
+    emoji: "🌊",
+    scheme: "dark",
+    colors: {
+      bg: "#0b1d2e",
+      surface: "#10283d",
+      surface2: "#17344f",
+      text: "#e3f1fb",
+      muted: "#9dbbd2",
+      accent: "#4fd1c5",
+      accentText: "#062420",
+      border: "#24476a",
+      focus: "#ffd166",
+      readerBg: "#0d2133",
+      readerText: "#d9eaf6",
+      readerLink: "#6fe0d5",
+    },
+    font: SYSTEM,
+    displayFont: SYSTEM,
+    radius: "14px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><path d="M0 20Q10 12 20 20T40 20T60 20T80 20" fill="none" stroke="#4fd1c5" stroke-opacity=".07" stroke-width="2"/></svg>`,
+    ),
+  },
+
+  // --- Kid themes: bright, rounded, with a picture scene and matching buddies -------------
+
+  space: {
+    id: "space",
+    group: "fun",
+    name: "Space",
+    emoji: "🚀",
+    scheme: "dark",
+    colors: {
+      bg: "#10122e",
+      surface: "#1a1d45",
+      surface2: "#262b60",
+      text: "#f1f0ff",
+      muted: "#b9bbea",
+      accent: "#ffcf33",
+      accentText: "#241a00",
+      border: "#3a3f86",
+      focus: "#7ee8fa",
+      readerBg: "#14163a",
+      readerText: "#ecebff",
+      readerLink: "#ffd95c",
+    },
+    font: ROUNDED,
+    displayFont: ROUNDED,
+    radius: "22px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><g fill="#fff"><circle cx="12" cy="18" r="1.4" fill-opacity=".5"/><circle cx="60" cy="8" r="1" fill-opacity=".4"/><circle cx="74" cy="56" r="1.6" fill-opacity=".45"/><circle cx="30" cy="70" r="1" fill-opacity=".35"/><path d="M44 36l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z" fill-opacity=".35"/></g></svg>`,
+    ),
+    scene: svgUrl(SCENES.space),
+    buddies: ["🚀", "👩‍🚀", "👨‍🚀", "👽", "🛸", "🪐", "🌟", "🤖"],
+  },
+  sea: {
+    id: "sea",
+    group: "fun",
+    name: "Under the sea",
+    emoji: "🐙",
+    scheme: "light",
+    colors: {
+      bg: "#e3f6fb",
+      surface: "#ffffff",
+      surface2: "#c9eef6",
+      text: "#0b3a4a",
+      muted: "#2f6475",
+      accent: "#0a6f82",
+      accentText: "#ffffff",
+      border: "#9fd9e6",
+      focus: "#e8590c",
+      readerBg: "#f6fdff",
+      readerText: "#0b3a4a",
+      readerLink: "#0a6f82",
+    },
+    font: ROUNDED,
+    displayFont: ROUNDED,
+    radius: "24px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><g fill="none" stroke="#0a7a8f" stroke-opacity=".12" stroke-width="2"><circle cx="14" cy="16" r="5"/><circle cx="22" cy="30" r="3"/><circle cx="60" cy="56" r="6"/></g></svg>`,
+    ),
+    scene: svgUrl(SCENES.sea),
+    buddies: ["🐙", "🐠", "🐬", "🐳", "🦀", "🐢", "🦈", "🧜"],
+  },
+  jungle: {
+    id: "jungle",
+    group: "fun",
+    name: "Jungle",
+    emoji: "🐒",
+    scheme: "light",
+    colors: {
+      bg: "#f1f7e0",
+      surface: "#ffffff",
+      surface2: "#e2efc0",
+      text: "#233512",
+      muted: "#4b5e30",
+      accent: "#b93c0b",
+      accentText: "#ffffff",
+      border: "#c5db93",
+      focus: "#0f766e",
+      readerBg: "#fcfef6",
+      readerText: "#233512",
+      readerLink: "#a8370a",
+    },
+    font: ROUNDED,
+    displayFont: ROUNDED,
+    radius: "24px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><g fill="#3f7d1f" fill-opacity=".08"><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(-35 20 20)"/><ellipse cx="72" cy="70" rx="16" ry="6" transform="rotate(30 72 70)"/></g></svg>`,
+    ),
+    scene: svgUrl(SCENES.jungle),
+    buddies: ["🐒", "🦁", "🐯", "🦜", "🐘", "🦒", "🐍", "🦥"],
+  },
+  unicorn: {
+    id: "unicorn",
+    group: "fun",
+    name: "Unicorn",
+    emoji: "🦄",
+    scheme: "light",
+    colors: {
+      bg: "#f7f0ff",
+      surface: "#ffffff",
+      surface2: "#ece0ff",
+      text: "#3b1f5e",
+      muted: "#664a8a",
+      accent: "#8a3fd0",
+      accentText: "#ffffff",
+      border: "#d9c3f5",
+      focus: "#d6336c",
+      readerBg: "#fdfaff",
+      readerText: "#33194f",
+      readerLink: "#7a2fc0",
+    },
+    font: ROUNDED,
+    displayFont: ROUNDED,
+    radius: "26px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><g fill="#a855f7" fill-opacity=".1"><path d="M16 8l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/><path d="M58 48l1.5 4.5 4.5 1.5-4.5 1.5-1.5 4.5-1.5-4.5-4.5-1.5 4.5-1.5z"/></g></svg>`,
+    ),
+    scene: svgUrl(SCENES.unicorn),
+    buddies: ["🦄", "🌈", "🧚", "🦋", "🌸", "🐰", "🐱", "⭐"],
+  },
+  builder: {
+    id: "builder",
+    group: "fun",
+    name: "Construction",
+    emoji: "🚧",
+    scheme: "light",
+    colors: {
+      bg: "#fff7d6",
+      surface: "#ffffff",
+      surface2: "#ffeaa0",
+      text: "#262626",
+      muted: "#57534e",
+      accent: "#f0a800",
+      accentText: "#1a1a1a",
+      border: "#f0cf6a",
+      focus: "#c2410c",
+      readerBg: "#fffdf4",
+      readerText: "#222222",
+      readerLink: "#9a4a00",
+    },
+    font: ROUNDED,
+    displayFont: `"Arial Black", ${ROUNDED}`,
+    radius: "10px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path d="M0 40L40 0M-10 10L10-10M30 50L50 30" stroke="#222" stroke-opacity=".04" stroke-width="8"/></svg>`,
+    ),
+    scene: svgUrl(SCENES.builder),
+    buddies: ["🚜", "🏗️", "👷", "🚚", "🔨", "🧱", "🚒", "🦺"],
+  },
+  castle: {
+    id: "castle",
+    group: "fun",
+    name: "Castle",
+    emoji: "🏰",
+    scheme: "light",
+    colors: {
+      bg: "#f3f1fb",
+      surface: "#ffffff",
+      surface2: "#e4e2f7",
+      text: "#221d47",
+      muted: "#52497a",
+      accent: "#3b3fb0",
+      accentText: "#ffffff",
+      border: "#cdc8ec",
+      focus: "#8a6408",
+      readerBg: "#fdfcf7",
+      readerText: "#221d47",
+      readerLink: "#3b3fb0",
+    },
+    font: ROUNDED,
+    displayFont: `"Cinzel", Georgia, ${ROUNDED}`,
+    radius: "16px",
+    pattern: svgUrl(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><g fill="#3b3fb0" fill-opacity=".07"><path d="M10 30l5-10 5 7 5-7 5 7 5-7 5 10z"/><path d="M58 64h16v8c0 7-8 10-8 10s-8-3-8-10z"/></g></svg>`,
+    ),
+    scene: svgUrl(SCENES.castle),
+    buddies: ["👑", "🤴", "👸", "🛡️", "🐉", "🧙", "🦄", "🐴"],
+  },
+
 };
 
 export const THEME_LIST: Theme[] = THEME_IDS.map((id) => THEMES[id]);
@@ -315,6 +674,7 @@ export function themeVars(theme: Theme): [string, string][] {
     ["--bb-display-font", theme.displayFont],
     ["--bb-radius", theme.radius],
     ["--bb-pattern", theme.pattern ?? "none"],
+    ["--bb-scene", theme.scene ?? "none"],
   ];
 }
 

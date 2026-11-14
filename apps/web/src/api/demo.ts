@@ -104,7 +104,9 @@ function who(): Me {
     // ?demo=admin: the same grown-up with admin tools (requests, downloads, series editing, Kindle import).
     const base = saved === "kid" ? KID : saved === "admin" ? { ...ADULT, role: "admin" as const } : ADULT;
     const theme = localStorage.getItem(`bb-demo-theme-${base.id}`);
-    return theme ? { ...base, theme: theme as Me["theme"] } : base;
+    const avatar = localStorage.getItem(`bb-demo-avatar-${base.id}`); // ws/kids buddy picker
+    const withAvatar = avatar != null ? { ...base, avatar: avatar || null } : base;
+    return theme ? { ...withAvatar, theme: theme as Me["theme"] } : withAvatar;
   } catch {
     return ADULT;
   }

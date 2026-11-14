@@ -52,7 +52,7 @@ export interface FamilyAppsApi {
   unlinkKitchen(): Promise<unknown>;
   checkKitchen(): Promise<{ ok: boolean }>;
   savePublicUrl(publicUrl: string | null): Promise<unknown>;
-  linked(): Promise<{ kitchen: boolean }>;
+  linked(): Promise<{ kitchen: boolean; denDuty?: boolean }>;
   sendRecipe(body: { bookId: string; title: string; href?: string; blocks: RecipeBlock[] }): Promise<SentRecipe>;
 }
 
@@ -104,7 +104,7 @@ const demoFamilyApps: FamilyAppsApi = {
   unlinkKitchen: async () => wait((demoState.kitchen = null)),
   checkKitchen: () => wait({ ok: true }),
   savePublicUrl: async (u) => wait((demoState.publicUrl = u)),
-  linked: () => wait({ kitchen: true }),
+  linked: () => wait({ kitchen: true, denDuty: true }),
   sendRecipe: (b) => wait({ id: "demo", url: "#", title: b.title, ingredients: b.blocks.filter((x) => x.type === "item").length || 6, steps: 4 }),
 };
 
