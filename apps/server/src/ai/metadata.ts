@@ -4,13 +4,14 @@
  * title, HTML or ads in the description). Each field is a separate suggestion an admin accepts
  * or dismisses; nothing changes without that.
  */
-import { and, eq, inArray, notExists, sql } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, notExists, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { bookFiles, books, bookSeries, series } from "../db/schema.js";
 import { httpError } from "../auth/plugin.js";
 import { setBookAuthors, setBookSeries } from "../library/store.js";
 import { collapse, sortTitle } from "../metadata/text.js";
 import type { AiContext } from "./context.js";
+import type { BatchProgress } from "./rating.js";
 import { bookFacts } from "./book-facts.js";
 import { makeProvider } from "./providers/index.js";
 import { aiMetadataChecks, aiMetadataSuggestions } from "./schema.js";
@@ -73,16 +74,37 @@ export function parseMetadataReply(text: string): { fields: Partial<Record<Metad
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-/** Books nobody has checked yet (approved ones first, so the inbox doesn't crowd out the shelves). */
-export function metadataCandidates(db: Db, limit: number): string[] {
+const unchecked = (db: Db) =>
+  and(eq(books.kindleOnly, false), notExists(db.select({ x: sql`1` }).from(aiMetadataChecks).where(eq(aiMetadataChecks.bookId, books.id))));
+
+/** Books nobody has checked yet, minus `skip` (earlier failures). Approved ones first, so the inbox doesn't crowd out the shelves. */
+export function metadataCandidates(db: Db, limit: number, skip: string[] = []): string[] {
   return db
     .select({ id: books.id })
     .from(books)
-    .where(and(eq(books.kindleOnly, false), notExists(db.select({ x: sql`1` }).from(aiMetadataChecks).where(eq(aiMetadataChecks.bookId, books.id)))))
+    .where(and(unchecked(db), skip.length ? notInArray(books.id, skip) : undefined))
     .orderBy(sql`${books.approved} desc`, books.addedAt)
     .limit(limit)
     .all()
     .map((r) => r.id);
+}
+
+/** Where metadata cleanup stands over the whole library. `waiting` counts books with a fix to review. */
+export function metadataProgress(db: Db, failedIds: string[]): BatchProgress & { fixes: number } {
+  const n = (where: ReturnType<typeof and>) => db.select({ n: count() }).from(books).where(where).get()?.n ?? 0;
+  const failed = failedIds.length ? n(and(unchecked(db), inArray(books.id, failedIds))) : 0;
+  const pending = db
+    .select({ books: countDistinct(aiMetadataSuggestions.bookId), fixes: count() })
+    .from(aiMetadataSuggestions)
+    .where(eq(aiMetadataSuggestions.status, "pending"))
+    .get();
+  return {
+    total: n(eq(books.kindleOnly, false)),
+    remaining: n(unchecked(db)) - failed,
+    waiting: pending?.books ?? 0,
+    fixes: pending?.fixes ?? 0,
+    failed,
+  };
 }
 
 /** Ask the model about one book and store a suggestion per field that would change. Returns how many. */

@@ -727,3 +727,15 @@
   text-decoration: none;
   font-weight: 700;
 }
+
+/* Rating helper / metadata cleanup: progress over the whole library */
+.bb-batch { display: grid; gap: 0.4rem; margin: 0.5rem 0 0.75rem; }
+.bb-batch-line { margin: 0; }
+.bb-batch-done { color: var(--bb-ok, #2e7d32); }
+.bb-batch-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.bb-batch-cost { margin: 0; }
+.bb-btn-note { opacity: 0.75; font-weight: normal; }
+.bb-link-btn { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+.bb-review-title { font-size: 1rem; margin: 1rem 0 0.25rem; scroll-margin-top: 4rem; }
+.bb-price-inputs { display: flex; gap: 0.4rem; }
+.bb-price-inputs input { min-width: 0; flex: 1; }

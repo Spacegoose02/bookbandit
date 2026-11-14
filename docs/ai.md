@@ -165,16 +165,16 @@ library already has is never offered there, so this can't hint at a locked book.
 
 ## Metadata cleanup
 
-Under **Metadata cleanup** in Barnaby settings, **Check 25 books** asks the metadata provider to look at books it
-hasn't seen: file-name junk in titles, ALL CAPS, "Last, First" author names, a series stuck in the title, HTML or ads in
+Under **Metadata cleanup** in Barnaby settings, **Check the next 25** asks the metadata provider to look at books it
+hasn't seen (or **Check all in the background** for every book left): file-name junk in titles, ALL CAPS, "Last, First" author names, a series stuck in the title, HTML or ads in
 descriptions. Each changed field is a separate suggestion showing old → new. **Accept** applies that one field;
 **Dismiss** hides it, and the same suggestion isn't made again. Nothing changes without an admin. Runs on the job runner
 (`ai.metadata`). A series an admin manages isn't changed.
 
 ## Rating helper
 
-At the bottom of Barnaby settings, **Rate 25 unrated books** asks the rating-helper provider to rate books that
-have no rating yet, from the title, authors, genres, description, folder and the opening of the text. It's
+At the bottom of Barnaby settings, **Rate the next 25** asks the rating-helper provider to rate books that
+have no rating yet (and no suggestion yet), from the title, authors, genres, description, folder and the opening of the text. It's
 fail-closed:
 
 - A suggestion **stricter** than the current rating (unrated counts as adult) is applied at once, as an `ai`
@@ -184,6 +184,23 @@ fail-closed:
 
 It runs on the job runner (`ai.rating`), one run at a time; the admin jobs page shows its log, and a run that a
 restart interrupts carries on from the last book.
+
+## Progress and cost (rating helper and metadata cleanup)
+
+Each batch only takes books Barnaby hasn't looked at: the rating helper skips any book with a suggestion (waiting,
+applied or dismissed), metadata cleanup skips any book it has checked. So the batches do end. Both cards show:
+
+- **How far through the library** Barnaby is ("178 of 902 unrated books still to go"), and **All done** when nothing is left.
+- **How many suggestions are waiting** for you, with a link down to the list.
+- **Books that failed** (a garbled reply, a timeout). They're skipped by later batches so they can't clog the front of
+  every run; **Try them again** runs just those.
+- **Rate/Check the next 25**, or **all that's left in the background** (asks first when it costs money). **Stop**
+  cancels a running batch; what it already did stays.
+- **Estimated cost**: per book, for the next batch and for everything left, and what the tool has **spent so far**.
+  Token counts come from the usage log (a first guess until a few books have run); prices are $ per million tokens
+  from a built-in list (`packages/shared/src/ai-pricing.ts`) or the **Price** you type for a provider. A provider on a
+  local address (Ollama, LM Studio, llama.cpp on `localhost`, a private IP or a Docker name like `ollama`) is free.
+  These are estimates; your provider's bill is the real number.
 
 ## API
 
@@ -208,12 +225,12 @@ All routes need a signed-in reader. Admin routes use `requireAdmin`.
 | `GET` | `/api/admin/ai/providers/:id/models` | Model list from the provider |
 | `POST` | `/api/admin/ai/search/test` | `{ q, kid }` |
 | `GET` | `/api/admin/ai/usage?days=30` | Calls, failures, tokens and average time per feature and model |
-| `POST`/`GET` | `/api/admin/ai/rating/run` | Start (`{ limit, bookIds?, applyStricter }`, 202) / status of the rating helper |
+| `POST`/`GET` | `/api/admin/ai/rating/run` | Start (`{ limit, all?, retryFailed?, bookIds?, applyStricter }`, 202; 409 when nothing is left) / status of the rating helper, with `progress`, `estimate` and `spent` |
 | `GET` | `/api/admin/ai/rating/suggestions?status=pending` | Review queue |
 | `POST` | `/api/admin/ai/rating/suggestions/:bookId/accept` \| `/dismiss` | `{ rating? }` to accept a different rating |
 | `GET` | `/api/admin/ai/embeddings` | `{ configured, model, indexed, total, job }` |
 | `POST` | `/api/admin/ai/embeddings/run` | `{ bookIds? }`: index new and changed books (202) |
-| `POST`/`GET` | `/api/admin/ai/metadata/run` | Start (`{ limit, bookIds? }`, 202) / status of metadata cleanup |
+| `POST`/`GET` | `/api/admin/ai/metadata/run` | Start (`{ limit, all?, retryFailed?, bookIds? }`, 202; 409 when nothing is left) / status of metadata cleanup, with `progress`, `estimate` and `spent` |
 | `GET` | `/api/admin/ai/metadata/suggestions?status=pending` | One row per book and field: `{ id, bookId, bookTitle, field, current, suggested, reason }` |
 | `POST` | `/api/admin/ai/metadata/suggestions/:id/accept` \| `/dismiss` | `{ value? }` to accept an edited value |
 

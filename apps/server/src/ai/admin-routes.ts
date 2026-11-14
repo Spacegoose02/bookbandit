@@ -8,10 +8,11 @@ import { httpError, requireAdmin } from "../auth/plugin.js";
 import type { AiContext } from "./context.js";
 import { makeProvider, ProviderError } from "./providers/index.js";
 import type { JobRunner } from "../jobs/index.js";
-import { AI_JOB_TYPES, batchStatus, latestJob, queueEmbedding, startBatch } from "./jobs.js";
+import { AI_JOB_TYPES, batchStatus, failedBookIds, latestJob, queueEmbedding, startBatch } from "./jobs.js";
+import { estimateCost, spentOn } from "./costs.js";
 import { embeddingStatus } from "./embeddings.js";
-import { acceptMetadata, listMetadataSuggestions, metadataCandidates } from "./metadata.js";
-import { ratingCandidates } from "./rating.js";
+import { acceptMetadata, listMetadataSuggestions, metadataCandidates, metadataProgress } from "./metadata.js";
+import { ratingCandidates, ratingProgress } from "./rating.js";
 import { aiMetadataChecks, aiMetadataSuggestions } from "./schema.js";
 import { aiRatingSuggestions } from "./schema.js";
 import { webSearch } from "./search.js";
@@ -20,20 +21,22 @@ import { tracked, usageSummary } from "./usage.js";
 
 const TestBody = z.object({ providerId: z.string().min(1) });
 const SearchTestBody = z.object({ q: z.string().trim().min(1).max(300).default("dinosaurs"), kid: z.boolean().default(false) });
-const RunBody = z.object({
+/** `all`: every book left, in one background run. `retryFailed`: just the books earlier runs couldn't read. */
+const BatchChoice = {
   bookIds: z.array(z.string().min(1)).max(500).optional(),
   limit: z.number().int().min(1).max(500).default(25),
-  applyStricter: z.boolean().default(true),
-});
+  all: z.boolean().default(false),
+  retryFailed: z.boolean().default(false),
+};
+const RunBody = z.object({ ...BatchChoice, applyStricter: z.boolean().default(true) });
 const SuggestionQuery = z.object({
   status: z.enum(["pending", "accepted", "applied", "dismissed"]).default("pending"),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 const AcceptBody = z.object({ rating: z.enum(CONTENT_RATINGS).optional() });
-const MetadataRunBody = z.object({
-  bookIds: z.array(z.string().min(1)).max(500).optional(),
-  limit: z.number().int().min(1).max(500).default(25),
-});
+const MetadataRunBody = z.object(BatchChoice);
+/** Plenty for "all": SQLite has no LIMIT ∞, and no family library is this big. */
+const EVERYTHING = 1_000_000;
 const MetadataQuery = z.object({
   status: z.enum(["pending", "accepted", "dismissed"]).default("pending"),
   limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -111,23 +114,39 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
   // ---- Rating helper ---------------------------------------------------------
 
   // Runs on the job runner as `ai.rating`; progress is also on the admin jobs page.
+  /** The last run, plus where the whole library stands, what the rest would cost and what it has cost so far. */
+  const ratingView = () => {
+    const failed = failedBookIds(ctx, AI_JOB_TYPES.rating);
+    return {
+      ...batchStatus(ctx, AI_JOB_TYPES.rating),
+      progress: ratingProgress(ctx, failed),
+      estimate: estimateCost(ctx, "rating"),
+      spent: spentOn(ctx, "rating"),
+    };
+  };
+
   app.get("/api/admin/ai/rating/run", async (req) => {
     requireAdmin(req);
-    return batchStatus(ctx, AI_JOB_TYPES.rating);
+    return ratingView();
   });
 
   app.post("/api/admin/ai/rating/run", async (req, reply) => {
     const admin = requireAdmin(req);
     const body = RunBody.parse(req.body ?? {});
     if (!providerFor(getAiSettings(db, ctx.box), "rating")) throw httpError(503, "Pick a provider for the rating helper first");
+    const failed = failedBookIds(ctx, AI_JOB_TYPES.rating);
     const ids = body.bookIds?.length
       ? db.select({ id: books.id }).from(books).where(inArray(books.id, body.bookIds)).all().map((b) => b.id)
-      : ratingCandidates(ctx, body.limit);
-    reply.code(202);
-    return startBatch(ctx, ctx.runner, AI_JOB_TYPES.rating, ids, `Rating helper: ${ids.length} books`, {
+      : body.retryFailed
+        ? ratingCandidates(ctx, EVERYTHING).filter((id) => failed.includes(id))
+        : ratingCandidates(ctx, body.all ? EVERYTHING : body.limit, failed);
+    if (!ids.length) throw httpError(409, "There's nothing left to rate");
+    startBatch(ctx, ctx.runner, AI_JOB_TYPES.rating, ids, `Rating helper: ${ids.length} books`, {
       userId: admin.userId,
       applyStricter: body.applyStricter,
     });
+    reply.code(202);
+    return ratingView();
   });
 
   app.get("/api/admin/ai/rating/suggestions", async (req) => {
@@ -174,9 +193,19 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
 export async function aiAdminJobRoutes(app: FastifyInstance, ctx: AiContext & { runner: JobRunner }) {
   const { db } = ctx;
 
+  const metadataView = () => {
+    const failed = failedBookIds(ctx, AI_JOB_TYPES.metadata);
+    return {
+      ...batchStatus(ctx, AI_JOB_TYPES.metadata),
+      progress: metadataProgress(db, failed),
+      estimate: estimateCost(ctx, "metadata"),
+      spent: spentOn(ctx, "metadata"),
+    };
+  };
+
   app.get("/api/admin/ai/metadata/run", async (req) => {
     requireAdmin(req);
-    return batchStatus(ctx, AI_JOB_TYPES.metadata);
+    return metadataView();
   });
 
   app.post("/api/admin/ai/metadata/run", async (req, reply) => {
@@ -188,9 +217,16 @@ export async function aiAdminJobRoutes(app: FastifyInstance, ctx: AiContext & { 
       ids = db.select({ id: books.id }).from(books).where(inArray(books.id, body.bookIds)).all().map((b) => b.id);
       // Asked for by name: look again even if checked before.
       if (ids.length) db.delete(aiMetadataChecks).where(inArray(aiMetadataChecks.bookId, ids)).run();
-    } else ids = metadataCandidates(db, body.limit);
+    } else {
+      const failed = failedBookIds(ctx, AI_JOB_TYPES.metadata);
+      ids = body.retryFailed
+        ? metadataCandidates(db, EVERYTHING).filter((id) => failed.includes(id))
+        : metadataCandidates(db, body.all ? EVERYTHING : body.limit, failed);
+    }
+    if (!ids.length) throw httpError(409, "Every book has been checked");
+    startBatch(ctx, ctx.runner, AI_JOB_TYPES.metadata, ids, `Metadata cleanup: ${ids.length} books`, { userId: admin.userId });
     reply.code(202);
-    return startBatch(ctx, ctx.runner, AI_JOB_TYPES.metadata, ids, `Metadata cleanup: ${ids.length} books`, { userId: admin.userId });
+    return metadataView();
   });
 
   app.get("/api/admin/ai/metadata/suggestions", async (req) => {

@@ -34,6 +34,8 @@ const ProviderInput = z.object({
   /** Omit to keep the stored key; null or "" removes it. */
   apiKey: z.string().max(500).nullable().optional(),
   timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
+  /** $ per million tokens, for cost estimates. Omit to use the built-in table. */
+  price: z.object({ input: z.number().min(0).max(1000), output: z.number().min(0).max(1000) }).optional(),
 });
 
 const providerRef = z.string().nullable().default(null);

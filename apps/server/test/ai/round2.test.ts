@@ -323,8 +323,11 @@ describe("metadata cleanup", () => {
     expect(detail.description).toContain("BUY NOW");
     expect(await pending()).toHaveLength(0);
 
-    // A second run only looks at new books; asking for this book again doesn't repeat the dismissed change.
-    expect((await run()).total).toBe(0);
+    // A second run only looks at new books, so with none left there's nothing to start;
+    // asking for this book again doesn't repeat the dismissed change.
+    const again = await post("admin", "/api/admin/ai/metadata/run", {});
+    expect(again.statusCode).toBe(409);
+    expect((await get("admin", "/api/admin/ai/metadata/run")).json().progress).toMatchObject({ total: 2, remaining: 0, waiting: 0, failed: 0 });
     await run({ bookIds: [messy] });
     expect((await pending()).map((i) => i.field)).not.toContain("description");
   });
