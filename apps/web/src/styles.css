@@ -1040,4 +1040,18 @@ button {
 }
 .bb-ereader-error {
   color: #ff8a80;
+
+/* PDF: one page at a time, centred on the stage. */
+.bb-pdf-host {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bb-reader-bg);
+}
+.bb-pdf-canvas {
+  display: block;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.25);
+  background: #fff;
 }
