@@ -129,6 +129,9 @@ export const AiSettingsInput = z
       const ref = s.features[f];
       if (ref && !ids.has(ref)) ctx.addIssue({ code: "custom", path: ["features", f], message: `unknown provider "${ref}"` });
     }
+    const emb = s.providers.find((p) => p.id === s.features.embeddings);
+    if (emb && !canEmbed(emb))
+      ctx.addIssue({ code: "custom", path: ["features", "embeddings"], message: "Claude has no embeddings API; pick Ollama, OpenAI or Gemini" });
     if (s.search.enabled && !s.search.url) ctx.addIssue({ code: "custom", path: ["search", "url"], message: "required when search is on" });
   });
 export type AiSettingsInput = z.input<typeof AiSettingsInput>;
@@ -148,6 +151,9 @@ function DEFAULT_KID_ALLOWLIST(): string[] {
   ];
 }
 
+/** Anthropic has no embeddings API, so a Claude provider can't do meaning search. */
+export const canEmbed = (p: Pick<ProviderConfig, "kind">) => p.kind !== "anthropic";
+
 export interface AiSettings {
   providers: ProviderConfig[];
   features: Record<AiFeature, string | null>;
@@ -165,11 +171,15 @@ export function getAiSettings(db: Db, box: SecretBox): AiSettings {
   if (!row) return defaultSettings();
   const stored = row.value as AiSettings;
   const defaults = defaultSettings();
+  // Settings saved before a feature existed don't have its key.
+  const features = { ...defaults.features, ...stored.features };
+  // Older saves could point meaning search at Claude, which can't embed: treat that as off.
+  const emb = stored.providers.find((p) => p.id === features.embeddings);
+  if (emb && !canEmbed(emb)) features.embeddings = null;
   return {
     ...defaults,
     ...stored,
-    // Settings saved before a feature existed don't have its key.
-    features: { ...defaults.features, ...stored.features },
+    features,
     providers: stored.providers.map((p) => ({ ...p, apiKey: p.apiKey ? box.open(p.apiKey) : undefined })),
   };
 }

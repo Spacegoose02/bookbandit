@@ -32,6 +32,8 @@ export function fakeAi() {
       return json({ model: call.body.model, data: input.map((t, index) => ({ index, embedding: fakeEmbedding(t) })), usage: { prompt_tokens: input.length } });
     }
     if (url.endsWith("/chat/completions")) {
+      // What Ollama says when asked to chat with an embeddings model.
+      if (/embed|nomic/.test(String(call.body.model))) return json({ error: { message: `"${call.body.model}" does not support chat` } }, 400);
       const isMod = call.body.model === "llama-guard3";
       const text = String(await (isMod ? moderationReply : chatReply)(call));
       if (call.body.stream) {

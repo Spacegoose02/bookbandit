@@ -16,10 +16,17 @@ import { ratingCandidates, ratingProgress } from "./rating.js";
 import { aiMetadataChecks, aiMetadataSuggestions } from "./schema.js";
 import { aiRatingSuggestions } from "./schema.js";
 import { webSearch } from "./search.js";
-import { AiSettingsInput, getAiSettings, providerFor, publicAiSettings, saveAiSettings } from "./settings.js";
+import { AI_FEATURES, AiSettingsInput, getAiSettings, providerFor, publicAiSettings, saveAiSettings } from "./settings.js";
 import { tracked, usageSummary } from "./usage.js";
 
-const TestBody = z.object({ providerId: z.string().min(1) });
+/** nomic-embed-text, mxbai-embed-large, text-embedding-3-small, bge-m3, all-minilm, snowflake-arctic-embed… */
+const EMBEDDING_MODEL = /embed|\bbge\b|minilm|\bgte-|\be5-/i;
+
+const TestBody = z.object({
+  providerId: z.string().min(1),
+  /** auto: chat, or embeddings for an embeddings model (and as a fallback when chat is refused). */
+  mode: z.enum(["auto", "chat", "embeddings"]).default("auto"),
+});
 const SearchTestBody = z.object({ q: z.string().trim().min(1).max(300).default("dinosaurs"), kid: z.boolean().default(false) });
 /** `all`: every book left, in one background run. `retryFailed`: just the books earlier runs couldn't read. */
 const BatchChoice = {
@@ -68,20 +75,61 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
     return makeProvider(config, ctx.fetchImpl);
   }
 
-  /** Sends a tiny prompt and reports the answer and how long it took. Save settings first. */
+  /**
+   * Sends a tiny prompt and reports the answer and how long it took. Embeddings models
+   * (Ollama nomic-embed-text and friends) can't chat, so for those it embeds a short text
+   * instead: up front when the model looks like one or is only used for meaning search, and
+   * as a fallback when the server refuses the chat. Save settings first.
+   */
   app.post("/api/admin/ai/providers/test", async (req) => {
     const admin = requireAdmin(req);
-    const p = provider(TestBody.parse(req.body).providerId);
+    const body = TestBody.parse(req.body);
+    const p = provider(body.providerId);
     const started = Date.now();
-    try {
+    const canEmbed = p.config.kind !== "anthropic";
+    const testChat = async () => {
       const r = await tracked(ctx, p, "test", admin.userId, () =>
         p.chat({ system: "You are Barnaby, a friendly raccoon librarian.", messages: [{ role: "user", content: "Say hello in five words or fewer." }], maxTokens: 30 }),
       );
-      return { ok: true, model: r.model, reply: r.text, ms: Date.now() - started };
+      return { ok: true as const, kind: "chat" as const, model: r.model, reply: r.text, ms: Date.now() - started };
+    };
+    const testEmbed = async () => {
+      const r = await tracked(ctx, p, "test", admin.userId, () => p.embed(["Barnaby the raccoon loves books."]));
+      const dimensions = r.vectors[0]?.length ?? 0;
+      if (!dimensions) throw new ProviderError(`${p.config.name}: the embeddings reply had no vector`);
+      return { ok: true as const, kind: "embeddings" as const, model: r.model, dimensions, ms: Date.now() - started };
+    };
+    const fail = (e: unknown) => ({ ok: false as const, error: (e as Error).message, ms: Date.now() - started });
+
+    if (body.mode === "chat") return testChat().catch(fail);
+    if (body.mode === "embeddings") {
+      if (!canEmbed) return fail(new Error(`${p.config.name}: Claude has no embeddings API. Use Ollama, OpenAI or Gemini for meaning search.`));
+      return testEmbed().catch(fail);
+    }
+    if (canEmbed && embeddingsFirst(p.config.id, p.config.model)) {
+      try {
+        return await testEmbed();
+      } catch (e) {
+        // Not an embeddings model after all? See if it chats.
+        return testChat().catch(() => fail(e));
+      }
+    }
+    try {
+      return await testChat();
     } catch (e) {
-      return { ok: false, error: (e as Error).message, ms: Date.now() - started };
+      // "does not support chat": an embeddings model. Report success if embeddings work.
+      if (!canEmbed || !(e instanceof ProviderError) || !e.upstreamStatus || e.upstreamStatus >= 500) return fail(e);
+      return testEmbed().catch(() => fail(e));
     }
   });
+
+  /** An embeddings-looking model name, or a provider picked only for meaning search. */
+  function embeddingsFirst(id: string, model: string): boolean {
+    if (EMBEDDING_MODEL.test(model)) return true;
+    const features = getAiSettings(db, ctx.box).features;
+    const uses = AI_FEATURES.filter((f) => features[f] === id);
+    return uses.length > 0 && uses.every((f) => f === "embeddings");
+  }
 
   app.get<{ Params: { id: string } }>("/api/admin/ai/providers/:id/models", async (req) => {
     requireAdmin(req);
