@@ -30,6 +30,7 @@ import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
 import { CookbookPage } from "./discover/CookbookPage";
 import { DiscoverPage } from "./discover/DiscoverPage";
 import { KindleImportPage } from "./discover/KindleImportPage";
+import { ImportPage } from "./imports/ImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
 
@@ -75,6 +76,7 @@ export function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="import" element={<ImportPage />} />
         </Route>
         <Route path="family" element={<AdminLayout area="family" />}>
           <Route index element={<FamilyPage />} />

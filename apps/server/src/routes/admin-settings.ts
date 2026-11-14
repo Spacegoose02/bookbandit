@@ -24,18 +24,19 @@ interface Stored {
   online: boolean;
   hardcoverToken?: string;
   googleApiKey?: string;
+  isbndbKey?: string;
 }
 
 /** A key: a new value, null to clear the stored one, or omitted to keep it. */
 const key = z.string().trim().min(1).max(4000).nullable().optional();
-export const MetadataSettingsInput = z.object({ online: z.boolean(), hardcoverToken: key, googleApiKey: key }).strict();
+export const MetadataSettingsInput = z.object({ online: z.boolean(), hardcoverToken: key, googleApiKey: key, isbndbKey: key }).strict();
 
 function readStored(db: Db): Stored | null {
   const row = db.select().from(settings).where(eq(settings.key, METADATA_KEY)).get();
   return row ? (row.value as Stored) : null;
 }
 
-type EnvPart = Pick<Config, "METADATA_ONLINE" | "HARDCOVER_API_TOKEN" | "GOOGLE_BOOKS_API_KEY">;
+type EnvPart = Pick<Config, "METADATA_ONLINE" | "HARDCOVER_API_TOKEN" | "GOOGLE_BOOKS_API_KEY"> & Partial<Pick<Config, "ISBNDB_API_KEY">>;
 
 /** What lookups use right now: stored settings over env vars. false = online lookup off. */
 export function resolveLookup(db: Db, box: SecretBox, env: EnvPart, extra: Partial<LookupOptions> = {}): LookupOptions | false {
@@ -45,6 +46,7 @@ export function resolveLookup(db: Db, box: SecretBox, env: EnvPart, extra: Parti
   return {
     hardcoverToken: s?.hardcoverToken ? box.open(s.hardcoverToken) : env.HARDCOVER_API_TOKEN,
     googleApiKey: s?.googleApiKey ? box.open(s.googleApiKey) : env.GOOGLE_BOOKS_API_KEY,
+    isbndbKey: s?.isbndbKey ? box.open(s.isbndbKey) : env.ISBNDB_API_KEY,
     ...extra,
   };
 }
@@ -55,8 +57,9 @@ export function publicMetadataSettings(db: Db, env: EnvPart) {
     online: s ? s.online : env.METADATA_ONLINE,
     hasHardcoverToken: !!(s?.hardcoverToken || env.HARDCOVER_API_TOKEN),
     hasGoogleApiKey: !!(s?.googleApiKey || env.GOOGLE_BOOKS_API_KEY),
+    hasIsbndbKey: !!(s?.isbndbKey || env.ISBNDB_API_KEY),
     /** Keys that come from env vars; clearing the stored key falls back to these. */
-    fromEnv: { hardcoverToken: !!env.HARDCOVER_API_TOKEN, googleApiKey: !!env.GOOGLE_BOOKS_API_KEY },
+    fromEnv: { hardcoverToken: !!env.HARDCOVER_API_TOKEN, googleApiKey: !!env.GOOGLE_BOOKS_API_KEY, isbndbKey: !!env.ISBNDB_API_KEY },
     saved: !!s,
   };
 }
@@ -80,6 +83,7 @@ export async function adminSettingsRoutes(app: FastifyInstance, opts: { db: Db; 
       online: body.online,
       hardcoverToken: pick(body.hardcoverToken, cur?.hardcoverToken),
       googleApiKey: pick(body.googleApiKey, cur?.googleApiKey),
+      isbndbKey: pick(body.isbndbKey, cur?.isbndbKey),
     };
     const now = Date.now();
     db.insert(settings)

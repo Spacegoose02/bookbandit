@@ -231,6 +231,7 @@ function MetadataCard() {
   const [online, setOnline] = useState(true);
   const [hardcover, setHardcover] = useState("");
   const [google, setGoogle] = useState("");
+  const [isbndb, setIsbndb] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const action = useAction();
   const s: MetadataSettings | null = loaded.data;
@@ -239,7 +240,7 @@ function MetadataCard() {
     if (s) setOnline(s.online);
   }, [s]);
 
-  const save = (extra: { hardcoverToken?: string | null; googleApiKey?: string | null } = {}) =>
+  const save = (extra: { hardcoverToken?: string | null; googleApiKey?: string | null; isbndbKey?: string | null } = {}) =>
     action.run(async () => {
       setMsg(null);
       loaded.setData(
@@ -247,11 +248,13 @@ function MetadataCard() {
           online,
           ...(hardcover ? { hardcoverToken: hardcover } : {}),
           ...(google ? { googleApiKey: google } : {}),
+          ...(isbndb ? { isbndbKey: isbndb } : {}),
           ...extra,
         }),
       );
       setHardcover("");
       setGoogle("");
+      setIsbndb("");
       setMsg("Saved. New scans and “Look up online” use these now.");
     });
 
@@ -287,14 +290,18 @@ function MetadataCard() {
           Google Books API key <span className="bb-muted bb-small">({s ? keyHint(s.hasGoogleApiKey, s.fromEnv.googleApiKey) : "…"})</span>
           <input className="bb-input" type="password" autoComplete="off" placeholder="Raises Google's daily limit" value={google} onChange={(e) => setGoogle(e.target.value)} />
         </label>
+        <label className="bb-field">
+          ISBNdb API key <span className="bb-muted bb-small">({s ? keyHint(!!s.hasIsbndbKey, !!s.fromEnv.isbndbKey) : "…"})</span>
+          <input className="bb-input" type="password" autoComplete="off" placeholder="Paid, optional: isbndb.com" value={isbndb} onChange={(e) => setIsbndb(e.target.value)} />
+        </label>
         <ErrorNote error={loaded.error ?? action.error} />
         {msg && <p className="bb-ok">{msg}</p>}
         <div className="bb-form-actions">
           <button className="bb-btn bb-btn-primary" disabled={action.busy}>
             Save
           </button>
-          {s?.saved && (s.hasHardcoverToken || s.hasGoogleApiKey) && (
-            <button type="button" className="bb-btn bb-btn-ghost" disabled={action.busy} onClick={() => save({ hardcoverToken: null, googleApiKey: null })}>
+          {s?.saved && (s.hasHardcoverToken || s.hasGoogleApiKey || s.hasIsbndbKey) && (
+            <button type="button" className="bb-btn bb-btn-ghost" disabled={action.busy} onClick={() => save({ hardcoverToken: null, googleApiKey: null, isbndbKey: null })}>
               Forget saved keys
             </button>
           )}

@@ -1,5 +1,5 @@
 /**
- * Online metadata lookup across Hardcover, Google Books and Open Library.
+ * Online metadata lookup across Hardcover, Google Books, ISBNdb (with a key) and Open Library.
  * ISBN first; falls back to title + author with a plausibility check so a search
  * never attaches some other book's metadata (or rating) to a file.
  */
@@ -8,12 +8,15 @@ import type { FetchLike } from "./providers/http.js";
 import { searchOpenLibrary } from "./providers/openlibrary.js";
 import { searchGoogleBooks } from "./providers/google.js";
 import { searchHardcover } from "./providers/hardcover.js";
+import { searchIsbndb } from "./providers/isbndb.js";
 import { mergeMetadata } from "./extract.js";
 
 export interface LookupOptions {
   fetch?: FetchLike;
   googleApiKey?: string;
   hardcoverToken?: string;
+  /** ISBNdb (paid, optional). */
+  isbndbKey?: string;
 }
 
 export interface LookupResult {
@@ -29,6 +32,10 @@ export async function lookupOnline(want: BookMetadata, opts: LookupOptions = {})
   if (opts.hardcoverToken) {
     names.push("hardcover");
     tasks.push(searchHardcover(fetchFn, want, opts.hardcoverToken));
+  }
+  if (opts.isbndbKey) {
+    names.push("isbndb");
+    tasks.push(searchIsbndb(fetchFn, want, opts.isbndbKey));
   }
   names.push("google");
   tasks.push(searchGoogleBooks(fetchFn, want, opts.googleApiKey));
@@ -66,7 +73,7 @@ export async function lookupOnline(want: BookMetadata, opts: LookupOptions = {})
  * Subjects and content warnings are unioned because the rating rules want every signal.
  */
 export function combineMetadata(file: BookMetadata, matches: ProviderMatch[]): BookMetadata {
-  const order = ["hardcover", "google", "openlibrary"] as const;
+  const order = ["hardcover", "google", "isbndb", "openlibrary"] as const;
   const sorted = [...matches].sort((a, b) => order.indexOf(a.provider) - order.indexOf(b.provider));
   let out: BookMetadata = { ...file };
   for (const m of sorted) {

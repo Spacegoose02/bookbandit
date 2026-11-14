@@ -1,0 +1,3 @@
+# Move in (ws/migrate)
+
+- 2026-11-14: "Move in" imports for admins at `/admin/import`, each with a dry-run report on the job runner: Calibre `metadata.db` (series, tags, identifiers, covers onto scanned books), Calibre-Web `app.db` (each person's read status, shelves, Kobo positions), Kavita (progress and collections per API key), Goodreads/StoryGraph CSV into a new reading history with a Goodreads CSV export back out, Google Play Books as metadata-only entries with a book-page link, and ISBNdb as an optional metadata provider (key in Admin → Connections or `ISBNDB_API_KEY`). Migration `0008_migrate`. Details: [apps/server/src/imports/README.md](../../apps/server/src/imports/README.md) (this PR)
