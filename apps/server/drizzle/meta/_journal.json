@@ -26,8 +26,15 @@
     {
       "idx": 3,
       "version": "6",
-      "when": 1794623342847,
-      "tag": "0003_ai",
+      "when": 1794623821737,
+      "tag": "0003_reading_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794624474058,
+      "tag": "0004_ai",
       "breakpoints": true
     }
   ]

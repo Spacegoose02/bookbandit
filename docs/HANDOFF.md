@@ -1,7 +1,7 @@
 # Handoff
 
 Where things stand, how to run it, and what's next. Update this file whenever a PR changes any of
-those. Newest entries at the top of "Recent changes".
+those. Change logs live in [changes/](changes/README.md), one file per workstream.
 
 This file is written so an agent or developer with only this repository can pick up any
 piece of work. You don't need access to any outside chat or document.
@@ -35,7 +35,7 @@ pnpm dev   # API http://localhost:8080, web http://localhost:5173
 ```
 
 Web UI without a server: `pnpm --filter @bookbandit/web demo` (sample books; add `?demo=kid` to the
-URL for kid mode). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
+URL for kid mode; the demo grown-up is an admin, so `/admin` and `/family` work too). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
 `pnpm --filter @bookbandit/web screenshots`.
 
 Sign-in: on an empty database the web app shows "Welcome to BookBandit" and the first person creates
@@ -58,9 +58,14 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 ## Recent changes
 
+Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
+parallel PRs don't fight over one table: [lead](changes/lead.md), [auth](changes/auth.md),
+[web](changes/web.md), [library](changes/library.md), [sync](changes/sync.md),
+[integrations](changes/integrations.md), [docker](changes/docker.md), plus a file per wave 2
+workstream once it lands. Add your entry there, not here.
 | Date | Change | PR |
 | --- | --- | --- |
-| 2026-11-14 | Barnaby AI: providers (Ollama/LM Studio/llama.cpp/OpenAI-compatible, Anthropic, Gemini) chosen per feature, SearXNG web search with sources, moderation (word filter + Llama Guard or any model), grown-up chat, kid mode (parent switch, no chat under 5, daily limit, content lock, personal details removed, parent log), spoiler-free book chat, rating helper, usage log (migration 0003). Web: floating Barnaby button, `/barnaby`, `/barnaby/family`, `/barnaby/settings`. Setup: [ai.md](ai.md) | this PR |
+| 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
 | 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
@@ -76,8 +81,11 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
-2. Auth: web sign-in screen and own-profile editor.
-3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
+
+Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
+`apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
+Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 
