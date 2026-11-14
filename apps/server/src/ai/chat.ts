@@ -52,7 +52,15 @@ function aiError(statusCode: number, code: string, message: string) {
   return Object.assign(httpError(statusCode, message), { code });
 }
 
-export async function chatTurn(ctx: AiContext, reader: Reader, input: ChatInput) {
+export interface ChatTurnOptions {
+  /**
+   * Streams the reply as it's written. Only grown-ups' unmoderated chats stream: a kid's reply
+   * (or any moderated one) is checked first and arrives whole.
+   */
+  onDelta?: (text: string) => void;
+}
+
+export async function chatTurn(ctx: AiContext, reader: Reader, input: ChatInput, opts: ChatTurnOptions = {}) {
   const { db } = ctx;
   const now = ctx.now();
   const settings = getAiSettings(db, ctx.box);
@@ -161,9 +169,9 @@ export async function chatTurn(ctx: AiContext, reader: Reader, input: ChatInput)
 
   const history = recentHistory(db, conversation.id);
   const system = systemPrompt({ name: reader.displayName, kid, age: access?.age ?? null, library, web, book: bookContext, today: now });
-  const result = await call(provider, feature, () =>
-    provider.chat({ system, messages: [...history, { role: "user", content: text }], maxTokens: kid ? 500 : 1000 }),
-  );
+  const req = { system, messages: [...history, { role: "user" as const, content: text }], maxTokens: kid ? 500 : 1000 };
+  const stream = opts.onDelta && !kid && !moderating ? opts.onDelta : null;
+  const result = await call(provider, feature, () => (stream ? provider.chatStream(req, stream) : provider.chat(req)));
   let reply = result.text || "Hmm, I couldn't think of an answer. Could you ask another way?";
   let replyNote: string | null = null;
 

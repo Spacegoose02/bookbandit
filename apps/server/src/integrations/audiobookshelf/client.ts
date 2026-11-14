@@ -45,6 +45,32 @@ export interface AbsItemDetail extends AbsItemSummary {
   chapters: AbsChapter[];
 }
 
+/** One person's position in an item, as ABS keeps it (`mediaProgress`). Times in seconds. */
+export interface AbsMediaProgress {
+  libraryItemId: string;
+  episodeId: string | null;
+  currentTime: number;
+  duration: number;
+  progress: number;
+  isFinished: boolean;
+  /** ABS server clock, ms. */
+  lastUpdate: number;
+}
+
+export interface AbsBookmark {
+  libraryItemId: string;
+  title: string;
+  time: number;
+  createdAt: number;
+}
+
+export interface AbsMe {
+  id: string;
+  username: string;
+  mediaProgress: AbsMediaProgress[];
+  bookmarks: AbsBookmark[];
+}
+
 export class AbsError extends Error {
   constructor(
     message: string,
@@ -147,6 +173,70 @@ export class AudiobookshelfClient {
     });
     if (!res.ok) throw new AbsError(`Audiobookshelf ${path} returned ${res.status}`, res.status);
     return (await res.json()) as T;
+  }
+
+  /** The token's own user, with their positions and bookmarks in every item. */
+  async me(): Promise<AbsMe> {
+    const raw = await this.json<{
+      id?: string;
+      username?: string;
+      mediaProgress?: Partial<AbsMediaProgress>[];
+      bookmarks?: Partial<AbsBookmark>[];
+    }>("/api/me");
+    return {
+      id: raw.id ?? "",
+      username: raw.username ?? "",
+      mediaProgress: (raw.mediaProgress ?? [])
+        .filter((p) => p.libraryItemId)
+        .map((p) => ({
+          libraryItemId: p.libraryItemId!,
+          episodeId: p.episodeId ?? null,
+          currentTime: Number(p.currentTime ?? 0),
+          duration: Number(p.duration ?? 0),
+          progress: Number(p.progress ?? 0),
+          isFinished: !!p.isFinished,
+          lastUpdate: Number(p.lastUpdate ?? 0),
+        })),
+      bookmarks: (raw.bookmarks ?? [])
+        .filter((b) => b.libraryItemId && b.time != null)
+        .map((b) => ({ libraryItemId: b.libraryItemId!, title: b.title ?? "", time: Number(b.time), createdAt: Number(b.createdAt ?? 0) })),
+    };
+  }
+
+  /** The token user's position in one item, or null when they haven't started it. */
+  async progress(itemId: string): Promise<AbsMediaProgress | null> {
+    try {
+      const p = await this.json<Partial<AbsMediaProgress>>(`/api/me/progress/${encodeURIComponent(itemId)}`);
+      return {
+        libraryItemId: itemId,
+        episodeId: p.episodeId ?? null,
+        currentTime: Number(p.currentTime ?? 0),
+        duration: Number(p.duration ?? 0),
+        progress: Number(p.progress ?? 0),
+        isFinished: !!p.isFinished,
+        lastUpdate: Number(p.lastUpdate ?? 0),
+      };
+    } catch (err) {
+      if (err instanceof AbsError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  /** Writes the token user's position in one item (what the ABS apps do while playing). */
+  async updateProgress(itemId: string, p: { currentTime: number; duration: number; isFinished: boolean }): Promise<void> {
+    const body = {
+      currentTime: p.currentTime,
+      duration: p.duration,
+      progress: p.duration > 0 ? Math.min(1, p.currentTime / p.duration) : 0,
+      isFinished: p.isFinished,
+    };
+    const res = await this.fetchImpl(this.url(`/api/me/progress/${encodeURIComponent(itemId)}`), {
+      method: "PATCH",
+      headers: this.headers({ "Content-Type": "application/json", Accept: "application/json" }),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) throw new AbsError(`Audiobookshelf progress update returned ${res.status}`, res.status);
   }
 
   /** Checks the URL and token. Returns the ABS username. */

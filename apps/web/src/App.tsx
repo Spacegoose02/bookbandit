@@ -23,7 +23,9 @@ import { SettingsPage } from "./themes/ThemePicker";
 import { AiSettingsPage } from "./ai/AiSettingsPage";
 import { BarnabyPage } from "./ai/BarnabyPage";
 import { FamilyAiPage } from "./ai/FamilyAiPage";
+import { FindBookPage } from "./ai/FindBookPage";
 import { ListenPage } from "./audio/ListenPage";
+import { AudioAdminPage } from "./audio/AudioAdminPage";
 import { StorytellerGate } from "./storyteller/StorytellerGate";
 import { StorytellerPage } from "./storyteller/StorytellerPage";
 import { StorytellerSetup } from "./storyteller/StorytellerSetup";
@@ -31,6 +33,7 @@ import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
 import { CookbookPage } from "./discover/CookbookPage";
 import { DiscoverPage } from "./discover/DiscoverPage";
 import { KindleImportPage } from "./discover/KindleImportPage";
+import { ImportPage } from "./imports/ImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
 import { LibrarianLayout } from "./librarian/LibrarianLayout";
@@ -66,6 +69,7 @@ export function App() {
         <Route path="requests" element={<RequestsPage />} />
         <Route path="barnaby" element={<BarnabyPage />} />
         <Route path="barnaby/family" element={<FamilyAiPage />} />
+        <Route path="barnaby/find" element={<FindBookPage />} />
         <Route path="barnaby/settings" element={<AiSettingsPage />} />
         <Route path="listen/:id" element={<ListenPage />} />
         <Route path="storyteller/setup" element={<StorytellerSetup />} />
@@ -82,6 +86,8 @@ export function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="import" element={<ImportPage />} />
+          <Route path="audio" element={<AudioAdminPage />} />
           <Route path="librarian" element={<LibrarianLayout />}>
             <Route index element={<HealthPage />} />
             <Route path="duplicates" element={<DuplicatesPage />} />

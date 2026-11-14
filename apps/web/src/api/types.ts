@@ -58,6 +58,8 @@ export interface BookDetail extends BookSummary {
   pageCount: number | null;
   kindleAsin: string | null;
   absItemId: string | null;
+  /** Has an audiobook: a local folder or an Audiobookshelf link (ws/audio). */
+  hasAudio?: boolean;
   files?: BookFileRef[];
 }
 

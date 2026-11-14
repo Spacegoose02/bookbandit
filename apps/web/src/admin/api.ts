@@ -196,7 +196,9 @@ export interface MetadataSettings {
   online: boolean;
   hasHardcoverToken: boolean;
   hasGoogleApiKey: boolean;
-  fromEnv: { hardcoverToken: boolean; googleApiKey: boolean };
+  /** Added by ws/migrate; optional so older servers still work. */
+  hasIsbndbKey?: boolean;
+  fromEnv: { hardcoverToken: boolean; googleApiKey: boolean; isbndbKey?: boolean };
   saved: boolean;
 }
 export interface MetadataInput {
@@ -204,6 +206,7 @@ export interface MetadataInput {
   /** omit = keep, null = clear */
   hardcoverToken?: string | null;
   googleApiKey?: string | null;
+  isbndbKey?: string | null;
 }
 
 // --- family dashboard ---------------------------------------------------------

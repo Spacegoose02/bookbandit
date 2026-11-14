@@ -20,7 +20,9 @@ Web-side types: `apps/web/src/api/types.ts`. Shared types: `@bookbandit/shared`.
 | GET | `/api/books/:bookId/bookmarks` | ws/sync, merged | `{ items: BookmarkRecord[] }` |
 | POST | `/api/bookmarks` | ws/sync, merged | The web app sends its own UUID `id`, so a retry can't duplicate. |
 | DELETE | `/api/bookmarks/:id` | ws/sync, merged | Soft delete. |
-| GET | `/api/books/:id/audio`, `/audio/tracks/:index` | ws/integrations, merged | Audiobook tracks, chapters, the reader's position; `src/audio/`. |
+| GET | `/api/books/:id/audio`, `/audio/tracks/:index` | ws/integrations, merged | Audiobook tracks, chapters, the reader's position, `source` (`local`/`audiobookshelf`) and `prefs`; `src/audio/`. Local audiobooks and ABS share it (ws/audio). |
+| PUT | `/api/books/:id/audio/prefs` | ws/audio | `{ speed?, skipSilence? }`, remembered per book. |
+| GET/POST | `/api/books/:id/audio/bookmarks` | ws/audio | Listening bookmarks `{ time, note? }`; `?since=` includes deletes. PATCH/DELETE `/api/audio/bookmarks/:id`. |
 | PUT | `/api/books/:id/audio/progress` | ws/integrations, merged | `{ currentTime, duration, finished?, deviceName, clientUpdatedAt }`, newest wins. |
 | GET, PUT, DELETE | `/api/kindle/me`, `/api/kindle/addresses/:userId` | ws/integrations, merged | Send to Kindle address; `src/kindle/`. |
 | POST | `/api/books/:id/send-to-kindle` | ws/integrations, merged | EPUB preferred, then PDF. |

@@ -29,6 +29,8 @@ import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
 import { rewardsPlugin } from "./rewards/index.js";
+import { importsPlugin, type ImportsOptions } from "./imports/index.js";
+import { audioPlugin, type AudioOptions } from "./audio/index.js";
 import { librarianPlugin, type LibrarianOptions } from "./librarian/index.js";
 import { KepubConverter } from "./kobo/kepub.js";
 import { join } from "node:path";
@@ -44,6 +46,9 @@ export interface AppDeps {
   ereader?: Pick<EreaderOptions, "kepub">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
   rewards?: { now?: () => number };
+  imports?: Pick<ImportsOptions, "fetchImpl">;
+  /** ABS calls go through integrations.fetchImpl too. */
+  audio?: Pick<AudioOptions, "pullTimeoutMs">;
   librarian?: Pick<LibrarianOptions, "convert" | "tools" | "fetchImpl">;
   familyApps?: Pick<FamilyAppsOptions, "fetchImpl" | "reportEveryMs">;
 }
@@ -89,6 +94,17 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
   });
+  // After storyteller (its bedtime guard covers the audio track route) and integrations.
+  await app.register(audioPlugin, {
+    db,
+    box,
+    audiobooksDir: config.AUDIOBOOKS_DIR,
+    configDir: config.CONFIG_DIR,
+    scanOnStart: config.LIBRARY_SCAN_ON_START,
+    lookup: () => resolveLookup(db, box, config),
+    fetchImpl: deps.integrations?.fetchImpl,
+    ...deps.audio,
+  });
   await app.register(requestsPlugin, {
     db,
     box,
@@ -113,6 +129,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     secretKey: deps.integrations?.secretKey,
     ...deps.ai,
   });
+  await app.register(importsPlugin, { db, box, configDir: config.CONFIG_DIR, ...deps.imports });
   await app.register(familyAppsPlugin, { db, box, ...deps.familyApps });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });

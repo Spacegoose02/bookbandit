@@ -10,6 +10,9 @@ import { BookCategories, useBookCategories } from "../discover/BookCategories";
 import { Cover } from "./BookCard";
 import { ListenButton } from "../audio/ListenButton";
 import { SendToKindleButton } from "../kindle/SendToKindleButton";
+import { ElsewhereLinks } from "../imports/ElsewhereLinks";
+import { MoreLikeThis } from "../ai/MoreLikeThis";
+import { useSession } from "../app/session";
 
 export function BookPage() {
   const { id = "" } = useParams();
@@ -17,6 +20,7 @@ export function BookPage() {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const categories = useBookCategories(book ? id : null);
+  const { me } = useSession();
 
   useEffect(() => {
     setBook(null);
@@ -96,6 +100,7 @@ export function BookPage() {
           <OfflineButton book={book} />
           <ListenButton book={book} />
           <SendToKindleButton book={book} />
+          <ElsewhereLinks bookId={book.id} hasFiles={readable.length > 0} />
         </div>
         {book.kindleOnly && (
           <p className="bb-muted bb-small">This book lives in your Kindle library, so it opens in Amazon's Kindle reader.</p>
@@ -129,6 +134,7 @@ export function BookPage() {
           )}
         </dl>
       </div>
+      <MoreLikeThis bookId={book.id} kid={me?.isKid} />
     </div>
   );
 }
