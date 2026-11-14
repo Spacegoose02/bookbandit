@@ -156,6 +156,143 @@ none of these touch those paths.
     Done when KOReader on an e-ink device syncs progress with the web reader and a Kobo shows the
     library.
 
+## Wave 3
+
+Wave 2 is merged (PRs #13 to #30). Wave 3 finishes the "replace Calibre, Calibre-Web and Kavita"
+goal, starts owning the audio, and polishes the kids' side. The shared-file rules from wave 2 still
+apply, and so does [Every PR](#every-pr).
+
+| # | Workstream | Branch prefix | Owns |
+| --- | --- | --- | --- |
+| 14 | Own the audio | `ws/audio` | `apps/server/src/audio/**`, `apps/server/src/integrations/audiobookshelf/**`, `apps/web/src/audio/**` |
+| 15 | Move in from Calibre, Calibre-Web, Kavita and others | `ws/migrate` | `apps/server/src/imports/**`, `apps/server/src/metadata/providers/isbndb.ts`, `apps/web/src/imports/**` |
+| 16 | Librarian tools | `ws/librarian` | `apps/server/src/librarian/**`, `apps/web/src/librarian/**` |
+| 17 | Barnaby AI, round 2 | `ws/ai` | `apps/server/src/ai/**`, `apps/web/src/ai/**` |
+| 18 | Read-aloud and learning | `ws/readaloud` | `apps/server/src/narration/**`, `apps/server/src/learning/**`, `apps/web/src/readaloud/**` |
+| 19 | Kids: goals, rewards, polish | `ws/kids` | `apps/web/src/kid/**`, `apps/web/src/themes/**`, `apps/server/src/rewards/**` |
+| 20 | Ops: backups, end-to-end tests, hardening, release | `ws/ops` | `e2e/**`, `apps/server/src/backup/**`, `docker/**`, `.github/workflows/ci.yml`, `.github/workflows/docker.yml` |
+
+The lead keeps the reader (`apps/web/src/reader/**`), the catalog and sync routes, and the
+integration passes. `ws/readaloud` and `ws/kids` need small hooks in the reader (a toolbar button,
+a "finished a chapter" event); ask the lead through the coordinator, or add one clearly marked,
+additive line and say so in the PR.
+
+### Migrations in wave 3
+
+`main` is at `0007_requests_jobs`, so the next free number is **0008**. Several wave 3 streams add
+tables (audio, migrate, librarian, ai, readaloud, kids), and the number goes to whoever merges first.
+
+- Put your tables in your own schema file and add it to `drizzle.config.ts`'s schema list.
+- Generate the migration **last**, right before you mark the PR ready, after merging the latest
+  `main`. Name it after your area: `npx drizzle-kit generate --name <area>`.
+- When `main` moves and your PR then conflicts in `apps/server/drizzle/meta/_journal.json`, delete
+  your migration SQL and snapshot, take `main`'s `meta/`, and generate again. Never hand-edit
+  numbers or reuse a number that is on `main`.
+- Additive changes only: new tables or new nullable columns. A column on a core table
+  (`apps/server/src/db/schema.ts`) needs the lead's OK first.
+
+### Wave 3 briefs
+
+14. **Own the audio.** Phase 4: Audiobookshelf can be switched off.
+    - Audiobook folder scan of `AUDIOBOOKS_DIR` (default `/audiobooks`): one folder per book
+      (MP3/M4B/M4A/OGG/FLAC), chapters from M4B atoms or file names, cover and metadata from tags
+      plus the existing lookup, linked to the ebook of the same work when ISBN or title and author
+      match. Same content lock and inbox approval as ebooks.
+    - Serve local audio with Range, through the same `/api/books/:id/audio` shape the web player
+      already uses, so the player works for both sources.
+    - Audiobookshelf position write-back: when someone listens in Bookbandit, push the position to
+      ABS (newest wins) so both stay in step while the family still uses ABS apps.
+    - "Import from Audiobookshelf": per-user progress, finished flags and bookmarks.
+    - Player: per-book speed memory, skip silence (optional), bookmarks with notes.
+
+    Done when an audiobook folder with no Audiobookshelf plays in the web player and on a tablet,
+    and positions from an ABS account show up in Bookbandit after the import.
+15. **Move in from Calibre, Calibre-Web, Kavita and others.** One "Import" page for admins.
+    - Calibre `metadata.db`: titles, authors, series and index, tags, identifiers, publishers,
+      languages, descriptions and covers, matched to scanned files by path or hash. Files stay
+      where they are; nothing is moved or rewritten.
+    - Calibre-Web `app.db`: per-user read status, shelves (to collections) and Kobo sync state;
+      admin maps each Calibre-Web user to a Bookbandit person.
+    - Kavita: read progress and collections through its API (URL and API key), mapped per person.
+    - Goodreads and StoryGraph CSV: read status, dates and ratings as reading history; export the
+      same format back.
+    - Google Play Books: library list as metadata-only entries, like the Kindle import.
+    - ISBNdb as another optional metadata provider (API key in settings).
+    - Every import shows a dry-run report (matched, new, skipped, conflicts) before writing, and
+      runs on the job runner.
+
+    Done when a real Calibre library and a Calibre-Web `app.db` import with series, tags and each
+    person's read status, and a Goodreads CSV round-trips.
+16. **Librarian tools.** What Calibre's desktop app still does for the family.
+    - Library-wide duplicates page (the library service already detects them): side by side,
+      keep, merge formats into one book, or ignore.
+    - Bulk edit: select many books, set series, tags, rating, author or language.
+    - Convert formats on the job runner with `ebook-convert` (MOBI/AZW3/FB2 to EPUB, EPUB to
+      KEPUB ahead of time, which also clears the `TODO(jobs)` in `apps/server/src/kobo/kepub.ts`
+      and `apps/server/src/ereader/README.md`). Converted files go next to the original under `/books`.
+    - Optional "write metadata into the file" for EPUB (off by default, never for DRM files).
+    - Cover editor: pick from lookup results, upload, or crop.
+    - Library health: missing files, unreadable files, books with no cover, no rating, no author.
+
+    Done when an admin merges two duplicates, bulk-sets a series on ten books, and converts a MOBI to
+    an EPUB that opens in the reader. Adds a "Librarian" link to the admin nav with one additive line.
+17. **Barnaby AI, round 2.** Builds on [ai.md](ai.md).
+    - AI metadata cleanup: suggest fixed titles, author names, series and descriptions; admin
+      accepts per field.
+    - "More like this" on the book page and smart requests ("something like Pixel Quest for a
+      10-year-old"), both through the content lock and the kid's rating.
+    - Meaning search with embeddings (local model through Ollama, stored in SQLite), merged into
+      library search.
+    - Streaming replies in chat.
+    - Move the rating helper onto the job runner (`TODO(jobs)` in `apps/server/src/ai/rating.ts`).
+
+    Done when "more like this" works on a kid profile without crossing their limit, and a
+    meaning search finds a book by its plot.
+18. **Read-aloud and learning.**
+    - Narration with a local TTS server (Kokoro-FastAPI or Piper through an OpenAI-compatible
+      `/v1/audio/speech`), with the voice chosen per person. Caches audio per chapter. The reader highlights each
+      sentence as it is read.
+    - Read-along for EPUB3 media overlays when the book has them.
+    - Word help: tap a word for a kid-friendly meaning and "say it" (offline dictionary first,
+      AI in kid mode if enabled).
+    - Quizzes: three short questions after a chapter, made from the text the kid has read, logged
+      for parents; Barnaby cheers.
+    - Storyteller uses narration for picture books that have no audiobook.
+
+    Done when a 7-year-old's profile can have a chapter read aloud with highlighting, tap a word for
+    its meaning, and answer a quiz that shows up on the family dashboard.
+19. **Kids: goals, rewards, polish.**
+    - Reading goals set by a parent (minutes a day or books a month) on top of the reading-time API.
+    - Barnaby badges and a sticker book for streaks, finished books and goals; celebrations that
+      don't interrupt reading.
+    - Kid home refresh: big "keep reading", a goal ring, "new on my shelf", age-group rows.
+    - Reading bedtime for all kid profiles (not only storyteller), enforced on the server.
+    - Theme pass: every page from wave 2 (Discover, requests, AI, audio, admin) checked in all
+      themes, with fixes; high-contrast and dyslexia-friendly font options in the reader settings.
+
+    Done when a kid earns a badge for a goal set by a parent, sees it on the kid home, and every
+    theme looks right on the wave 2 pages (screenshots in the PR).
+20. **Ops: backups, end-to-end tests, hardening, release.**
+    - Nightly SQLite backup to `/config/backups` (keep N), plus a restore command and an admin
+      "Back up now" button; documented in the Unraid notes.
+    - Playwright end-to-end suite in CI: sign in, read and sync between two browsers, and the
+      content lock from every door (web, OPDS, Kobo, KOReader, AI, Discover, requests).
+    - Hardening: rate limits on password and PIN sign-in, session and device-token expiry,
+      security headers, a dependency audit in CI.
+    - Performance: a 20,000-book test library; list, search and shelves under 200 ms.
+    - Release v0.2.0: changelog from `docs/changes/`, Unraid template and Docker README update.
+
+    Done when CI runs the end-to-end suite green, a backup restores into a fresh container, and
+    v0.2.0 is released.
+
+### Owner checks (not a workstream)
+
+These need real hardware, so they stay on the roadmap until someone tries them:
+
+- Android app on a Fire tablet and an Android tablet (pair, download, read offline, sync).
+- Windows desktop app on a real PC.
+- A physical Kobo and KOReader device against the server.
+
 ## Every PR
 
 - **Screenshots.** Any PR that changes something a person can see (web app, reader, Android app,
