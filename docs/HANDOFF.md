@@ -48,6 +48,9 @@ E-readers (OPDS apps, KOReader, Kobo): create a sign-in under **E-readers** in t
 reverse proxy must let `/opds`, `/kosync` and `/kobo` through without Tinyauth; the e-reader signs
 in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
 
+Barnaby AI is optional and off until an admin adds a provider at `/barnaby/settings`; local Ollama, cloud
+providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set

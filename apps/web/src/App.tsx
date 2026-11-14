@@ -18,6 +18,9 @@ import { HomePage } from "./library/HomePage";
 import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
 import { SettingsPage } from "./themes/ThemePicker";
+import { AiSettingsPage } from "./ai/AiSettingsPage";
+import { BarnabyPage } from "./ai/BarnabyPage";
+import { FamilyAiPage } from "./ai/FamilyAiPage";
 import { ListenPage } from "./audio/ListenPage";
 import { StorytellerGate } from "./storyteller/StorytellerGate";
 import { StorytellerPage } from "./storyteller/StorytellerPage";
@@ -52,6 +55,9 @@ export function App() {
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="barnaby" element={<BarnabyPage />} />
+        <Route path="barnaby/family" element={<FamilyAiPage />} />
+        <Route path="barnaby/settings" element={<AiSettingsPage />} />
         <Route path="listen/:id" element={<ListenPage />} />
         <Route path="storyteller/setup" element={<StorytellerSetup />} />
         <Route path="discover" element={<DiscoverPage />} />
