@@ -30,5 +30,8 @@
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User id that owns files Bookbandit writes (99 = nobody on Unraid)." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group id that owns files Bookbandit writes (100 = users on Unraid)." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
   <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="File permission mask for new files. Use 002 to let the users group write." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
+  <Config Name="Time zone" Target="TZ" Default="" Mode="" Description="Your time zone (for example America/Chicago), so the nightly backup runs at night where you are. Empty means UTC." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Backup time" Target="BACKUP_TIME" Default="03:00" Mode="" Description="When the nightly database backup runs (HH:MM), or off. Backups go to /config/backups." Type="Variable" Display="advanced" Required="false" Mask="false">03:00</Config>
+  <Config Name="Backups to keep" Target="BACKUP_KEEP" Default="7" Mode="" Description="How many nightly backups to keep. 0 keeps them all." Type="Variable" Display="advanced" Required="false" Mask="false">7</Config>
   <Config Name="Log level" Target="LOG_LEVEL" Default="info" Mode="" Description="fatal, error, warn, info, debug or trace." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
 </Container>

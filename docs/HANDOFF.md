@@ -52,6 +52,13 @@ Barnaby AI is optional and off until an admin adds a provider at `/barnaby/setti
 providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
 
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
+The database is backed up every night to `CONFIG_DIR/backups` (`BACKUP_TIME`, `BACKUP_KEEP`); restore
+with `node apps/server/dist/backup/cli.js restore latest` while the server is stopped
+(details: `apps/server/src/backup/README.md`, Docker: `docker/README.md#backups`).
+
+End-to-end tests and the 20,000-book performance check: build shared, server and web, then
+`pnpm --filter @bookbandit/e2e e2e` and `pnpm --filter @bookbandit/e2e perf` (see `e2e/README.md`).
+A new endpoint that returns books gets a check in the matching `e2e/tests/lock-*.spec.ts`.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
 `LIBRARY_SCAN_ON_START=false` to turn that off; a missing or empty folder is skipped). An admin can

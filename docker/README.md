@@ -13,7 +13,7 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 
 | Path | Contents |
 | --- | --- |
-| `/config` | SQLite database, covers, caches, Calibre settings. Back this up. |
+| `/config` | SQLite database, covers, caches, Calibre settings, and nightly database backups in `/config/backups`. |
 | `/books` | Your library as plain files. The database can be rebuilt by rescanning it. |
 
 ## Environment
@@ -26,12 +26,43 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 | `AUTH_HEADER_EMAIL` | `remote-email` | Header the proxy (Tinyauth) sets with the signed-in email. |
 | `GOOGLE_SIGN_IN_URL` | empty | Your Tinyauth login page. When set, the sign-in screen shows a "Sign in with Google" button. Username/password sign-in works without it. |
 | `SESSION_SECRET` | generated | Signs password/PIN sessions. Generated once and kept in the database if empty. |
+| `TZ` | UTC | Time zone, e.g. `America/Chicago`. Sets when the nightly backup runs. |
+| `BACKUP_TIME` | `03:00` | Nightly database backup time (`HH:MM`), or `off`. |
+| `BACKUP_KEEP` | `7` | Nightly backups to keep (`0` keeps all). |
+| `BACKUP_DIR` | `/config/backups` | Where backups go. Point it at another share to keep them off the cache pool. |
+| `DEVICE_IDLE_DAYS` | `180` | A paired tablet that hasn't been used this long has to be paired again. `0` never expires. |
+| `CONTENT_SECURITY_POLICY` | built in | Replaces the web app's Content-Security-Policy header; `off` sends none. |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `PORT` | `8080` | Port inside the container. |
 
 `/config` is chowned to `PUID:PGID` on start when its owner is wrong. `/books` is never chowned,
 so make sure `PUID:PGID` can read it (and write it, if you'll use uploads or downloads).
 Starting the container with `--user` skips the switch and runs as that user directly.
+
+## Backups
+
+Every night (03:00 in `TZ`) the database is copied to `/config/backups/<date>/`, and the last 7 are
+kept. An admin can also press **Back up now** on the Admin page, and download any backup from there.
+A backup holds people, reading progress, bookmarks, ratings, series and settings, plus the key that
+unlocks saved API keys. Your books are not in it: they stay as plain files in `/books`, and covers
+and metadata come back with a rescan.
+
+To get the backups off the server too, copy `/config/backups` with your usual backup tool
+(on Unraid, the Appdata Backup plugin or a nightly rsync to the array).
+
+To restore, stop the container and run the image's `restore` command against the same `/config`:
+
+```sh
+docker stop bookbandit
+docker run --rm -v /mnt/user/appdata/bookbandit:/config ghcr.io/spacegoose02/bookbandit restore latest
+docker start bookbandit
+```
+
+Use a backup's folder name instead of `latest` for an older one (`list-backups` shows them). The
+database that was there is saved as a backup first, so a restore can be undone the same way.
+
+Moving to a new server or a fresh container: copy the `backups` folder into the new `/config`,
+run the same `restore latest`, then start the container.
 
 ## Docker Compose
 

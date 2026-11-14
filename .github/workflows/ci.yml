@@ -18,3 +18,50 @@ jobs:
       - run: pnpm --filter @bookbandit/shared build
       - run: pnpm typecheck
       - run: pnpm test
+
+  # Known high or critical advisories in anything the server ships with fail the build.
+  # Dev-only tools (vite, vitest) are reported but don't block.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Production dependencies (blocking)
+        run: pnpm audit --prod --audit-level high
+      - name: Everything, including dev tools (report only)
+        run: pnpm audit --audit-level high || echo "::warning::Dev dependencies have known advisories; see the log above."
+
+  # The real server, web build and SQLite database in Chromium: sign-in, sync between two
+  # browsers and the content lock from every door. See e2e/README.md.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @bookbandit/shared build
+      - run: pnpm --filter @bookbandit/server build
+      - run: pnpm --filter @bookbandit/web build
+      - name: Install Chromium
+        run: pnpm --filter @bookbandit/e2e exec playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: pnpm --filter @bookbandit/e2e e2e
+      - name: 20,000-book performance check
+        run: pnpm --filter @bookbandit/e2e perf
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7

@@ -1,0 +1,20 @@
+{
+  "name": "@bookbandit/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright end-to-end tests against a real server, web build and SQLite database",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "perf": "tsx perf/library-20k.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.9.0",
+    "@types/yazl": "^3.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.3",
+    "yazl": "^3.3.1"
+  }
+}

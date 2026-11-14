@@ -31,13 +31,13 @@ const ApproveBody = z.object({
   /** Optional admin rating applied to every approved book. */
   rating: Rating.optional(),
 });
-const ApproveOneBody = z.object({ rating: Rating.optional() }).default({});
+const ApproveOneBody = z.object({ rating: Rating.optional() }).prefault({});
 const RejectBody = z
   .object({
     /** false (default): move files to BOOKS_DIR/.rejected so a rescan ignores them. true: delete them. */
     deleteFiles: z.boolean().default(false),
   })
-  .default({});
+  .prefault({});
 const RatingBody = z.object({ rating: Rating.nullable() });
 
 export interface LibraryRouteOptions {

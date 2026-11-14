@@ -28,6 +28,8 @@ export interface AuthOptions {
   emailHeader: string;
   trustedProxies: string[];
   sessions: SessionSigner;
+  /** A device unused for longer than this is treated as revoked (0 or undefined = never). */
+  deviceIdleMs?: number;
 }
 
 export const authPlugin = fp(async (app: FastifyInstance, opts: AuthOptions) => {
@@ -68,7 +70,7 @@ function resolve(req: FastifyRequest, opts: AuthOptions): void {
       ? null
       : readCookie(req.headers.cookie, DEVICE_COOKIE);
   if (deviceToken) {
-    const device = deviceFromToken(deviceToken, opts.db);
+    const device = deviceFromToken(deviceToken, opts.db, opts.deviceIdleMs);
     if (!device) return; // a bad device token never falls through to the proxy header
     req.device = device;
     if (device.userId) {
@@ -97,19 +99,36 @@ function fromSession(token: string, opts: AuthOptions): { reader: Reader; device
   if (p.d) {
     const d = opts.db.select().from(devices).where(eq(devices.id, p.d)).get();
     if (!d || d.revokedAt != null || d.householdId !== u.householdId) return null;
+    if (idleTooLong(d, opts.deviceIdleMs)) return null;
+    touchDevice(opts.db, d);
     if (d.userId && d.userId !== u.id) return null;
     device = { id: d.id, householdId: d.householdId, userId: d.userId, name: d.name };
   }
   return { reader: toReader(u), device };
 }
 
-export function deviceFromToken(token: string, db: Db): DeviceContext | null {
-  const d = db.select().from(devices).where(eq(devices.tokenHash, sha256(token))).get();
-  if (!d || d.revokedAt != null) return null;
-  const now = Date.now();
+/** Record that a device was used (at most every few minutes, to keep writes down). */
+function touchDevice(db: Db, d: { id: string; lastSeenAt: number | null }, now = Date.now()): void {
   if (!d.lastSeenAt || now - d.lastSeenAt > LAST_SEEN_THROTTLE_MS) {
     db.update(devices).set({ lastSeenAt: now }).where(eq(devices.id, d.id)).run();
   }
+}
+
+/** True when a paired device hasn't been used for longer than `idleMs`. */
+function idleTooLong(d: { lastSeenAt: number | null; createdAt: number }, idleMs: number | undefined, now = Date.now()): boolean {
+  return !!idleMs && now - (d.lastSeenAt ?? d.createdAt) > idleMs;
+}
+
+export function deviceFromToken(token: string, db: Db, idleMs?: number): DeviceContext | null {
+  const d = db.select().from(devices).where(eq(devices.tokenHash, sha256(token))).get();
+  if (!d || d.revokedAt != null) return null;
+  const now = Date.now();
+  if (idleTooLong(d, idleMs, now)) {
+    // Expired from disuse: revoke it so the family's device list says so.
+    db.update(devices).set({ revokedAt: now }).where(eq(devices.id, d.id)).run();
+    return null;
+  }
+  touchDevice(db, d, now);
   return { id: d.id, householdId: d.householdId, userId: d.userId, name: d.name };
 }
 

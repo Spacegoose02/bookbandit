@@ -43,6 +43,16 @@ const Env = z.object({
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
   /** Optional: enables Hardcover lookups (hardcover.app → Account → API). */
   HARDCOVER_API_TOKEN: z.string().optional(),
+  /** Paired devices not seen for this many days must be paired again (0 = never expire). */
+  DEVICE_IDLE_DAYS: z.coerce.number().min(0).default(180),
+  /** Replaces the web app's Content-Security-Policy; "off" sends none. */
+  CONTENT_SECURITY_POLICY: z.string().optional(),
+  /** Where nightly database backups go. Default CONFIG_DIR/backups. */
+  BACKUP_DIR: z.string().optional(),
+  /** How many backups to keep (0 keeps all). */
+  BACKUP_KEEP: z.coerce.number().int().min(0).default(7),
+  /** Nightly backup time, "HH:MM" in the container's time zone (TZ), or "off". */
+  BACKUP_TIME: z.string().default("03:00"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });
 

@@ -11,6 +11,17 @@ CONFIG_DIR="${CONFIG_DIR:-/config}"
 
 umask "$UMASK"
 
+# Backup commands: `docker run --rm -v <appdata>:/config <image> restore latest`.
+# They run as whoever already owns /config, so a restore never changes file ownership.
+case "${1:-}" in
+  backup|restore|list-backups)
+    if [ "$(id -u)" = "0" ] && [ -d "$CONFIG_DIR" ] && [ "$(stat -c '%u' "$CONFIG_DIR")" != "0" ]; then
+      PUID="$(stat -c '%u' "$CONFIG_DIR")"
+      PGID="$(stat -c '%g' "$CONFIG_DIR")"
+    fi
+    set -- node /app/apps/server/dist/backup/cli.js "$@" ;;
+esac
+
 case "$PUID$PGID" in
   *[!0-9]*) echo "bookbandit: PUID and PGID must be numbers (got PUID=$PUID PGID=$PGID)" >&2; exit 1 ;;
 esac
