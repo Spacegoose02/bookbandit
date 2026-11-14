@@ -26,11 +26,13 @@ export function AdminLayout({ area }: { area: "admin" | "family" }) {
           ["/admin/review", "Needs a rating"],
           ["/admin/people", "People & devices"],
           ["/admin/settings", "Connections"],
+          ["/barnaby/settings", "Barnaby AI"],
           ["/family", "Family"],
         ]
       : [
           ["/family", "Kids"],
           ["/family/people", "Manage kids & devices"],
+          ["/barnaby/family", "Barnaby chats"],
           ...(me.role === "admin" ? [["/admin", "Admin"]] : []),
         ];
 
