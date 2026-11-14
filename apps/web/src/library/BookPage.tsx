@@ -10,6 +10,8 @@ import { BookCategories, useBookCategories } from "../discover/BookCategories";
 import { Cover } from "./BookCard";
 import { ListenButton } from "../audio/ListenButton";
 import { SendToKindleButton } from "../kindle/SendToKindleButton";
+import { MoreLikeThis } from "../ai/MoreLikeThis";
+import { useSession } from "../app/session";
 
 export function BookPage() {
   const { id = "" } = useParams();
@@ -17,6 +19,7 @@ export function BookPage() {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const categories = useBookCategories(book ? id : null);
+  const { me } = useSession();
 
   useEffect(() => {
     setBook(null);
@@ -129,6 +132,7 @@ export function BookPage() {
           )}
         </dl>
       </div>
+      <MoreLikeThis bookId={book.id} kid={me?.isKid} />
     </div>
   );
 }

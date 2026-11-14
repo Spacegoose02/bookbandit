@@ -11,5 +11,5 @@ Backups, end-to-end tests, hardening, performance and releases (`ws/ops`). Newes
   paired devices expire after 180 idle days (`DEVICE_IDLE_DAYS`), a per-address limit on password
   guesses across usernames, and a blocking `pnpm audit --prod` job in CI; zod 4, drizzle-orm 0.45,
   nodemailer 10 and @fastify/static 10 to clear the high advisories. 20,000-book performance check
-  in CI; five missing indexes (migration `0009_ops`) took OPDS "Recently added" from 15 s to 35 ms and
+  in CI; five missing indexes (migration `0010_ops`) took OPDS "Recently added" from 15 s to 35 ms and
   the series list from 700 ms to 60 ms (this PR)

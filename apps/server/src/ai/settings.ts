@@ -12,7 +12,7 @@ import { PROVIDER_KINDS, type ProviderConfig } from "./providers/types.js";
 export const AI_SETTINGS_KEY = "ai.settings";
 
 /** Each feature picks its own provider (or none = feature off). */
-export const AI_FEATURES = ["chat", "kidChat", "bookChat", "moderation", "rating"] as const;
+export const AI_FEATURES = ["chat", "kidChat", "bookChat", "moderation", "rating", "metadata", "embeddings"] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
 const httpUrl = z
@@ -48,6 +48,10 @@ export const AiSettingsInput = z
         bookChat: providerRef,
         moderation: providerRef,
         rating: providerRef,
+        /** Metadata cleanup suggestions. Falls back to the grown-up chat provider. */
+        metadata: providerRef,
+        /** Meaning search and "more like this". Needs an embeddings model (Ollama nomic-embed-text). */
+        embeddings: providerRef,
       })
       .prefault({}),
     search: z
@@ -121,9 +125,12 @@ export function getAiSettings(db: Db, box: SecretBox): AiSettings {
   const row = db.select().from(settings).where(eq(settings.key, AI_SETTINGS_KEY)).get();
   if (!row) return defaultSettings();
   const stored = row.value as AiSettings;
+  const defaults = defaultSettings();
   return {
-    ...defaultSettings(),
+    ...defaults,
     ...stored,
+    // Settings saved before a feature existed don't have its key.
+    features: { ...defaults.features, ...stored.features },
     providers: stored.providers.map((p) => ({ ...p, apiKey: p.apiKey ? box.open(p.apiKey) : undefined })),
   };
 }
@@ -156,7 +163,7 @@ export function publicAiSettings(s: AiSettings) {
 }
 
 export function providerFor(s: AiSettings, feature: AiFeature): ProviderConfig | null {
-  // Book chat and kid chat fall back to the general chat provider when not set separately.
-  const id = s.features[feature] ?? (feature === "bookChat" || feature === "kidChat" ? s.features.chat : null);
+  // Book chat, kid chat and metadata cleanup fall back to the general chat provider when not set separately.
+  const id = s.features[feature] ?? (feature === "bookChat" || feature === "kidChat" || feature === "metadata" ? s.features.chat : null);
   return id ? (s.providers.find((p) => p.id === id) ?? null) : null;
 }

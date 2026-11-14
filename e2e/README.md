@@ -42,7 +42,7 @@ The ids and tokens go to `.run/state.json` for the tests.
 | OPDS: every feed, search, downloads, covers | `lock-ereader.spec.ts` |
 | Kobo sync: library sync, downloads, metadata | `lock-ereader.spec.ts` |
 | KOReader sync: positions for a locked book's document never reach the library | `lock-ereader.spec.ts` |
-| Barnaby: the model never sees a locked title for a kid; book chat on a locked book is 404 | `lock-ai.spec.ts` |
+| Barnaby: the model never sees a locked title for a kid; book chat and "More like this" on a locked book are 404 | `lock-ai.spec.ts` |
 | Discover: "popular in your family" | `lock-discover-requests.spec.ts` |
 | Requests: a locked title is never "already in the library" | `lock-discover-requests.spec.ts` |
 

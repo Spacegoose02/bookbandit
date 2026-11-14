@@ -42,3 +42,15 @@ test("a kid can't chat about a locked book", async ({ request }) => {
     expect(res.status(), k).toBe(404);
   }
 });
+
+test("More like this never suggests a locked book to a kid, and is 404 on one", async ({ request }) => {
+  const w = world();
+  const res = await request.get(`/api/ai/books/${w.books.kids.id}/similar`, { headers: bearer(w.emma.token) });
+  expect(res.status(), await res.text()).toBe(200);
+  const body = JSON.stringify(await res.json());
+  for (const k of KID_LOCKED) expect(body).not.toContain(w.books[k].id);
+  for (const k of ["adult", "explicit", "unrated", "inbox"] as const) {
+    const locked = await request.get(`/api/ai/books/${w.books[k].id}/similar`, { headers: bearer(w.emma.token) });
+    expect(locked.status(), k).toBe(404);
+  }
+});

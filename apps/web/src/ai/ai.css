@@ -575,3 +575,155 @@
 .bb-suggestions p {
   margin: 4px 0 0;
 }
+
+/* --- Round 2: more like this, meaning search, find a book, streaming ------------------------- */
+
+.bb-more-like {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 8px;
+}
+.bb-found {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.bb-found-reason {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--bb-muted);
+}
+.bb-meaning {
+  border-top: 1px dashed var(--bb-border);
+  padding-top: 18px;
+}
+.bb-chat-streaming::after {
+  content: "▍";
+  margin-left: 2px;
+  animation: bb-caret 1s steps(2, start) infinite;
+  color: var(--bb-accent);
+}
+@keyframes bb-caret {
+  to {
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bb-chat-streaming::after {
+    animation: none;
+  }
+}
+
+.bb-find-head {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.bb-find-head .bb-h1 {
+  margin: 0;
+}
+.bb-find-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0 12px;
+  align-items: center;
+}
+.bb-find-form input[type="search"] {
+  flex: 1 1 320px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 1.05rem;
+  border-radius: var(--bb-radius);
+  border: 1px solid var(--bb-border);
+  background: var(--bb-surface);
+  color: var(--bb-text);
+}
+.bb-find-for {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.bb-find-for select {
+  min-height: 44px;
+  font: inherit;
+  border-radius: var(--bb-radius);
+  border: 1px solid var(--bb-border);
+  background: var(--bb-surface);
+  color: var(--bb-text);
+  padding: 0 8px;
+}
+.bb-find-understood {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 1.05rem;
+}
+.bb-find-picks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 22px 18px;
+}
+.bb-find-picks li {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.bb-find-picks p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--bb-muted);
+}
+.bb-find-outside {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.bb-find-outside li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+}
+.bb-find-outside p {
+  margin: 4px 0 0;
+  color: var(--bb-muted);
+  font-size: 0.9rem;
+}
+
+.bb-meter {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bb-surface-2, var(--bb-surface));
+  border: 1px solid var(--bb-border);
+  overflow: hidden;
+  margin: 8px 0;
+}
+.bb-meter span {
+  display: block;
+  height: 100%;
+  background: var(--bb-accent);
+}
+.bb-meta-diff {
+  overflow-wrap: anywhere;
+}
+.bb-meta-diff del {
+  color: var(--bb-muted);
+}
+.bb-meta-diff ins {
+  text-decoration: none;
+  font-weight: 700;
+}

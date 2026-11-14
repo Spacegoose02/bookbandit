@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6e6e2966-357a-46b6-9b7e-36f69c89664f",
+  "id": "3d419c4b-56af-4e31-943c-720d2031e74c",
   "prevId": "1795cdb0-eb8a-4211-9b73-5e7d85a66d84",
   "tables": {
     "ai_messages": {
@@ -195,15 +195,7 @@
           "default": 0
         }
       },
-      "indexes": {
-        "book_authors_author_idx": {
-          "name": "book_authors_author_idx",
-          "columns": [
-            "author_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "book_authors_book_id_books_id_fk": {
           "name": "book_authors_book_id_books_id_fk",
@@ -318,13 +310,6 @@
           "name": "book_files_hash_idx",
           "columns": [
             "sha256"
-          ],
-          "isUnique": false
-        },
-        "book_files_book_idx": {
-          "name": "book_files_book_idx",
-          "columns": [
-            "book_id"
           ],
           "isUnique": false
         }
@@ -544,15 +529,7 @@
           "autoincrement": false
         }
       },
-      "indexes": {
-        "book_series_series_idx": {
-          "name": "book_series_series_idx",
-          "columns": [
-            "series_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "book_series_book_id_books_id_fk": {
           "name": "book_series_book_id_books_id_fk",
@@ -611,15 +588,7 @@
           "autoincrement": false
         }
       },
-      "indexes": {
-        "book_tags_tag_idx": {
-          "name": "book_tags_tag_idx",
-          "columns": [
-            "tag_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "book_tags_book_id_books_id_fk": {
           "name": "book_tags_book_id_books_id_fk",
@@ -973,13 +942,6 @@
           "name": "books_sort_idx",
           "columns": [
             "sort_title"
-          ],
-          "isUnique": false
-        },
-        "books_added_idx": {
-          "name": "books_added_idx",
-          "columns": [
-            "created_at"
           ],
           "isUnique": false
         }
@@ -2935,6 +2897,87 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "ai_book_embeddings": {
+      "name": "ai_book_embeddings",
+      "columns": {
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dims": {
+          "name": "dims",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "vector": {
+          "name": "vector",
+          "type": "blob",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text_hash": {
+          "name": "text_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ai_book_embeddings_model_idx": {
+          "name": "ai_book_embeddings_model_idx",
+          "columns": [
+            "model"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ai_book_embeddings_book_id_books_id_fk": {
+          "name": "ai_book_embeddings_book_id_books_id_fk",
+          "tableFrom": "ai_book_embeddings",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "ai_conversations": {
       "name": "ai_conversations",
       "columns": {
@@ -3208,6 +3251,157 @@
           "name": "ai_message_sources_message_id_position_pk"
         }
       },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "ai_metadata_checks": {
+      "name": "ai_metadata_checks",
+      "columns": {
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "ai_metadata_checks_book_id_books_id_fk": {
+          "name": "ai_metadata_checks_book_id_books_id_fk",
+          "tableFrom": "ai_metadata_checks",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "ai_metadata_suggestions": {
+      "name": "ai_metadata_suggestions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "field": {
+          "name": "field",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "current": {
+          "name": "current",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suggested": {
+          "name": "suggested",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "ai_metadata_suggestions_book_field_idx": {
+          "name": "ai_metadata_suggestions_book_field_idx",
+          "columns": [
+            "book_id",
+            "field"
+          ],
+          "isUnique": true
+        },
+        "ai_metadata_suggestions_status_idx": {
+          "name": "ai_metadata_suggestions_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ai_metadata_suggestions_book_id_books_id_fk": {
+          "name": "ai_metadata_suggestions_book_id_books_id_fk",
+          "tableFrom": "ai_metadata_suggestions",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
