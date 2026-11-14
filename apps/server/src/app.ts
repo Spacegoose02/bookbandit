@@ -5,6 +5,10 @@ import { authPlugin } from "./auth/plugin.js";
 import { parseTrustedProxies } from "./auth/trusted-proxy.js";
 import { healthRoutes } from "./routes/health.js";
 import { bookRoutes } from "./routes/books.js";
+import { progressRoutes } from "./routes/progress.js";
+import { bookmarkRoutes } from "./routes/bookmarks.js";
+import { shelfRoutes } from "./routes/shelves.js";
+import { defaultWebDir, staticRoutes } from "./static.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
 
 /** Test seams for outside services. */
@@ -22,12 +26,17 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   });
   await app.register(healthRoutes);
   await app.register(bookRoutes, { db });
+  await app.register(progressRoutes, { db });
+  await app.register(bookmarkRoutes, { db });
+  await app.register(shelfRoutes, { db });
   await app.register(integrationsPlugin, {
     db,
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
   });
+  // Last: the web app and its index.html fallback for client-side routes.
+  await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
 
   return app;
 }
