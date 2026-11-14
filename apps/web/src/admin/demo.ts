@@ -375,6 +375,7 @@ export const demoAdminApi: AdminApi = {
       online: input.online,
       hasHardcoverToken: input.hardcoverToken === null ? metadata.fromEnv.hardcoverToken : input.hardcoverToken ? true : metadata.hasHardcoverToken,
       hasGoogleApiKey: input.googleApiKey === null ? metadata.fromEnv.googleApiKey : input.googleApiKey ? true : metadata.hasGoogleApiKey,
+      hasIsbndbKey: input.isbndbKey === null ? false : input.isbndbKey ? true : metadata.hasIsbndbKey,
       saved: true,
     };
     return delay(metadata);

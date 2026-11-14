@@ -45,6 +45,8 @@ const Env = z.object({
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
   /** Optional: enables Hardcover lookups (hardcover.app → Account → API). */
   HARDCOVER_API_TOKEN: z.string().optional(),
+  /** Optional: enables ISBNdb lookups (paid key from isbndb.com). */
+  ISBNDB_API_KEY: z.string().optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });
 

@@ -32,6 +32,7 @@ import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
 import { CookbookPage } from "./discover/CookbookPage";
 import { DiscoverPage } from "./discover/DiscoverPage";
 import { KindleImportPage } from "./discover/KindleImportPage";
+import { ImportPage } from "./imports/ImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
 import { LibrarianLayout } from "./librarian/LibrarianLayout";
@@ -83,6 +84,7 @@ export function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="import" element={<ImportPage />} />
           <Route path="audio" element={<AudioAdminPage />} />
           <Route path="librarian" element={<LibrarianLayout />}>
             <Route index element={<HealthPage />} />

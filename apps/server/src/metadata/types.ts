@@ -31,7 +31,7 @@ export interface FileMetadata extends BookMetadata {
 
 /** A match from an online provider. */
 export interface ProviderMatch extends BookMetadata {
-  provider: "openlibrary" | "google" | "hardcover";
+  provider: "openlibrary" | "google" | "hardcover" | "isbndb";
   /** The provider's own id for the work/volume/book. */
   providerId: string;
   coverUrl?: string;
