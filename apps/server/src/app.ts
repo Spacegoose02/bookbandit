@@ -16,6 +16,7 @@ import { homeShelfRoutes } from "./routes/home-shelves.js";
 import { defaultWebDir, staticRoutes } from "./static.js";
 import { libraryRoutes } from "./library/routes.js";
 import { integrationsPlugin, type IntegrationsOptions } from "./integrations/index.js";
+import { storytellerPlugin } from "./storyteller/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -39,6 +40,8 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(shelfRoutes, { db });
   await app.register(libraryRoutes, { db, config });
   await app.register(homeShelfRoutes, { db });
+  // Before integrations: its audio guard hook must exist when the track routes are added.
+  await app.register(storytellerPlugin, { db });
   await app.register(integrationsPlugin, {
     db,
     configDir: config.CONFIG_DIR,
