@@ -1,7 +1,7 @@
 # Handoff
 
 Where things stand, how to run it, and what's next. Update this file whenever a PR changes any of
-those. Newest entries at the top of "Recent changes".
+those. Change logs live in [changes/](changes/README.md), one file per workstream.
 
 This file is written so an agent or developer with only this repository can pick up any
 piece of work. You don't need access to any outside chat or document.
@@ -55,25 +55,17 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 ## Recent changes
 
-| Date | Change | PR |
-| --- | --- | --- |
-| 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
-| 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
-| 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
-| 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
-| 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
-| 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |
-| 2026-11-14 | Audiobookshelf playback/progress API and Send to Kindle API (see `apps/server/src/integrations/README.md`) | ws/integrations PR |
-| 2026-11-14 | Reading sync API: progress (newest wins, offline batch), bookmarks/highlights/stickers with `updated_at` sync cursor (migration 0001), Continue reading, Finished and kid shelves; see [sync-api.md](sync-api.md) | this PR |
-| 2026-11-13 | Roadmap, handoff and screenshot rules added | this PR |
-| 2026-11-13 | Foundation: monorepo, data model, content lock, Tinyauth auth, CI | first commit |
+Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
+parallel PRs don't fight over one table: [lead](changes/lead.md), [auth](changes/auth.md),
+[web](changes/web.md), [library](changes/library.md), [sync](changes/sync.md),
+[integrations](changes/integrations.md), [docker](changes/docker.md), plus a file per wave 2
+workstream once it lands. Add your entry there, not here.
 
 ## Next up
 
 1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
-2. Auth: web sign-in screen and own-profile editor.
-3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+2. Lead: reading time for the parent dashboard, integration passes as wave 2 lands, release v0.2.0.
 
 ## Decisions so far
 
