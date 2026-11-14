@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { RATING_LABELS, type ContentRating } from "@bookbandit/shared";
+import { priceFor, RATING_LABELS, type ContentRating } from "@bookbandit/shared";
 import { isDemo } from "../api/client";
+import { BatchTool } from "./BatchTool";
 import { useSession } from "../app/session";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import {
@@ -89,12 +90,15 @@ export function AiSettingsPage() {
     return () => clearInterval(t);
   }, [embBusy]);
 
+  const refreshRating = () => void aiApi.ratingStatus().then(setRun, () => {});
+  const refreshMetadata = () => void aiApi.metadataStatus().then(setMetaRun, () => {});
+
   useEffect(() => {
     if (!metaRun?.running) return;
     const t = setInterval(() => {
       aiApi.metadataStatus().then((r) => {
         setMetaRun(r);
-        if (!r.running) void aiApi.metadataSuggestions().then(setMeta);
+        void aiApi.metadataSuggestions().then(setMeta);
       });
     }, 1500);
     return () => clearInterval(t);
@@ -105,7 +109,7 @@ export function AiSettingsPage() {
     const t = setInterval(() => {
       aiApi.ratingStatus().then((r) => {
         setRun(r);
-        if (!r.running) void aiApi.suggestions().then(setSuggestions);
+        void aiApi.suggestions().then(setSuggestions);
       });
     }, 1500);
     return () => clearInterval(t);
@@ -203,6 +207,7 @@ export function AiSettingsPage() {
                   onChange={(e) => setProvider(i, { apiKey: e.target.value })}
                 />
               </label>
+              <PriceField p={p} onChange={(price) => setProvider(i, { price })} />
             </div>
             <div className="bb-provider-actions">
               <button
@@ -364,18 +369,23 @@ export function AiSettingsPage() {
           Barnaby reads unrated books and suggests a rating. A stricter suggestion is applied straight away (it can only hide a
           book from kids); anything looser waits here for you.
         </p>
-        <button
-          type="button"
-          className="bb-btn"
-          disabled={run?.running}
-          onClick={() => void aiApi.startRating(25).then(setRun, (e: Error) => setError(e.message))}
-        >
-          {run?.running ? `Rating… ${run.done}/${run.total}` : "Rate 25 unrated books"}
-        </button>
-        {run && !run.running && run.total > 0 && (
-          <span className="bb-test-result">
-            Last run: {run.suggested} suggested, {run.applied} applied, {run.failed} failed
-          </span>
+        <BatchTool
+          run={run}
+          words={{
+            verb: "Rate",
+            busy: "Rating…",
+            noun: "unrated books",
+            done: "Barnaby has looked at every unrated book.",
+            waiting: "rating suggestions",
+            reviewAnchor: "rating-review",
+          }}
+          onStart={(r) => void aiApi.startRating(r).then(setRun, (e: Error) => setError(e.message))}
+          onStop={(id) => void aiApi.cancelJob(id).then(refreshRating, (e: Error) => setError(e.message))}
+        />
+        {suggestions.length > 0 && (
+          <h3 id="rating-review" className="bb-review-title">
+            Waiting for you{run?.progress && run.progress.waiting > suggestions.length ? ` (showing ${suggestions.length} of ${run.progress.waiting})` : ""}
+          </h3>
         )}
         <ul className="bb-suggestions">
           {suggestions.map((g) => (
@@ -394,14 +404,24 @@ export function AiSettingsPage() {
               <button
                 type="button"
                 className="bb-btn bb-btn-small bb-btn-primary"
-                onClick={() => void aiApi.acceptSuggestion(g.bookId).then(() => setSuggestions((l) => l.filter((x) => x !== g)))}
+                onClick={() =>
+                  void aiApi.acceptSuggestion(g.bookId).then(() => {
+                    setSuggestions((l) => l.filter((x) => x !== g));
+                    refreshRating();
+                  })
+                }
               >
                 Accept
               </button>
               <button
                 type="button"
                 className="bb-btn bb-btn-small"
-                onClick={() => void aiApi.dismissSuggestion(g.bookId).then(() => setSuggestions((l) => l.filter((x) => x !== g)))}
+                onClick={() =>
+                  void aiApi.dismissSuggestion(g.bookId).then(() => {
+                    setSuggestions((l) => l.filter((x) => x !== g));
+                    refreshRating();
+                  })
+                }
               >
                 Dismiss
               </button>
@@ -448,18 +468,23 @@ export function AiSettingsPage() {
           Barnaby looks for messy titles (file names, ALL CAPS), "Last, First" author names, series stuck in titles and
           descriptions full of HTML or ads. Nothing changes until you accept a fix, one field at a time.
         </p>
-        <button
-          type="button"
-          className="bb-btn"
-          disabled={metaRun?.running}
-          onClick={() => void aiApi.startMetadata(25).then(setMetaRun, (e: Error) => setError(e.message))}
-        >
-          {metaRun?.running ? `Checking… ${metaRun.done}/${metaRun.total}` : "Check 25 books"}
-        </button>
-        {metaRun && !metaRun.running && metaRun.total > 0 && (
-          <span className="bb-test-result">
-            Last run: {metaRun.done} checked, {metaRun.applied} fixes suggested, {metaRun.failed} failed
-          </span>
+        <BatchTool
+          run={metaRun}
+          words={{
+            verb: "Check",
+            busy: "Checking…",
+            noun: "books",
+            done: "Barnaby has checked every book.",
+            waiting: "books with fixes",
+            reviewAnchor: "metadata-review",
+          }}
+          onStart={(r) => void aiApi.startMetadata(r).then(setMetaRun, (e: Error) => setError(e.message))}
+          onStop={(id) => void aiApi.cancelJob(id).then(refreshMetadata, (e: Error) => setError(e.message))}
+        />
+        {meta.length > 0 && (
+          <h3 id="metadata-review" className="bb-review-title">
+            Waiting for you{metaRun?.progress?.fixes && metaRun.progress.fixes > meta.length ? ` (showing ${meta.length} of ${metaRun.progress.fixes})` : ""}
+          </h3>
         )}
         <ul className="bb-suggestions bb-meta-suggestions">
           {meta.map((m) => (
@@ -479,7 +504,10 @@ export function AiSettingsPage() {
                 className="bb-btn bb-btn-small bb-btn-primary"
                 onClick={() =>
                   void aiApi.acceptMetadata(m.id).then(
-                    () => setMeta((l) => l.filter((x) => x !== m)),
+                    () => {
+                      setMeta((l) => l.filter((x) => x !== m));
+                      refreshMetadata();
+                    },
                     (e: Error) => setError(e.message),
                   )
                 }
@@ -489,7 +517,12 @@ export function AiSettingsPage() {
               <button
                 type="button"
                 className="bb-btn bb-btn-small"
-                onClick={() => void aiApi.dismissMetadata(m.id).then(() => setMeta((l) => l.filter((x) => x !== m)))}
+                onClick={() =>
+                  void aiApi.dismissMetadata(m.id).then(() => {
+                    setMeta((l) => l.filter((x) => x !== m));
+                    refreshMetadata();
+                  })
+                }
               >
                 Dismiss
               </button>
@@ -498,6 +531,40 @@ export function AiSettingsPage() {
         </ul>
       </section>
     </div>
+  );
+}
+
+/** $ per million tokens in and out, for cost estimates. Blank uses the built-in price list. */
+function PriceField({ p, onChange }: { p: ProviderSettings; onChange: (price: ProviderSettings["price"]) => void }) {
+  const known = priceFor({ ...p, price: undefined });
+  const hint = known.source === "local" ? "free (local)" : known.price ? String(known.price.input) : "unknown";
+  const set = (which: "input" | "output", v: string) => {
+    const n = v.trim() === "" ? NaN : Number(v);
+    const other = p.price?.[which === "input" ? "output" : "input"];
+    if (Number.isNaN(n) && other == null) return onChange(undefined);
+    const base = p.price ?? { input: known.price?.input ?? 0, output: known.price?.output ?? 0 };
+    onChange({ ...base, [which]: Number.isNaN(n) ? 0 : n });
+  };
+  return (
+    <label>
+      Price, $ per million tokens (in / out)
+      <span className="bb-price-inputs">
+        <input
+          inputMode="decimal"
+          aria-label="Input price"
+          placeholder={hint}
+          value={p.price?.input ?? ""}
+          onChange={(e) => set("input", e.target.value)}
+        />
+        <input
+          inputMode="decimal"
+          aria-label="Output price"
+          placeholder={known.source === "local" ? "free (local)" : known.price ? String(known.price.output) : "unknown"}
+          value={p.price?.output ?? ""}
+          onChange={(e) => set("output", e.target.value)}
+        />
+      </span>
+    </label>
   );
 }
 

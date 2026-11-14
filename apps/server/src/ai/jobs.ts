@@ -27,6 +27,8 @@ export interface BatchPayload {
   /** Rating helper: stricter ratings applied at once. Metadata: field suggestions stored. */
   applied: number;
   failed: number;
+  /** Books the step threw on. Later batches skip them until an admin asks to try them again. */
+  failedIds?: string[];
   lastError: string | null;
   userId: string | null;
   applyStricter?: boolean;
@@ -77,6 +79,17 @@ export function batchStatus(ctx: AiContext, type: string): BatchStatus {
   };
 }
 
+/**
+ * Books that failed in any earlier run of this type (a reply the model garbled, a timeout).
+ * Without this, a book that always fails would sit at the front of every new batch.
+ */
+export function failedBookIds(ctx: AiContext, type: string): string[] {
+  const rows = ctx.db.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.type, type)).all();
+  const ids = new Set<string>();
+  for (const r of rows) for (const id of (r.payload as BatchPayload | null)?.failedIds ?? []) ids.add(id);
+  return [...ids];
+}
+
 export function startBatch(ctx: AiContext, runner: JobRunner, type: string, ids: string[], label: string, extra: Partial<BatchPayload> = {}): BatchStatus {
   if (isBusy(ctx, type)) throw httpError(409, "That's already running");
   const payload: BatchPayload = { ids, done: 0, suggested: 0, applied: 0, failed: 0, lastError: null, userId: null, ...extra };
@@ -99,6 +112,7 @@ function batchHandler(step: (id: string, p: BatchPayload) => Promise<{ suggested
         // No provider any more: nothing else will work either.
         if ((e as { statusCode?: number }).statusCode === 503) throw new PermanentJobError(msg);
         p.failed++;
+        p.failedIds = [...(p.failedIds ?? []), p.ids[i]!];
         p.lastError = msg;
         job.log(msg, "warn");
       }

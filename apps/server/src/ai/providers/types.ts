@@ -35,6 +35,8 @@ export interface ProviderConfig {
   apiKey?: string;
   /** Per-call timeout; local models on a CPU can be slow. */
   timeoutMs?: number;
+  /** $ per million tokens, for cost estimates. Omit to use the built-in table (local servers are free). */
+  price?: { input: number; output: number };
 }
 
 export interface EmbedResult {
