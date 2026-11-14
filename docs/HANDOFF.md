@@ -40,10 +40,18 @@ matching row to `user_identities`. (The auth workstream will add a dev seed and 
 
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
+Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
+`LIBRARY_SCAN_ON_START=false` to turn that off; a missing or empty folder is skipped). An admin can
+start another scan with `POST /api/admin/library/scan` and check progress with `GET` on the same path.
+New books wait in the admin inbox (`/api/admin/inbox`) until approved. Online metadata lookup is on
+by default (`METADATA_ONLINE=false` turns it off); `HARDCOVER_API_TOKEN` and `GOOGLE_BOOKS_API_KEY`
+are optional. Details: `apps/server/src/library/README.md`.
+
 ## Recent changes
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
 | 2026-11-14 | Audiobookshelf playback/progress API and Send to Kindle API (see `apps/server/src/integrations/README.md`) | ws/integrations PR |
 | 2026-11-14 | Reading sync API: progress (newest wins, offline batch), bookmarks/highlights/stickers with `updated_at` sync cursor (migration 0001), Continue reading, Finished and kid shelves; see [sync-api.md](sync-api.md) | this PR |
 | 2026-11-13 | Roadmap, handoff and screenshot rules added | this PR |
