@@ -22,6 +22,11 @@ import { kindleRoutes } from "./kindle.js";
 export interface DiscoverOptions {
   db: Db;
   config: Pick<Config, "METADATA_ONLINE" | "HARDCOVER_API_TOKEN">;
+  /**
+   * Current metadata settings (admin settings page, falling back to env vars). False = online
+   * lookups are off. Without it, the env config is used.
+   */
+  resolveLookup?: () => { hardcoverToken?: string } | false;
   /** Test seam for the outside lists. */
   fetchImpl?: FetchLike;
   now?: () => number;
@@ -70,10 +75,14 @@ function popularInFamily(db: Db, reader: Reader, limit: number): BookSummary[] {
 
 export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions) {
   const { db, config } = opts;
-  const online = config.METADATA_ONLINE;
+  const lookup = () =>
+    opts.resolveLookup ? opts.resolveLookup() : config.METADATA_ONLINE ? { hardcoverToken: config.HARDCOVER_API_TOKEN } : false;
   const cache = new SourceCache({
     fetch: opts.fetchImpl ?? ((input, init) => fetch(input, init)),
-    hardcoverToken: config.HARDCOVER_API_TOKEN,
+    hardcoverToken: () => {
+      const l = lookup();
+      return l ? l.hardcoverToken : undefined;
+    },
     now: opts.now ?? Date.now,
   });
 
@@ -82,6 +91,7 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
     const q = Query.parse(req.query);
     const lists: DiscoverList[] = [];
 
+    const online = lookup() !== false;
     if (online) {
       const specs = cache.available();
       const entries = await Promise.all(specs.map((s) => cache.get(s, 40)));

@@ -34,7 +34,8 @@ export interface ListSpec {
 
 export interface SourceContext {
   fetch: FetchLike;
-  hardcoverToken?: string;
+  /** Read on every use, so a token saved in the admin settings applies without a restart. */
+  hardcoverToken: () => string | undefined;
   now: () => number;
 }
 
@@ -83,7 +84,7 @@ interface HardcoverBook {
 }
 
 async function hardcoverQuery<T>(ctx: SourceContext, query: string, variables: Record<string, unknown>): Promise<T | undefined> {
-  const token = ctx.hardcoverToken!;
+  const token = ctx.hardcoverToken()!;
   const res = await getJson<{ data?: T; errors?: { message?: string }[] }>(ctx.fetch, HARDCOVER, {
     method: "POST",
     body: JSON.stringify({ query, variables }),
@@ -178,7 +179,7 @@ export class SourceCache {
   constructor(private ctx: SourceContext) {}
 
   available(): ListSpec[] {
-    return LISTS.filter((l) => !l.needsHardcover || !!this.ctx.hardcoverToken);
+    return LISTS.filter((l) => !l.needsHardcover || !!this.ctx.hardcoverToken());
   }
 
   async get(spec: ListSpec, limit: number): Promise<CacheEntry> {

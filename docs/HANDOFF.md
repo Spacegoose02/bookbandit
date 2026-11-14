@@ -35,7 +35,7 @@ pnpm dev   # API http://localhost:8080, web http://localhost:5173
 ```
 
 Web UI without a server: `pnpm --filter @bookbandit/web demo` (sample books; add `?demo=kid` to the
-URL for kid mode). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
+URL for kid mode; the demo grown-up is an admin, so `/admin` and `/family` work too). Screenshots: build, `pnpm --filter @bookbandit/web preview --port 4173`, then
 `pnpm --filter @bookbandit/web screenshots`.
 
 Sign-in: on an empty database the web app shows "Welcome to BookBandit" and the first person creates
@@ -63,6 +63,7 @@ admin persona too: `?demo=admin`. See [discover-api.md](discover-api.md).
 | Date | Change | PR |
 | --- | --- | --- |
 | 2026-11-14 | Discover (Open Library and Hardcover trending with In library / On Kindle / Request it badges, Popular in your family), series pages in reading order with admin create/rename/drag-to-reorder, category browsing, Cook mode for cookbooks, Kindle library CSV import as metadata-only books. All through the content lock; kids only see outside books already on their shelf. API: [discover-api.md](discover-api.md) | ws/discover PR |
+| 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
 | 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
@@ -80,6 +81,10 @@ admin persona too: `?demo=admin`. See [discover-api.md](discover-api.md).
    storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
 2. Auth: web sign-in screen and own-profile editor.
 3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+
+Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
+`apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
+Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 
