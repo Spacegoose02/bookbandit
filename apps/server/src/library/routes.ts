@@ -22,6 +22,8 @@ import { insideRoot, serveRoutes } from "./serve.js";
 import { rejectAudiobookFiles } from "../audio/files.js";
 import { acceptRatings, hasPendingSuggestion, notSeenByBarnaby, pendingFixes, pendingRatings, settleRatings } from "../ai/review.js";
 import { acceptMetadata } from "../ai/metadata.js";
+import { bookVolumes } from "./store.js";
+import { differentBooks } from "../metadata/volume.js";
 
 const IdParams = z.object({ id: z.string().min(1).max(64) });
 const Page = z.object({
@@ -198,16 +200,45 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
     return { items, total: counts[q.filter], counts, limit: q.limit, offset: q.offset };
   });
 
-  /** Other books that look like the same work (same ISBN, or same sort title). */
+  /**
+   * Other books that look like the same work (same ISBN, or same sort title), with what tells them
+   * apart. Never another volume of a series ("Book 4" vs "Book 6"), and a title match never crosses ISBNs.
+   */
   function possibleDuplicates(b: typeof books.$inferSelect) {
     const conds = [eq(books.sortTitle, b.sortTitle)];
     if (b.isbn13) conds.push(eq(books.isbn13, b.isbn13));
-    return db
-      .select({ id: books.id, title: books.title, approved: books.approved })
+    const rows = db
+      .select()
       .from(books)
       .where(and(sql`${books.id} != ${b.id}`, sql`(${sql.join(conds, sql` or `)})`))
-      .limit(10)
+      .orderBy(desc(books.approved), asc(books.addedAt))
+      .limit(25)
       .all();
+    const volumes = bookVolumes(db, [b, ...rows]);
+    const self = { volume: volumes.get(b.id), isbn13: b.isbn13 };
+    const matches = rows
+      .filter((r) => {
+        const sameIsbn = !!b.isbn13 && r.isbn13 === b.isbn13;
+        return !differentBooks(self, { volume: volumes.get(r.id), isbn13: r.isbn13 }, { ignoreIsbn: sameIsbn });
+      })
+      .slice(0, 10);
+    const files = matches.length
+      ? db
+          .select({ bookId: bookFiles.bookId, format: bookFiles.format, sizeBytes: bookFiles.sizeBytes })
+          .from(bookFiles)
+          .where(inArray(bookFiles.bookId, matches.map((m) => m.id)))
+          .all()
+      : [];
+    return matches.map((r) => ({
+      id: r.id,
+      title: r.title,
+      approved: r.approved,
+      volume: volumes.get(r.id) ?? null,
+      isbn13: r.isbn13,
+      sameIsbn: !!b.isbn13 && r.isbn13 === b.isbn13,
+      addedAt: r.addedAt,
+      files: files.filter((f) => f.bookId === r.id).map(({ format, sizeBytes }) => ({ format, sizeBytes })),
+    }));
   }
 
   function approve(ids: string[], rating: z.infer<typeof Rating> | undefined): number {

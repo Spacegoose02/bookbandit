@@ -209,6 +209,25 @@ describe("duplicates", () => {
   });
 });
 
+describe("duplicate groups and series volumes", () => {
+  it("never groups different volumes, even through a copy with no number", () => {
+    const rows = [
+      { id: "4", title: "Diary of a Wimpy Villager", isbn13: null, volume: 4 },
+      { id: "6", title: "Diary of a Wimpy Villager", isbn13: null, volume: 6 },
+      { id: "x", title: "Diary of a Wimpy Villager", isbn13: null },
+      { id: "6b", title: "Diary of a Wimpy Villager", isbn13: null, volume: 6 },
+      { id: "a", title: "Emma", isbn13: "9780000000001" },
+      { id: "b", title: "Emma", isbn13: "9780000000002" },
+    ];
+    const by = new Map(rows.map((r) => [r.id, ["Cube Kid"]]));
+    const groups = findWorkGroups(rows, by).map((g) => g.ids.sort());
+    // "x" joins one volume's group, never both; the two Emmas have different ISBNs.
+    expect(groups).toHaveLength(2);
+    expect(groups).toContainEqual(["6", "6b"]);
+    expect(groups).toContainEqual(["4", "x"]);
+  });
+});
+
 describe("bulk edit", () => {
   it("sets a series on ten books in order, and tags, rating, language and authors", async () => {
     const ids = Array.from({ length: 10 }, (_, i) => f.book(`Pebble Bay ${i + 1}`, null));
