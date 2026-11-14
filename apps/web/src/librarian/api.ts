@@ -119,7 +119,7 @@ export interface BulkChange {
 }
 
 export interface CoverCandidate {
-  source: "file" | "openlibrary" | "google" | "hardcover";
+  source: "file" | "openlibrary" | "google" | "hardcover" | "isbndb";
   label: string;
   url: string;
   fileId?: string;

@@ -3,6 +3,8 @@ import { z } from "zod";
 const Env = z.object({
   PORT: z.coerce.number().default(8080),
   HOST: z.string().default("0.0.0.0"),
+  /** Audiobook folders, one per book (Docker volume /audiobooks). Scanned like BOOKS_DIR. */
+  AUDIOBOOKS_DIR: z.string().default("./data/audiobooks"),
   /** Where the SQLite database, covers and caches live (Docker volume /config). */
   CONFIG_DIR: z.string().default("./data/config"),
   /** The library root (Docker volume /books). */
@@ -43,6 +45,8 @@ const Env = z.object({
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
   /** Optional: enables Hardcover lookups (hardcover.app → Account → API). */
   HARDCOVER_API_TOKEN: z.string().optional(),
+  /** Optional: enables ISBNdb lookups (paid key from isbndb.com). */
+  ISBNDB_API_KEY: z.string().optional(),
   /** Paired devices not seen for this many days must be paired again (0 = never expire). */
   DEVICE_IDLE_DAYS: z.coerce.number().min(0).default(180),
   /** Replaces the web app's Content-Security-Policy; "off" sends none. */

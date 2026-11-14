@@ -1,0 +1,110 @@
+/* Reading help buttons (themes/ReadingHelp.tsx) and settings-page headings. */
+
+.bb-section-h2 {
+  margin: 28px 0 12px;
+  font-size: 1.25rem;
+}
+
+.bb-reading-help {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+.bb-help-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--bb-tap, 56px);
+  padding: 12px;
+  border: 3px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  color: var(--bb-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bb-help-toggle:hover {
+  border-color: var(--bb-accent);
+}
+.bb-help-toggle[aria-pressed="true"] {
+  border-color: var(--bb-accent);
+  background: var(--bb-surface-2);
+  box-shadow: inset 0 0 0 2px var(--bb-accent);
+}
+.bb-help-toggle[aria-pressed="true"]::after {
+  content: "✓ On";
+  font-size: 0.85rem;
+  color: var(--bb-text);
+}
+.bb-help-sample {
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+.bb-help-sample.is-contrast {
+  padding: 0 10px;
+  background: #000;
+  color: #ffe000;
+  border: 2px solid #fff;
+  border-radius: 6px;
+}
+
+/* High contrast: every edge and focus ring is visible, links are underlined. */
+[data-theme="contrast"] a:not(.bb-btn):not(.bb-kid-book):not(.bb-kid-hero) {
+  text-decoration: underline;
+}
+[data-theme="contrast"] :focus-visible {
+  outline: 3px solid var(--bb-focus) !important;
+  outline-offset: 2px;
+}
+[data-theme="contrast"] .bb-btn,
+[data-theme="contrast"] .bb-input {
+  border-width: 2px;
+  border-color: var(--bb-text);
+}
+
+/*
+ * Theme pass over the wave 2 pages (Discover, requests, Barnaby, listening, admin, family).
+ * Every theme was checked for WCAG AA text contrast (4.5:1, 3:1 for large text); these fix the
+ * spots that failed. Kept here so the fixes live with the themes, not scattered across areas.
+ */
+
+/* Rating pills: the white text needs darker pills, and the "· from folder" note inherits it. */
+:root .bb-rating-pill.is-kids,
+:root .bb-rating-btn.is-kids[aria-pressed="true"] {
+  background: #2e7d4f;
+}
+:root .bb-rating-pill.is-middle_grade,
+:root .bb-rating-btn.is-middle_grade[aria-pressed="true"] {
+  background: #2a6fa8;
+}
+:root .bb-rating-pill.is-teen,
+:root .bb-rating-btn.is-teen[aria-pressed="true"] {
+  background: #7a4cc4;
+}
+:root .bb-rating-pill.is-adult,
+:root .bb-rating-btn.is-adult[aria-pressed="true"] {
+  background: #a94f30;
+}
+:root .bb-rating-pill:not(.is-unrated) em {
+  color: inherit;
+}
+
+/* Discover's "In library" badge. */
+:root .bb-dbadge.is-library {
+  background: #1f7a3a;
+}
+
+/* Admin and family status colors were tuned for dark themes; darken them on light ones. */
+[data-scheme="light"] .bb-admin {
+  --bb-ok: #1f7a46;
+  --bb-warn: #b4441f;
+}
+[data-scheme="light"] .bb-kid-stats small {
+  color: var(--bb-text);
+}
+:root .bb-scan-details.is-warn summary {
+  color: var(--bb-text);
+}

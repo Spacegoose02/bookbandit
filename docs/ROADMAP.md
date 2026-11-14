@@ -105,9 +105,9 @@ Goal: Audiobookshelf can be switched off.
 
 - [x] Built-in audiobook player (speed, chapters, sleep timer) (`ws/listen`, on Audiobookshelf audio)
 
-- [ ] Audiobook folder scan of `/audiobooks`, served with Range through the same player API (`ws/audio`)
+- [x] Audiobook folder scan of `/audiobooks`, served with Range through the same player API (`ws/audio`)
 
-- [ ] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
+- [x] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
 
 - [ ] Read-along (EPUB3 media overlays) (`ws/readaloud`)
 
@@ -115,11 +115,11 @@ Goal: Audiobookshelf can be switched off.
 
 Goal: the kids' side feels finished and the server looks after itself.
 
-- [ ] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
+- [x] Reading goals set by parents, Barnaby badges and sticker book, kid home refresh (`ws/kids`)
 
-- [ ] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
+- [x] Reading bedtime for every kid profile, enforced on the server (`ws/kids`)
 
-- [ ] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
+- [x] Theme pass over every wave 2 page, high-contrast and dyslexia-friendly reader options (`ws/kids`)
 
 - [x] Nightly SQLite backups with restore and a "Back up now" button (`ws/ops`)
 

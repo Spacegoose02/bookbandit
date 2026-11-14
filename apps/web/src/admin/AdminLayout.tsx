@@ -27,6 +27,8 @@ export function AdminLayout({ area }: { area: "admin" | "family" }) {
           ["/admin/librarian", "Librarian"],
           ["/admin/people", "People & devices"],
           ["/admin/settings", "Connections"],
+          ["/admin/import", "Move in"],
+          ["/admin/audio", "Audiobooks"],
           ["/barnaby/settings", "Barnaby AI"],
           ["/family", "Family"],
         ]

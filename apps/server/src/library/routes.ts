@@ -19,6 +19,7 @@ import type { LookupOptions } from "../metadata/lookup.js";
 import { LibraryService } from "./service.js";
 import { enrichBook } from "./enrich.js";
 import { insideRoot, serveRoutes } from "./serve.js";
+import { rejectAudiobookFiles } from "../audio/files.js";
 
 const IdParams = z.object({ id: z.string().min(1).max(64) });
 const Page = z.object({
@@ -236,6 +237,8 @@ export async function libraryRoutes(app: FastifyInstance, opts: LibraryRouteOpti
         moved.push(relative(booksRoot, target).split(sep).join("/"));
       }
     }
+    // ws/audio: an audiobook-only (or audiobook + ebook) book's audio files go to AUDIOBOOKS_DIR/.rejected.
+    moved.push(...(await rejectAudiobookFiles(db, config.AUDIOBOOKS_DIR, id, body.deleteFiles)));
     db.delete(books).where(eq(books.id, id)).run();
     return { rejected: id, deletedFiles: body.deleteFiles, movedTo: moved };
   });

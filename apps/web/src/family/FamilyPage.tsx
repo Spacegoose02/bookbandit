@@ -4,6 +4,7 @@ import { RATING_LABELS } from "@bookbandit/shared";
 import { BarnabyAvatar, BarnabyEmpty } from "../brand/Barnaby";
 import { adminApi, type ChatMessage, type KidChat, type KidRequest } from "../admin/api";
 import { ReadingTimeCard, WeekMinutes } from "./ReadingTime";
+import { KidRewardsCard } from "../kid/KidRewardsCard";
 import { Bar, Card, Cover, ErrorNote, RatingPill, timeAgo, useLoad } from "../admin/ui";
 
 /** Parent dashboard: one card per kid with this week's reading, requests and Barnaby chats. */
@@ -114,6 +115,7 @@ export function KidPage() {
 
       <div className="bb-family-grid">
         <ReadingTimeCard kidId={d.kid.id} kidName={d.kid.displayName} />
+        <KidRewardsCard kidId={d.kid.id} kidName={d.kid.displayName} />
         <Card title={`Reading now (${reading.length})`}>
           {reading.length === 0 ? <p className="bb-muted">Nothing open right now.</p> : null}
           <ul className="bb-reading-list">

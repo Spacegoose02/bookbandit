@@ -1,0 +1,3 @@
+# Kids (`ws/kids`)
+
+- 2026-11-14: Reading goals set by parents (minutes a day, books a month), Barnaby badges and a sticker book, celebrations on the kid home (never inside the reader), kid home refresh (big "Keep reading", goal ring, "New on my shelf", age-group rows, badges), reading bedtime for every kid profile enforced on the server with a goodnight screen, a "Goals, badges and bedtime" card on `/family/kids/:id`, a High contrast theme, bundled OpenDyslexic and Atkinson Hyperlegible fonts, big "Reading help" buttons in the kid reader and settings, and contrast fixes from a theme pass over the wave 2 pages. API: [apps/server/src/rewards/README.md](../../apps/server/src/rewards/README.md). Migration `0012_kids` (#37)

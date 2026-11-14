@@ -179,6 +179,7 @@ export const demoApi: Api = {
     if (started.length) shelves.push({ id: "continue", name: "Keep reading", kind: "continue", books: started.map((b) => summary(b, me)) });
     if (me.isKid) {
       shelves.push({ id: "kid", name: "My books", kind: "kid", books: books.map((b) => summary(b, me)) });
+      shelves.push({ id: "recent", name: "Recently added", kind: "recent", books: [...books].sort((a, b) => b.added - a.added).slice(0, 6).map((b) => summary(b, me)) });
     } else {
       shelves.push({ id: "recent", name: "Recently added", kind: "recent", books: [...books].sort((a, b) => b.added - a.added).slice(0, 8).map((b) => summary(b, me)) });
       const series = new Map<string, DemoBook[]>();

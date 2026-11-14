@@ -15,6 +15,7 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 | --- | --- |
 | `/config` | SQLite database, covers, caches, Calibre settings, and nightly database backups in `/config/backups`. |
 | `/books` | Your library as plain files. The database can be rebuilt by rescanning it. |
+| `/audiobooks` | Optional. Audiobook folders, one per book (the Audiobookshelf layout works). Can be mounted read-only unless you reject audiobooks from the inbox. |
 
 ## Environment
 

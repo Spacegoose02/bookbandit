@@ -11,6 +11,7 @@ import { Layout } from "./app/Layout";
 import { SignIn } from "./auth/SignIn";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
+import { StickerBookPage } from "./kid/Rewards";
 import { EreadersPage } from "./ereader/EreadersPage";
 import { BookPage } from "./library/BookPage";
 import { BrowsePage } from "./library/BrowsePage";
@@ -24,6 +25,7 @@ import { BarnabyPage } from "./ai/BarnabyPage";
 import { FamilyAiPage } from "./ai/FamilyAiPage";
 import { FindBookPage } from "./ai/FindBookPage";
 import { ListenPage } from "./audio/ListenPage";
+import { AudioAdminPage } from "./audio/AudioAdminPage";
 import { StorytellerGate } from "./storyteller/StorytellerGate";
 import { StorytellerPage } from "./storyteller/StorytellerPage";
 import { StorytellerSetup } from "./storyteller/StorytellerSetup";
@@ -31,6 +33,7 @@ import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
 import { CookbookPage } from "./discover/CookbookPage";
 import { DiscoverPage } from "./discover/DiscoverPage";
 import { KindleImportPage } from "./discover/KindleImportPage";
+import { ImportPage } from "./imports/ImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
 import { LibrarianLayout } from "./librarian/LibrarianLayout";
@@ -62,6 +65,7 @@ export function App() {
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="stickers" element={<StickerBookPage />} />
         <Route path="requests" element={<RequestsPage />} />
         <Route path="barnaby" element={<BarnabyPage />} />
         <Route path="barnaby/family" element={<FamilyAiPage />} />
@@ -82,6 +86,8 @@ export function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="import" element={<ImportPage />} />
+          <Route path="audio" element={<AudioAdminPage />} />
           <Route path="librarian" element={<LibrarianLayout />}>
             <Route index element={<HealthPage />} />
             <Route path="duplicates" element={<DuplicatesPage />} />
