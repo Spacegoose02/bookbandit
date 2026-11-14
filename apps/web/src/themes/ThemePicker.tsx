@@ -4,6 +4,7 @@ import { AccountPanel } from "../auth/AccountPanel";
 import { THEME_LIST } from "./themes";
 import { KindleSettings } from "../kindle/KindleSettings";
 import { StorytellerSetupLink } from "../storyteller/SetupLink";
+import { ReadingHelpForMe } from "./ReadingHelp";
 
 /** Big picture buttons so kids who can't read yet can still pick a theme. */
 export function ThemePicker({ compact = false }: { compact?: boolean }) {
@@ -48,6 +49,8 @@ export function SettingsPage() {
       {me && !me.isKid && <AccountPanel />}
       <h1 className="bb-h1">{me?.isKid ? "Pick your colors" : "Appearance"}</h1>
       <ThemePicker />
+      <h2 className="bb-section-h2">{me?.isKid ? "Reading help" : "Reading help (this device)"}</h2>
+      <ReadingHelpForMe />
       <KindleSettings />
       <StorytellerSetupLink />
       <TabletSettingsButton />

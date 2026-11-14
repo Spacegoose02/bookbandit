@@ -28,6 +28,7 @@ import { storytellerPlugin } from "./storyteller/index.js";
 import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 import { ereaderPlugin, type EreaderOptions } from "./ereader/index.js";
 import { aiPlugin, type AiOptions } from "./ai/index.js";
+import { rewardsPlugin } from "./rewards/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
@@ -38,6 +39,7 @@ export interface AppDeps {
   discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
   ereader?: Pick<EreaderOptions, "kepub">;
   ai?: Pick<AiOptions, "secretKey" | "fetchImpl" | "now">;
+  rewards?: { now?: () => number };
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -59,6 +61,8 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(healthRoutes);
   // Before any plugin that registers job handlers (library, requests).
   await app.register(jobsPlugin, { db, autostart: deps.jobsAutostart });
+  // Before the book, reading-time and audio routes: its bedtime guard hook must exist first.
+  await app.register(rewardsPlugin, { db, ...deps.rewards });
   await app.register(bookRoutes, { db });
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });

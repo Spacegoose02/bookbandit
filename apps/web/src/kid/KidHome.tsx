@@ -1,23 +1,39 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import type { ContentRating, RewardsSummary } from "@bookbandit/shared";
 import { api } from "../api/client";
 import type { BookSummary, Shelf } from "../api/types";
 import { useSession } from "../app/session";
 import { BarnabyEmpty, BarnabySays } from "../brand/Barnaby";
 import { Cover } from "../library/BookCard";
+import { rewardsApi } from "./api";
+import { wakeTime } from "./Bedtime";
+import { BadgeShelf, Celebration, GoalPanel } from "./Rewards";
+import "./kid.css";
+
+/** Kid-friendly names for the age groups a kid can see. */
+const AGE_ROWS: { rating: ContentRating; emoji: string; title: string }[] = [
+  { rating: "kids", emoji: "🧸", title: "Picture books and early readers" },
+  { rating: "middle_grade", emoji: "🗺️", title: "Chapter books" },
+  { rating: "teen", emoji: "🎧", title: "Teen books" },
+];
 
 /**
  * Kid mode home, built for a 7 year old on a tablet: no search box, no filters,
- * no text-heavy menus. Big covers, one tap to read, and Barnaby to say hi.
- * The server already limits which books a kid gets, so this just shows what comes back.
+ * no text-heavy menus. A big "keep reading", today's goal ring, new books, badges, and
+ * rows by age group. The server already limits which books a kid gets, so this just shows
+ * what comes back.
  */
 export function KidHome() {
   const { me } = useSession();
   const [shelves, setShelves] = useState<Shelf[] | null>(null);
+  const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     api.shelves().then(setShelves, () => setError(true));
+    // Rewards are a bonus: the home still works if they can't load.
+    rewardsApi.summary("me").then(setRewards, () => undefined);
   }, []);
 
   if (error) return <BarnabyEmpty title="Uh oh! Ask a grown-up to check the library." />;
@@ -25,62 +41,148 @@ export function KidHome() {
 
   const keepReading = shelves.find((s) => s.kind === "continue")?.books ?? [];
   const seen = new Set(keepReading.map((b) => b.id));
-  const mine = shelves
-    .filter((s) => s.kind !== "continue")
-    .flatMap((s) => s.books)
-    .filter((b) => !seen.has(b.id) && (seen.add(b.id), true));
+  const fresh = (shelves.find((s) => s.kind === "recent")?.books ?? []).filter((b) => !seen.has(b.id)).slice(0, 10);
+  const all = dedupe(shelves.filter((s) => s.kind !== "continue").flatMap((s) => s.books));
+  const [hero, ...moreReading] = keepReading;
+  const rows = AGE_ROWS.map((r) => ({ ...r, books: all.filter((b) => (b.rating ?? "kids") === r.rating) })).filter((r) => r.books.length);
+  const unrowed = all.filter((b) => !AGE_ROWS.some((r) => r.rating === (b.rating ?? "kids")));
+  const earned = rewards?.badges.filter((b) => b.earnedAt) ?? [];
+  const soon = rewards?.bedtime.startsInMinutes;
 
   return (
     <div className="bb-page bb-kid">
-      <BarnabySays size={72}>
-        <span className="bb-kid-hello">Hi {me?.displayName}! Pick a book!</span>
-      </BarnabySays>
-      <p className="bb-kid-ask-link">
-        <Link to="/requests" className="bb-btn bb-btn-big">
-          <span aria-hidden>🌟</span> Wish for a new book
-        </Link>
-      </p>
-      {keepReading.length > 0 && (
-        <section>
-          <h2 className="bb-kid-h2">
+      <div className="bb-kid-top">
+        <BarnabySays size={72}>
+          <span className="bb-kid-hello">Hi {me?.displayName}! Pick a book!</span>
+        </BarnabySays>
+        {rewards && <GoalPanel s={rewards} />}
+      </div>
+
+      {rewards && <Celebration fresh={rewards.fresh} onDone={() => setRewards({ ...rewards, fresh: [] })} />}
+
+      {soon != null && soon <= 30 && rewards?.bedtime.enabled && (
+        <p className="bb-kid-bedtime-note" role="status">
+          <span aria-hidden>🌙</span> Bedtime in {soon} minutes. Time for one more chapter!
+        </p>
+      )}
+      {rewards?.bedtime.active && rewards.bedtime.endsAt && (
+        <p className="bb-kid-bedtime-note" role="status">
+          <span aria-hidden>🌙</span> It's bedtime. Books wake up at {wakeTime(rewards.bedtime.endsAt)}.
+        </p>
+      )}
+
+      {hero && (
+        <section aria-labelledby="kid-keep-reading">
+          <h2 className="bb-kid-h2" id="kid-keep-reading">
             <span aria-hidden>📖</span> Keep reading
           </h2>
-          <div className="bb-kid-grid">
-            {keepReading.map((b) => (
+          <Link to={bookLink(hero)} className="bb-kid-hero">
+            <Cover book={hero} className="bb-kid-hero-cover" />
+            <span className="bb-kid-hero-body">
+              <span className="bb-kid-hero-title">{hero.title}</span>
+              {hero.percent != null && hero.percent > 0 && <Stars percent={hero.percent} />}
+              <span className="bb-btn bb-btn-primary bb-btn-big bb-kid-hero-go">
+                <span aria-hidden>▶</span> Keep reading
+              </span>
+            </span>
+          </Link>
+          {moreReading.length > 0 && (
+            <div className="bb-kid-row">
+              {moreReading.map((b) => (
+                <KidBook key={b.id} book={b} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {fresh.length > 0 && (
+        <section aria-labelledby="kid-new">
+          <h2 className="bb-kid-h2" id="kid-new">
+            <span aria-hidden>✨</span> New on my shelf
+          </h2>
+          <div className="bb-kid-row">
+            {fresh.map((b) => (
               <KidBook key={b.id} book={b} />
             ))}
           </div>
         </section>
       )}
-      <section>
-        <h2 className="bb-kid-h2">
-          <span aria-hidden>📚</span> My books
-        </h2>
-        {mine.length ? (
+
+      {rewards && (
+        <section aria-labelledby="kid-badges" className="bb-kid-badges">
+          <h2 className="bb-kid-h2" id="kid-badges">
+            <span aria-hidden>🏅</span> My badges
+          </h2>
+          {earned.length ? (
+            <BadgeShelf badges={earned} compact />
+          ) : (
+            <p className="bb-kid-empty">Read a little every day to earn your first badge!</p>
+          )}
+          <p>
+            <Link to="/stickers" className="bb-btn bb-btn-big">
+              <span aria-hidden>📒</span> My sticker book
+            </Link>
+          </p>
+        </section>
+      )}
+
+      {rows.map((r) => (
+        <section key={r.rating} aria-labelledby={`kid-row-${r.rating}`}>
+          <h2 className="bb-kid-h2" id={`kid-row-${r.rating}`}>
+            <span aria-hidden>{r.emoji}</span> {r.title}
+          </h2>
           <div className="bb-kid-grid">
-            {mine.map((b) => (
+            {r.books.map((b) => (
               <KidBook key={b.id} book={b} />
             ))}
           </div>
-        ) : (
-          <BarnabyEmpty title="No books yet! Ask a grown-up to add some." />
-        )}
-      </section>
+        </section>
+      ))}
+      {unrowed.length > 0 && (
+        <section>
+          <h2 className="bb-kid-h2">
+            <span aria-hidden>📚</span> More books
+          </h2>
+          <div className="bb-kid-grid">
+            {unrowed.map((b) => (
+              <KidBook key={b.id} book={b} />
+            ))}
+          </div>
+        </section>
+      )}
+      {all.length === 0 && !hero && <BarnabyEmpty title="No books yet! Ask a grown-up to add some." />}
+
+      <p className="bb-kid-ask-link">
+        <Link to="/requests" className="bb-btn bb-btn-big">
+          <span aria-hidden>🌟</span> Wish for a new book
+        </Link>
+      </p>
     </div>
   );
 }
 
-function KidBook({ book }: { book: BookSummary }) {
-  // Kids go straight into the book; the details page is for grown-ups.
-  const to = book.kindleOnly ? `/book/${book.id}` : `/read/${book.id}`;
+function dedupe(books: BookSummary[]): BookSummary[] {
+  const seen = new Set<string>();
+  return books.filter((b) => !seen.has(b.id) && (seen.add(b.id), true));
+}
+
+// Kids go straight into the book; the details page is for grown-ups.
+const bookLink = (book: BookSummary) => (book.kindleOnly ? `/book/${book.id}` : `/read/${book.id}`);
+
+function Stars({ percent }: { percent: number }) {
   return (
-    <Link to={to} className="bb-kid-book">
+    <span className="bb-kid-stars" aria-label={`${Math.round(percent * 100)}% read`}>
+      {"⭐".repeat(Math.max(1, Math.round(percent * 5)))}
+    </span>
+  );
+}
+
+function KidBook({ book }: { book: BookSummary }) {
+  return (
+    <Link to={bookLink(book)} className="bb-kid-book">
       <Cover book={book} />
-      {book.percent != null && book.percent > 0 && (
-        <span className="bb-kid-stars" aria-label={`${Math.round(book.percent * 100)}% read`}>
-          {"⭐".repeat(Math.max(1, Math.round(book.percent * 5)))}
-        </span>
-      )}
+      {book.percent != null && book.percent > 0 && <Stars percent={book.percent} />}
       <span className="bb-kid-title">{book.title}</span>
     </Link>
   );

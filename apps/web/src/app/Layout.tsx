@@ -30,6 +30,9 @@ export function Layout() {
               <NavLink to="/" end className="bb-nav-big">
                 <span aria-hidden>📚</span> Books
               </NavLink>
+              <NavLink to="/stickers" className="bb-nav-big">
+                <span aria-hidden>📒</span> Stickers
+              </NavLink>
               <NavLink to="/settings" className="bb-nav-big">
                 <span aria-hidden>🎨</span> Colors
               </NavLink>

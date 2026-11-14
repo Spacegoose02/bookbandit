@@ -1,0 +1,440 @@
+/* Kids: home, goal ring, celebrations, badges, sticker book, bedtime, parent card. */
+
+.bb-kid-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+/* --- goal ring --------------------------------------------------------------- */
+
+.bb-goal-panel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 20px;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  border: 3px solid var(--bb-border);
+}
+.bb-goal-ring {
+  position: relative;
+  flex: none;
+}
+.bb-goal-ring-track {
+  stroke: var(--bb-surface-2);
+}
+.bb-goal-ring-fill {
+  stroke: var(--bb-accent);
+  transition: stroke-dasharray 0.6s ease;
+}
+.bb-goal-ring-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.05;
+}
+.bb-goal-ring-big {
+  font-family: var(--bb-display-font);
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+.bb-goal-ring-small {
+  font-size: 0.85rem;
+  color: var(--bb-muted);
+}
+.bb-goal-ring.is-done .bb-goal-ring-big {
+  animation: bb-pop 0.6s ease;
+}
+.bb-goal-facts {
+  display: grid;
+  gap: 8px;
+}
+.bb-goal-fact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.1rem;
+}
+.bb-goal-fact-icon {
+  font-size: 1.5rem;
+}
+.bb-goal-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.bb-goal-dots i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bb-accent);
+}
+.bb-goal-dots i.is-on {
+  background: var(--bb-accent);
+}
+.bb-goal-yay {
+  margin: 0;
+  font-weight: 800;
+  color: var(--bb-text);
+}
+
+/* --- celebration --------------------------------------------------------------- */
+
+.bb-celebrate {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 20px;
+  margin: 20px 0 4px;
+  padding: 18px 22px;
+  overflow: hidden;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface-2);
+  border: 3px solid var(--bb-accent);
+}
+.bb-celebrate-emoji {
+  font-size: 3.6rem;
+  line-height: 1;
+  animation: bb-pop 0.8s ease both;
+}
+.bb-celebrate-text {
+  flex: 1 1 220px;
+  font-size: 1.3rem;
+  font-family: var(--bb-display-font);
+}
+.bb-celebrate-row {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.6rem;
+  letter-spacing: 4px;
+}
+.bb-celebrate-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bb-celebrate-burst span {
+  position: absolute;
+  top: -30px;
+  left: calc(8% + var(--i) * 16%);
+  font-size: 1.4rem;
+  animation: bb-fall 2.4s ease-in calc(var(--i) * 0.15s) 2 both;
+}
+@keyframes bb-pop {
+  0% {
+    transform: scale(0.3) rotate(-15deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes bb-fall {
+  from {
+    transform: translateY(0) rotate(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(180px) rotate(200deg);
+    opacity: 0;
+  }
+}
+
+/* --- keep reading hero and rows ------------------------------------------------ */
+
+.bb-kid-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  border: 3px solid var(--bb-border);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.bb-kid-hero:hover,
+.bb-kid-hero:focus-visible {
+  border-color: var(--bb-accent);
+  transform: scale(1.01);
+}
+.bb-kid-hero-cover {
+  width: clamp(130px, 22vw, 200px);
+  flex: none;
+}
+.bb-kid-hero-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.bb-kid-hero-body .bb-kid-stars {
+  position: static;
+}
+.bb-kid-hero-title {
+  font-family: var(--bb-display-font);
+  font-size: clamp(1.5rem, 3.4vw, 2.3rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+.bb-kid-hero-go {
+  font-size: 1.3rem;
+  min-height: 64px;
+}
+.bb-kid-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 180px);
+  gap: 18px;
+  margin-top: 16px;
+  padding: 4px 4px 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+}
+.bb-kid-row > * {
+  scroll-snap-align: start;
+}
+.bb-kid-empty {
+  font-size: 1.15rem;
+  color: var(--bb-muted);
+}
+.bb-kid-bedtime-note {
+  margin: 16px 0 0;
+  padding: 12px 18px;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface-2);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* --- badges and stickers ------------------------------------------------------- */
+
+.bb-badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.bb-badges.is-compact {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.bb-badge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  text-align: center;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  border: 3px dashed var(--bb-border);
+  color: var(--bb-muted);
+}
+.bb-badge-item.is-earned {
+  border-style: solid;
+  border-color: var(--bb-accent);
+  color: var(--bb-text);
+}
+.bb-badge-emoji {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bb-surface-2);
+  font-size: 2.2rem;
+}
+.bb-badges.is-compact .bb-badge-emoji {
+  width: 52px;
+  height: 52px;
+  font-size: 1.8rem;
+}
+.bb-badge-item:not(.is-earned) .bb-badge-emoji {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.bb-badge-name {
+  font-weight: 800;
+  line-height: 1.2;
+}
+.bb-badge-hint {
+  font-size: 0.9rem;
+}
+
+.bb-stickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 18px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  border: 3px solid var(--bb-border);
+}
+.bb-sticker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  transform: rotate(var(--tilt, 0deg));
+}
+.bb-sticker-emoji {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--bb-surface-2);
+  border: 4px solid #fff;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.25);
+  font-size: 2.8rem;
+}
+.bb-sticker-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* --- bedtime ------------------------------------------------------------------- */
+
+.bb-bedtime {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  overflow: hidden;
+  text-align: center;
+  background: linear-gradient(#0b1030, #1d2457 70%, #2b2f6b);
+  color: #f2f0ff;
+}
+.bb-bedtime-sky span {
+  position: absolute;
+  top: calc(6% + (var(--i) * 37 % 40) * 1%);
+  left: calc(4% + var(--i) * 12%);
+  color: #fff6c8;
+  font-size: calc(14px + var(--i) * 2px);
+  animation: bb-twinkle 3s ease-in-out calc(var(--i) * 0.4s) infinite alternate;
+}
+@keyframes bb-twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.bb-bedtime-moon {
+  font-size: 4rem;
+  line-height: 1;
+}
+.bb-bedtime-barnaby {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: brightness(0.85) saturate(0.8);
+  border: 4px solid #4a4f94;
+}
+.bb-bedtime-title {
+  margin: 8px 0 0;
+  font-family: var(--bb-display-font);
+  font-size: clamp(2rem, 6vw, 3.2rem);
+}
+.bb-bedtime-text {
+  max-width: 34ch;
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.5;
+}
+.bb-bedtime-switch {
+  margin-top: 16px;
+  background: transparent;
+  border-color: #8f95d6;
+  color: #f2f0ff;
+}
+.bb-bedtime-soon {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 900;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #1d2457;
+  color: #f2f0ff;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.3);
+  pointer-events: none;
+}
+
+/* --- parent card --------------------------------------------------------------- */
+
+.bb-kid-rewards-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.bb-kid-rewards-summary p {
+  margin: 0 0 4px;
+}
+.bb-kid-rewards-card .bb-badges.is-compact {
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+}
+.bb-kid-rewards-card .bb-badge-item {
+  padding: 8px 4px;
+  font-size: 0.85rem;
+}
+.bb-kid-rewards-card .bb-badge-emoji {
+  width: 40px;
+  height: 40px;
+  font-size: 1.4rem;
+}
+.bb-kid-rewards-form {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-kid-rewards-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px 16px;
+  align-items: end;
+  margin: 8px 0 12px;
+}
+
+@media (max-width: 640px) {
+  .bb-kid-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .bb-kid-hero-body {
+    align-items: center;
+  }
+  .bb-goal-panel {
+    width: 100%;
+  }
+}

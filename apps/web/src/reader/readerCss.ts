@@ -1,3 +1,4 @@
+import { fontFaceCss } from "../themes/fonts";
 import type { Theme } from "../themes/themes";
 
 export interface ReaderPrefs {
@@ -33,6 +34,7 @@ export function readerCss(theme: Theme, prefs: ReaderPrefs): string {
   const font = FONTS[prefs.fontFamily];
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
+    ${fontFaceCss() /* ws/kids: bundled reading fonts (themes/fonts.ts) */}
     html {
       color-scheme: ${theme.scheme};
       color: ${c.readerText};

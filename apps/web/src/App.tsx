@@ -11,6 +11,7 @@ import { Layout } from "./app/Layout";
 import { SignIn } from "./auth/SignIn";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
+import { StickerBookPage } from "./kid/Rewards";
 import { EreadersPage } from "./ereader/EreadersPage";
 import { BookPage } from "./library/BookPage";
 import { BrowsePage } from "./library/BrowsePage";
@@ -56,6 +57,7 @@ export function App() {
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="stickers" element={<StickerBookPage />} />
         <Route path="requests" element={<RequestsPage />} />
         <Route path="barnaby" element={<BarnabyPage />} />
         <Route path="barnaby/family" element={<FamilyAiPage />} />
