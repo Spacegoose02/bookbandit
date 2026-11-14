@@ -21,7 +21,8 @@ export class LibraryService {
       db: Db;
       booksDir: string;
       configDir: string;
-      online: LookupOptions | false;
+      /** A function is read at the start of each scan, so settings changes apply without a restart. */
+      online: LookupOptions | false | (() => LookupOptions | false);
       log?: FastifyBaseLogger;
     },
   ) {}
@@ -34,8 +35,10 @@ export class LibraryService {
   startScan(): Promise<ScanReport> {
     if (this.current) return this.current;
     this.status = { ...this.status, running: true, startedAt: Date.now(), progress: { done: 0, total: 0 }, lastError: null };
+    const online = typeof this.opts.online === "function" ? this.opts.online() : this.opts.online;
     this.current = scanLibrary({
       ...this.opts,
+      online,
       onProgress: (done, total) => {
         this.status.progress = { done, total };
       },

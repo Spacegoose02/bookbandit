@@ -2,7 +2,7 @@
 
 Self-hosted family book library + reader. TypeScript pnpm monorepo. Read `docs/architecture.md`
 for the plan, `docs/workstreams.md` for who owns what and the per-PR rules (screenshots,
-roadmap, handoff), `docs/ROADMAP.md` for progress and `docs/HANDOFF.md` for current state.
+roadmap, change log, staying mergeable), `docs/ROADMAP.md` for progress and `docs/HANDOFF.md` for current state.
 
 ## Commands
 

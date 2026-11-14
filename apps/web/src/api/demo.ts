@@ -10,7 +10,7 @@ import type { Bookmark, BookDetail, BookSummary, Me, NewBookmark, Page, Progress
 const ADULT: Me = {
   id: "u-adult",
   displayName: "Sam",
-  role: "parent",
+  role: "admin",
   isKid: false,
   avatar: null,
   theme: "dark",
@@ -240,5 +240,8 @@ export const demoApi: Api = {
   async deleteBookmark(id) {
     const all = store.get<Bookmark[]>(`bb-demo-bookmarks-${who().id}`, []);
     store.set(`bb-demo-bookmarks-${who().id}`, all.filter((b) => b.id !== id));
+  },
+  async readingHeartbeat() {
+    // Demo mode doesn't track reading time.
   },
 };
