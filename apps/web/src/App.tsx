@@ -9,6 +9,7 @@ import { BrowsePage } from "./library/BrowsePage";
 import { HomePage } from "./library/HomePage";
 import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
+import { RequestsPage } from "./requests/RequestsPage";
 import { SettingsPage } from "./themes/ThemePicker";
 
 export function App() {
@@ -31,6 +32,7 @@ export function App() {
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="requests" element={<RequestsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

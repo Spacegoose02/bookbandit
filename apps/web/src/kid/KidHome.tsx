@@ -35,6 +35,11 @@ export function KidHome() {
       <BarnabySays size={72}>
         <span className="bb-kid-hello">Hi {me?.displayName}! Pick a book!</span>
       </BarnabySays>
+      <p className="bb-kid-ask-link">
+        <Link to="/requests" className="bb-btn bb-btn-big">
+          <span aria-hidden>🌟</span> Wish for a new book
+        </Link>
+      </p>
       {keepReading.length > 0 && (
         <section>
           <h2 className="bb-kid-h2">

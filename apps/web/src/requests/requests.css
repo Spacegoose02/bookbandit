@@ -1,0 +1,438 @@
+/* Requests, downloads and uploads (ws/requests). Theme tokens only, like styles.css. */
+
+.bb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.bb-h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
+  margin: 0 0 8px;
+}
+
+/* --- tabs ------------------------------------------------------------------ */
+
+.bb-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--bb-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bb-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--bb-tap);
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--bb-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bb-tab:hover {
+  color: var(--bb-text);
+}
+.bb-tab[aria-selected="true"] {
+  color: var(--bb-text);
+  border-bottom-color: var(--bb-accent);
+}
+.bb-count {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--bb-accent);
+  color: var(--bb-accent-text);
+  font-size: 0.8rem;
+  line-height: 22px;
+  text-align: center;
+}
+
+.bb-rq-panel {
+  margin: 0 0 18px;
+  padding: 18px;
+  background: var(--bb-surface);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+}
+
+/* --- pills and notes -------------------------------------------------------- */
+
+.bb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--bb-surface-2);
+  border: 1px solid var(--bb-border);
+}
+.bb-pill.is-good,
+.bb-pill.is-done {
+  border-color: color-mix(in srgb, #3fb950 60%, var(--bb-border));
+  background: color-mix(in srgb, #3fb950 18%, var(--bb-surface-2));
+}
+.bb-pill.is-bad {
+  border-color: color-mix(in srgb, #f85149 60%, var(--bb-border));
+  background: color-mix(in srgb, #f85149 16%, var(--bb-surface-2));
+}
+.bb-pill.is-busy {
+  border-color: color-mix(in srgb, var(--bb-accent) 70%, var(--bb-border));
+  background: color-mix(in srgb, var(--bb-accent) 18%, var(--bb-surface-2));
+}
+.bb-outcome {
+  margin: 6px 0 0;
+  font-weight: 600;
+}
+.bb-outcome.is-bad {
+  color: color-mix(in srgb, #f85149 75%, var(--bb-text));
+}
+.bb-rating-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--bb-border);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.bb-rating-tag.is-unknown {
+  border-style: dashed;
+  color: var(--bb-muted);
+}
+
+/* --- ask / search ------------------------------------------------------------ */
+
+.bb-ask-search .bb-input {
+  width: 100%;
+  font-size: 1.1rem;
+}
+.bb-cands {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.bb-cand {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  background: var(--bb-surface);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+}
+.bb-cand .bb-cand-cover,
+.bb-req .bb-req-cover {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  height: auto;
+  width: 76px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+.bb-cand-body,
+.bb-req-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.bb-cand-title,
+.bb-req-title {
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+.bb-cand .bb-btn {
+  margin-top: auto;
+}
+.bb-manual {
+  margin-top: 8px;
+}
+.bb-manual summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: var(--bb-tap);
+  display: flex;
+  align-items: center;
+}
+.bb-manual-form {
+  max-width: 520px;
+}
+
+/* --- request list ---------------------------------------------------------- */
+
+.bb-reqs,
+.bb-jobs,
+.bb-uploads {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-req {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--bb-border);
+}
+.bb-req-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.bb-req-note {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--bb-accent);
+  background: var(--bb-surface);
+  border-radius: 0 8px 8px 0;
+}
+.bb-req-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.bb-req-noteinput {
+  flex: 1 1 200px;
+  max-width: 320px;
+}
+.bb-req-download {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* --- jobs ------------------------------------------------------------------ */
+
+.bb-direct-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bb-direct-row input[type="url"] {
+  flex: 2 1 280px;
+}
+.bb-direct-row input:not([type]) {
+  flex: 1 1 160px;
+}
+.bb-job {
+  position: relative;
+  border-bottom: 1px solid var(--bb-border);
+}
+.bb-job-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--bb-tap);
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.bb-job-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.bb-job-progress,
+.bb-upload-progress {
+  position: static;
+  display: block;
+  height: 4px;
+  margin: 0 0 8px;
+}
+.bb-job-body {
+  padding: 0 0 14px;
+}
+.bb-log {
+  margin: 8px 0;
+  padding: 10px 12px;
+  list-style: none;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bb-surface);
+  border: 1px solid var(--bb-border);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+}
+.bb-log time {
+  color: var(--bb-muted);
+  margin-right: 6px;
+}
+.bb-log .is-warn {
+  color: color-mix(in srgb, #d29922 80%, var(--bb-text));
+}
+.bb-log .is-error {
+  color: color-mix(in srgb, #f85149 80%, var(--bb-text));
+}
+
+/* --- upload ---------------------------------------------------------------- */
+
+.bb-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  border: 2px dashed var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  text-align: center;
+}
+.bb-drop.is-over {
+  border-color: var(--bb-accent);
+  background: color-mix(in srgb, var(--bb-accent) 10%, var(--bb-surface));
+}
+.bb-drop-icon {
+  font-size: 2.6rem;
+}
+.bb-upload-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bb-border);
+}
+.bb-upload-row .bb-upload-progress {
+  grid-column: 1 / -1;
+  margin: 4px 0;
+}
+.bb-upload-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* --- settings -------------------------------------------------------------- */
+
+.bb-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 16px;
+}
+.bb-dl-settings .bb-field-inline {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0;
+}
+.bb-dl-settings .bb-field-inline input.bb-num {
+  width: 100px;
+  height: auto;
+}
+
+/* --- kid mode -------------------------------------------------------------- */
+
+.bb-kid-search {
+  width: 100%;
+  max-width: 640px;
+  margin: 8px 0 16px;
+  font-size: 1.4rem;
+  border-width: 3px;
+}
+.bb-kid-hint {
+  font-size: 1.2rem;
+}
+.bb-kid-wish {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  border: 3px solid var(--bb-border);
+}
+.bb-kid-wish .bb-cover {
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  width: 100%;
+}
+.bb-kid-wish .bb-btn {
+  padding: 0 12px;
+}
+.bb-kid-wish .bb-pill {
+  justify-content: center;
+  white-space: normal;
+  font-size: 1rem;
+  padding: 8px;
+}
+.bb-kid-wishes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.bb-kid-wishrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  border: 3px solid var(--bb-border);
+}
+.bb-kid-wishrow.is-done {
+  border-color: var(--bb-accent);
+}
+.bb-kid-wish-emoji {
+  font-size: 2rem;
+}
+.bb-kid-wish-title {
+  flex: 1;
+  font-family: var(--bb-display-font);
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+.bb-kid-wish-status {
+  color: var(--bb-muted);
+  font-weight: 700;
+}
+.bb-kid-ask-link {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 600px) {
+  .bb-cands {
+    grid-template-columns: 1fr;
+  }
+  .bb-req {
+    gap: 12px;
+  }
+  .bb-cand .bb-cand-cover,
+  .bb-req .bb-req-cover {
+    width: 60px;
+  }
+}
+
+/* Entry point on the library page (small hook in library/BrowsePage.tsx). */
+.bb-browse-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
