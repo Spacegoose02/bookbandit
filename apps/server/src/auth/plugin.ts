@@ -4,7 +4,8 @@
  * 1. Session token (`Authorization: Bearer bbs_…` or the `bb_session` cookie), issued by
  *    password, PIN or picture sign-in. Wins over the proxy header so a kid can switch to their
  *    own profile on a parent's browser.
- * 2. Device token (`Authorization: Bearer bbd_…`) from QR pairing. A device locked to a person
+ * 2. Device token (`Authorization: Bearer bbd_…`, or the `bb_device` cookie in a tablet's browser)
+ *    from QR pairing. A device locked to a person
  *    signs that person in; a shared family device only gets `req.device` (profile picker).
  * 3. Tinyauth (forward auth on the reverse proxy) email header, trusted only when the TCP peer
  *    is one of TRUSTED_PROXIES.
@@ -16,7 +17,7 @@ import type { Db } from "../db/client.js";
 import { devices, userIdentities, users } from "../db/schema.js";
 import { toReader, type DeviceContext, type Reader } from "./reader.js";
 import { ipMatches } from "./trusted-proxy.js";
-import { readCookie, SESSION_COOKIE, SESSION_PREFIX, type SessionSigner } from "./sessions.js";
+import { DEVICE_COOKIE, readCookie, SESSION_COOKIE, SESSION_PREFIX, type SessionSigner } from "./sessions.js";
 import { sha256 } from "./secrets.js";
 
 export const DEVICE_TOKEN_PREFIX = "bbd_";
@@ -61,8 +62,13 @@ function resolve(req: FastifyRequest, opts: AuthOptions): void {
     }
   }
 
-  if (token?.startsWith(DEVICE_TOKEN_PREFIX)) {
-    const device = deviceFromToken(token, opts.db);
+  const deviceToken = token?.startsWith(DEVICE_TOKEN_PREFIX)
+    ? token
+    : token
+      ? null
+      : readCookie(req.headers.cookie, DEVICE_COOKIE);
+  if (deviceToken) {
+    const device = deviceFromToken(deviceToken, opts.db);
     if (!device) return; // a bad device token never falls through to the proxy header
     req.device = device;
     if (device.userId) {

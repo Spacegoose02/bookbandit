@@ -215,7 +215,6 @@ describe("kid PIN and picture sign-in", () => {
     expect(wrong.statusCode).toBe(401);
     const res = await call({ method: "POST", url: "/api/auth/kid-sign-in", headers: bearer(deviceToken), payload: { userId: ids.emma, pin: "1234" } });
     expect(res.statusCode).toBe(200);
-    expect(res.headers["set-cookie"]).toBeUndefined(); // apps keep the token themselves
     expect(await titles(bearer(res.json().token))).toEqual(["Picture Book"]);
   });
 
@@ -295,5 +294,42 @@ describe("QR device pairing", () => {
   it("a bad device token doesn't fall back to the proxy header", async () => {
     const res = await call({ method: "GET", url: "/api/books", headers: { ...as("dad@example.com"), ...bearer("bbd_nope") } });
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe("sign-in status for the web app", () => {
+  it("explains a Google account nobody has linked yet, and shows the Google button when configured", async () => {
+    await app.close();
+    app = await buildApp(
+      loadConfig({ TRUSTED_PROXIES: "127.0.0.1", GOOGLE_SIGN_IN_URL: "https://auth.example.com/login", LOG_LEVEL: "error" } as NodeJS.ProcessEnv),
+      db,
+    );
+    const res = await call({ method: "GET", url: "/api/auth/status", headers: as("stranger@example.com") });
+    expect(res.json()).toMatchObject({ signedIn: false, unlinkedEmail: "stranger@example.com", google: { url: "https://auth.example.com/login" } });
+    const known = await call({ method: "GET", url: "/api/auth/status", headers: as("dad@example.com") });
+    expect(known.json()).toMatchObject({ signedIn: true, unlinkedEmail: null });
+  });
+
+  it("returns a readable message for bad input", async () => {
+    const res = await call({ method: "POST", url: "/api/auth/login", payload: { username: "a b", password: "x" } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().message).toContain("username");
+  });
+});
+
+describe("tablet browsers", () => {
+  it("keep the device token in a cookie, and kid sign-in there also sets a session cookie", async () => {
+    const start = await call({ method: "POST", url: "/api/devices/pairings", headers: as("dad@example.com"), payload: { name: "Tablet" } });
+    const claim = await call({ method: "POST", url: "/api/devices/claim", payload: { code: start.json().code } });
+    const deviceCookie = String(claim.headers["set-cookie"]).split(";")[0]!;
+    expect(deviceCookie).toMatch(/^bb_device=bbd_/);
+    const picker = await call({ method: "GET", url: "/api/auth/profiles", headers: { cookie: deviceCookie } });
+    expect(picker.statusCode).toBe(200);
+    const kid = await call({ method: "POST", url: "/api/auth/kid-sign-in", headers: { cookie: deviceCookie }, payload: { userId: ids.emma, pin: "1234" } });
+    const sessionCookie = String(kid.headers["set-cookie"]).split(";")[0]!;
+    expect(await titles({ cookie: `${deviceCookie}; ${sessionCookie}` })).toEqual(["Picture Book"]);
+    // Signing out leaves the tablet paired, back on the picker.
+    const after = await call({ method: "GET", url: "/api/auth/status", headers: { cookie: deviceCookie } });
+    expect(after.json()).toMatchObject({ signedIn: false, device: { name: "Tablet" } });
   });
 });

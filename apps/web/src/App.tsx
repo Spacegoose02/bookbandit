@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api/client";
 import { Layout } from "./app/Layout";
+import { SignIn } from "./auth/SignIn";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
 import { BookPage } from "./library/BookPage";
@@ -31,6 +32,7 @@ export function App() {
 
   return (
     <Routes>
+      <Route path="/who" element={<SignIn switching />} />
       <Route path="/read/:id" element={me ? <ReaderPage /> : null} />
       <Route path="/cook/:id" element={me ? <CookbookPage /> : null} />
       <Route element={<Layout />}>
