@@ -20,8 +20,8 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 - [x] Theme system: Dark, Nuclear, Retro, Pink, School, Gaming, Dinosaur, Storm (`ws/web`)
 - [x] Barnaby branding: logo, icon, empty states (`ws/web`)
 - [ ] Docker image serving the web app, ebook-convert, kepubify, PUID/PGID, GHCR, Unraid template (`ws/docker`)
-- [ ] Audiobookshelf: link and play audiobooks, listening progress (`ws/integrations`)
-- [ ] Send to Kindle by email (`ws/integrations`)
+- [ ] Audiobookshelf: link and play audiobooks, listening progress (`ws/integrations`; server API done, player UI is `ws/web`)
+- [ ] Send to Kindle by email (`ws/integrations`; server API done, button and settings UI are `ws/web`)
 
 ## Phase 2: Tablets and requests
 
