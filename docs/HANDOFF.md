@@ -56,6 +56,8 @@ are optional. Details: `apps/server/src/library/README.md`.
 | Date | Change | PR |
 | --- | --- | --- |
 | 2026-11-14 | Admin and family UI: `/admin` (overview + scan, inbox with bulk approve, rating, metadata edit, merge, reject; needs-a-rating queue; people, kids and paired devices; Audiobookshelf, SMTP and metadata-lookup settings) and `/family` (per-kid reading, requests and read-only Barnaby chats). New APIs in `routes/admin-library.ts`, `admin-settings.ts`, `admin-family.ts`; see [admin-api.md](admin-api.md). Metadata API keys can now be set in the browser and apply without a restart | ws/admin PR |
+| 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
+| 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
 | 2026-11-14 | Library: scan `/books` (hashes, moves, duplicates), EPUB/PDF/CBZ metadata, Hardcover/Google Books/Open Library lookup, automatic ratings (folders, Google mature flag, ComicInfo, genres), admin inbox, cover and file serving with Range and DRM refusal, scan at startup (see `apps/server/src/library/README.md`) | #7 |
 | 2026-11-14 | Web app: shelves, library filters, book page, foliate reader with progress sync and bookmarks (against the sync API), 9 themes, kid mode, Barnaby branding, demo mode. Endpoints it calls: [apps/web/API_CONTRACT.md](../apps/web/API_CONTRACT.md); details and web roadmap: [handoff/web.md](handoff/web.md) | #6 |
 | 2026-11-14 | Catalog API: book filters/search/sort/total, richer book details, authors, home shelves ([catalog-api.md](catalog-api.md)) | lead |
@@ -66,14 +68,14 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 ## Next up
 
-- Add `<AdminNavLinks role={me.role} />` (from `apps/web/src/admin/AdminLayout.tsx`) to the main nav in
-  `apps/web/src/app/Layout.tsx`. The admin PR left `app/**` alone because the sign-in work owns it, so
-  for now `/admin` and `/family` are reached by URL.
-- Reading time per kid needs a reading-sessions table (schema, lead); the dashboard shows books, progress and
-  last-read times until then.
-1. Land the six Phase 1 workstreams.
-2. Integration pass: wire the web app to auth, library and sync; first end-to-end run in Docker on Unraid.
-3. Start Phase 2 with the Android app and storyteller mode.
+1. Wave 2 in parallel (see [workstreams.md](workstreams.md#wave-2)): admin and family UI, listening and
+   storyteller, Barnaby AI, requests and downloads, Discover, Android app, e-reader sync.
+2. Auth: web sign-in screen and own-profile editor.
+3. Lead: PDF reading progress, integration passes as wave 2 lands, release v0.2.0.
+
+Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
+`apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
+Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 
