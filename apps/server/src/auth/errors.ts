@@ -6,7 +6,9 @@ import { TooManyAttemptsError } from "./rate-limit.js";
 export function useAuthErrors(app: FastifyInstance): void {
   app.setErrorHandler((err: FastifyError | Error, _req, reply) => {
     if (err instanceof ZodError) {
-      return reply.status(400).send({ error: "Bad request", issues: err.issues });
+      const first = err.issues[0];
+      const where = first?.path.length ? `${first.path.join(".")}: ` : "";
+      return reply.status(400).send({ error: "Bad request", message: `${where}${first?.message ?? "Invalid input"}`, issues: err.issues });
     }
     if (err instanceof TooManyAttemptsError) {
       reply.header("retry-after", Math.ceil(err.retryAfterMs / 1000));

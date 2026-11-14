@@ -33,7 +33,13 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   const sessions = new SessionSigner(loadSessionSecret(db, config.SESSION_SECRET));
 
   await app.register(authPlugin, { db, emailHeader: config.AUTH_HEADER_EMAIL, trustedProxies, sessions });
-  await app.register(authRoutes, { db, sessions, trustedProxies });
+  await app.register(authRoutes, {
+    db,
+    sessions,
+    trustedProxies,
+    googleSignInUrl: config.GOOGLE_SIGN_IN_URL,
+    emailHeader: config.AUTH_HEADER_EMAIL,
+  });
   await app.register(userRoutes, { db });
   await app.register(deviceRoutes, { db, trustedProxies });
   await app.register(healthRoutes);

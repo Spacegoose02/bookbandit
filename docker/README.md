@@ -24,6 +24,8 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 | `UMASK` | `022` | Use `002` so the group can write too. |
 | `TRUSTED_PROXIES` | empty | IPs/CIDRs of your reverse proxy. Auth headers from anywhere else are ignored. |
 | `AUTH_HEADER_EMAIL` | `remote-email` | Header the proxy (Tinyauth) sets with the signed-in email. |
+| `GOOGLE_SIGN_IN_URL` | empty | Your Tinyauth login page. When set, the sign-in screen shows a "Sign in with Google" button. Username/password sign-in works without it. |
+| `SESSION_SECRET` | generated | Signs password/PIN sessions. Generated once and kept in the database if empty. |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `PORT` | `8080` | Port inside the container. |
 
