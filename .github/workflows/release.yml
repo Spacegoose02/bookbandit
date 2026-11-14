@@ -1,0 +1,87 @@
+name: Release
+
+# Cut a release without pushing a tag yourself: Actions > Release > Run workflow, type a version
+# such as 0.4.0 (or 0.5.0-rc.1 for a pre-release). Run it from main.
+#
+# It checks that CI passed on main's latest commit, creates the annotated tag v<version> there, and
+# then starts the Docker image and Windows desktop workflows on that tag. The Docker workflow
+# builds and pushes the images and creates the GitHub Release page with notes from docs/changes/,
+# the desktop workflow attaches the installers, and the Android workflow follows the Docker run
+# and attaches the APK.
+#
+# Workflows are started explicitly because a tag pushed with the built-in GITHUB_TOKEN does not
+# trigger other workflows. Pushing a v* tag by hand still works the same way as before.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the v (for example 0.4.0)"
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the tag
+      actions: write # start the Docker and desktop workflows
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run the Release workflow from main (it was started from ${GITHUB_REF})."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the version and that the tag is new
+        run: |
+          VERSION="${VERSION#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION' isn't a version like 1.2.3 or 1.2.3-rc.1."
+            exit 1
+          fi
+          TAG="v$VERSION"
+          git fetch --tags --force --quiet
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists."
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: CI passed on this commit
+        run: |
+          conclusion="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" \
+            --event push --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI on ${GITHUB_SHA::7} is '${conclusion:-not run yet}'. Wait for it to pass, then run Release again."
+            exit 1
+          fi
+
+      - name: Create and push the tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "Bookbandit ${TAG#v}"
+          git push origin "refs/tags/$TAG"
+
+      - name: Start the Docker image and desktop builds on the tag
+        run: |
+          gh workflow run docker.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          gh workflow run desktop.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          {
+            echo "Tagged **$TAG** at \`${GITHUB_SHA::7}\` and started the Docker image and Windows desktop builds."
+            echo "The release page appears once the Docker images are pushed; the APK and installers follow."
+          } >> "$GITHUB_STEP_SUMMARY"

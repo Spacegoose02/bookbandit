@@ -95,6 +95,9 @@ Android tablet app: `pnpm --filter @bookbandit/web build && pnpm --filter @bookb
 then `cap sync android` and `./gradlew assembleDebug` (JDK 21 + Android SDK). CI builds the APK on
 every PR and attaches it to releases. Details and signing: [apps/android/README.md](../apps/android/README.md).
 
+Releasing: on GitHub, Actions > Release > Run workflow (from `main`) with a version such as `0.4.0`.
+It tags main's latest commit once CI is green and starts the Docker, desktop and Android release builds.
+
 ## Recent changes
 
 Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
