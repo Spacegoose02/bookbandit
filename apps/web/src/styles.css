@@ -1433,3 +1433,23 @@ button {
   box-shadow: 0 1px 6px rgb(0 0 0 / 0.25);
   background: #fff;
 }
+
+/* Top bar: on tablets the grown-up menu wraps onto its own row instead of hiding off-screen. */
+@media (max-width: 1100px) {
+  .bb-app:not(.is-kid) .bb-topbar {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .bb-app:not(.is-kid) .bb-nav {
+    order: 3;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .bb-app:not(.is-kid) .bb-nav a {
+    padding: 0 10px;
+  }
+  .bb-app:not(.is-kid) .bb-me {
+    margin-left: auto;
+  }
+}

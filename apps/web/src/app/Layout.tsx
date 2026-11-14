@@ -44,7 +44,11 @@ export function Layout() {
               <NavLink to="/" end>
                 Home
               </NavLink>
+              <NavLink to="/discover">Discover</NavLink>
               <NavLink to="/browse">Library</NavLink>
+              <NavLink to="/series">Series</NavLink>
+              <NavLink to="/categories">Categories</NavLink>
+              <NavLink to="/requests">Requests</NavLink>
               <AdminNavLinks role={me.role} />
               <NavLink to="/settings" end>
                 Settings
