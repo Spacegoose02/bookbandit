@@ -21,10 +21,12 @@ import { loadOrCreateKey } from "./integrations/secrets.js";
 import { adminLibraryRoutes } from "./routes/admin-library.js";
 import { adminSettingsRoutes, resolveLookup } from "./routes/admin-settings.js";
 import { familyRoutes } from "./routes/admin-family.js";
+import { discoverPlugin, type DiscoverOptions } from "./discover/index.js";
 
 /** Test seams for outside services. */
 export interface AppDeps {
   integrations?: Pick<IntegrationsOptions, "secretKey" | "fetchImpl" | "makeMailer">;
+  discover?: Pick<DiscoverOptions, "fetchImpl" | "now">;
 }
 
 export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Promise<FastifyInstance> {
@@ -61,6 +63,12 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     configDir: config.CONFIG_DIR,
     booksDir: config.BOOKS_DIR,
     ...deps.integrations,
+  });
+  await app.register(discoverPlugin, {
+    db,
+    config,
+    resolveLookup: () => resolveLookup(db, box, config),
+    ...deps.discover,
   });
   // Last: the web app and its index.html fallback for client-side routes.
   await app.register(staticRoutes, { webDir: config.WEB_DIR ?? defaultWebDir() });
