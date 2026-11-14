@@ -1,7 +1,8 @@
 /**
  * EPUB → KEPUB with kepubify (bundled in the Docker image), cached under
  * CONFIG_DIR/cache/kepub. The original file is never touched (CLAUDE.md rule 6).
- * Conversion runs inline on first download; TODO(jobs): pre-convert in the job runner.
+ * Conversion runs inline on first download, or ahead of time with the librarian's "Prepare for Kobo"
+ * job (`librarian.kepub`, apps/server/src/librarian/convert.ts), which fills the same cache.
  */
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";

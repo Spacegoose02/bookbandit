@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "871e3e3d-ff41-4bde-9749-2ebb4dbe8880",
+  "id": "1795cdb0-eb8a-4211-9b73-5e7d85a66d84",
   "prevId": "1acccd3d-1da6-4f8d-bfca-5844656b1bfa",
   "tables": {
     "ai_messages": {
@@ -3434,250 +3434,21 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "book_identifiers": {
-      "name": "book_identifiers",
+    "duplicate_ignores": {
+      "name": "duplicate_ignores",
       "columns": {
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "book_identifiers_idx": {
-          "name": "book_identifiers_idx",
-          "columns": [
-            "book_id",
-            "type"
-          ],
-          "isUnique": true
-        },
-        "book_identifiers_value_idx": {
-          "name": "book_identifiers_value_idx",
-          "columns": [
-            "type",
-            "value"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "book_identifiers_book_id_books_id_fk": {
-          "name": "book_identifiers_book_id_books_id_fk",
-          "tableFrom": "book_identifiers",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "import_links": {
-      "name": "import_links",
-      "columns": {
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "import_links_idx": {
-          "name": "import_links_idx",
-          "columns": [
-            "source",
-            "source_id"
-          ],
-          "isUnique": true
-        },
-        "import_links_book_idx": {
-          "name": "import_links_book_idx",
-          "columns": [
-            "book_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "import_links_book_id_books_id_fk": {
-          "name": "import_links_book_id_books_id_fk",
-          "tableFrom": "import_links",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "reading_history": {
-      "name": "reading_history",
-      "columns": {
-        "id": {
-          "name": "id",
+        "group_key": {
+          "name": "group_key",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "book_id": {
-          "name": "book_id",
+        "ignored_by": {
+          "name": "ignored_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "author": {
-          "name": "author",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "isbn13": {
-          "name": "isbn13",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stars": {
-          "name": "stars",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "review": {
-          "name": "review",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "shelves": {
-          "name": "shelves",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "read_count": {
-          "name": "read_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "added_at": {
-          "name": "added_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source_key": {
-          "name": "source_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
           "autoincrement": false
         },
         "created_at": {
@@ -3687,62 +3458,16 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch() * 1000)"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
         }
       },
-      "indexes": {
-        "reading_history_source_idx": {
-          "name": "reading_history_source_idx",
-          "columns": [
-            "user_id",
-            "source",
-            "source_key"
-          ],
-          "isUnique": true
-        },
-        "reading_history_user_idx": {
-          "name": "reading_history_user_idx",
-          "columns": [
-            "user_id",
-            "finished_at"
-          ],
-          "isUnique": false
-        },
-        "reading_history_book_idx": {
-          "name": "reading_history_book_idx",
-          "columns": [
-            "book_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
-        "reading_history_user_id_users_id_fk": {
-          "name": "reading_history_user_id_users_id_fk",
-          "tableFrom": "reading_history",
+        "duplicate_ignores_ignored_by_users_id_fk": {
+          "name": "duplicate_ignores_ignored_by_users_id_fk",
+          "tableFrom": "duplicate_ignores",
           "tableTo": "users",
           "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reading_history_book_id_books_id_fk": {
-          "name": "reading_history_book_id_books_id_fk",
-          "tableFrom": "reading_history",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
+            "ignored_by"
           ],
           "columnsTo": [
             "id"

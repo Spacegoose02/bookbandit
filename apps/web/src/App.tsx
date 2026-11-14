@@ -33,6 +33,11 @@ import { KindleImportPage } from "./discover/KindleImportPage";
 import { ImportPage } from "./imports/ImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
+import { LibrarianLayout } from "./librarian/LibrarianLayout";
+import { HealthPage } from "./librarian/HealthPage";
+import { DuplicatesPage } from "./librarian/DuplicatesPage";
+import { BooksPage } from "./librarian/BooksPage";
+import { ConvertPage } from "./librarian/ConvertPage";
 
 export function App() {
   const { me } = useSession();
@@ -77,6 +82,12 @@ export function App() {
           <Route path="people" element={<PeoplePage />} />
           <Route path="settings" element={<ConnectionsPage />} />
           <Route path="import" element={<ImportPage />} />
+          <Route path="librarian" element={<LibrarianLayout />}>
+            <Route index element={<HealthPage />} />
+            <Route path="duplicates" element={<DuplicatesPage />} />
+            <Route path="books" element={<BooksPage />} />
+            <Route path="convert" element={<ConvertPage />} />
+          </Route>
         </Route>
         <Route path="family" element={<AdminLayout area="family" />}>
           <Route index element={<FamilyPage />} />

@@ -24,6 +24,7 @@ export function AdminLayout({ area }: { area: "admin" | "family" }) {
           ["/admin", "Overview"],
           ["/admin/inbox", "Inbox"],
           ["/admin/review", "Needs a rating"],
+          ["/admin/librarian", "Librarian"],
           ["/admin/people", "People & devices"],
           ["/admin/settings", "Connections"],
           ["/admin/import", "Move in"],
