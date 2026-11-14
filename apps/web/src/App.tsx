@@ -1,4 +1,10 @@
 import { useEffect } from "react";
+import { AdminHome } from "./admin/AdminHome";
+import { AdminLayout } from "./admin/AdminLayout";
+import { ConnectionsPage } from "./admin/ConnectionsPage";
+import { InboxPage, ReviewPage } from "./admin/InboxPage";
+import { PeoplePage } from "./admin/PeoplePage";
+import { FamilyPage, KidPage } from "./family/FamilyPage";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api/client";
 import { Layout } from "./app/Layout";
@@ -33,6 +39,18 @@ export function App() {
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="admin" element={<AdminLayout area="admin" />}>
+          <Route index element={<AdminHome />} />
+          <Route path="inbox" element={<InboxPage />} />
+          <Route path="review" element={<ReviewPage />} />
+          <Route path="people" element={<PeoplePage />} />
+          <Route path="settings" element={<ConnectionsPage />} />
+        </Route>
+        <Route path="family" element={<AdminLayout area="family" />}>
+          <Route index element={<FamilyPage />} />
+          <Route path="kids/:id" element={<KidPage />} />
+          <Route path="people" element={<PeoplePage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -34,7 +34,7 @@ export async function integrationsPlugin(app: FastifyInstance, opts: Integration
 }
 
 /** The key file is only created once a secret is actually stored or read. */
-function lazyBox(key: () => Buffer): SecretBox {
+export function lazyBox(key: () => Buffer): SecretBox {
   let box: SecretBox | null = null;
   const get = () => (box ??= secretBox(key()));
   return { seal: (p) => get().seal(p), open: (s) => get().open(s) };

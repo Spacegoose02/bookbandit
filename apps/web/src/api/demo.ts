@@ -10,7 +10,7 @@ import type { Bookmark, BookDetail, BookSummary, Me, NewBookmark, Page, Progress
 const ADULT: Me = {
   id: "u-adult",
   displayName: "Sam",
-  role: "parent",
+  role: "admin",
   isKid: false,
   avatar: null,
   theme: "dark",
