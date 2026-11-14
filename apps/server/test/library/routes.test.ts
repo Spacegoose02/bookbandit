@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { stat } from "node:fs/promises";
+import { copyFile, mkdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { buildApp } from "../../src/app.js";
@@ -154,7 +154,9 @@ describe("library admin API", () => {
   it("lists duplicates: same file twice and same work twice", async () => {
     await makeEpub(join(booksDir, "a/Twin.epub"), { title: "Twin", authors: ["T"] });
     await scanNow();
-    await makeEpub(join(booksDir, "b/Twin.epub"), { title: "Twin", authors: ["T"] }); // identical bytes
+    // Copy, don't regenerate: zip entries carry a timestamp, so a rebuilt file can differ.
+    await mkdir(join(booksDir, "b"));
+    await copyFile(join(booksDir, "a/Twin.epub"), join(booksDir, "b/Twin.epub"));
     await makeEpub(join(booksDir, "Dune.epub"), { title: "Dune", authors: ["Frank Herbert"], salt: "d1" });
     await makeEpub(join(booksDir, "Dune (other).epub"), { title: "Dune", authors: ["Somebody Else"], salt: "d2" });
     await scanNow();
