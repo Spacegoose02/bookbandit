@@ -19,6 +19,11 @@ const Env = z.object({
    * generated on first start and kept in the database. Changing it signs everyone out.
    */
   SESSION_SECRET: z.string().min(32).optional(),
+  /** Built web app to serve (index.html + assets). Defaults to apps/web/dist next to the server. */
+  WEB_DIR: z.string().optional(),
+  /** Calibre's converter (installed in the Docker image) and kepubify, for format conversion. */
+  EBOOK_CONVERT_PATH: z.string().default("ebook-convert"),
+  KEPUBIFY_PATH: z.string().default("kepubify"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });
 
