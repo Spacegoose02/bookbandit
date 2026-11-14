@@ -1,4 +1,5 @@
 import { useSession } from "../app/session";
+import { TabletSettingsButton } from "../native/TabletSettingsButton";
 import { AccountPanel } from "../auth/AccountPanel";
 import { THEME_LIST } from "./themes";
 import { KindleSettings } from "../kindle/KindleSettings";
@@ -49,6 +50,7 @@ export function SettingsPage() {
       <ThemePicker />
       <KindleSettings />
       <StorytellerSetupLink />
+      <TabletSettingsButton />
     </div>
   );
 }

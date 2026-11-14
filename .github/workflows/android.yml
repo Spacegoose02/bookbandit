@@ -1,0 +1,134 @@
+name: Android app
+
+# PRs and main: build the tablet APK, run the JVM unit tests, keep the APK as a workflow artifact.
+# Releases: when the "Docker image" workflow finishes for a v* tag (it creates the GitHub Release),
+# build the APK for that tag and attach it to the release as bookbandit-<version>.apk.
+#
+# Signing: set the repository secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (apps/android/README.md says how) so every APK has the
+# same signature and installs over the last one. Without them the APK is signed with a throwaway
+# debug key, and updating means uninstalling first.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/android/**
+      - apps/web/**
+      - packages/shared/**
+      - pnpm-lock.yaml
+      - .github/workflows/android.yml
+  pull_request:
+    paths:
+      - apps/android/**
+      - apps/web/**
+      - packages/shared/**
+      - pnpm-lock.yaml
+      - .github/workflows/android.yml
+  workflow_run:
+    workflows: ["Docker image"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    # For workflow_run, only after a successful Docker build of a v* tag (that's what made the release).
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      # The default package list includes "tools", which the SDK no longer has; ask only for what we use.
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36
+
+      - name: Version
+        id: version
+        run: |
+          base="$(node -p "require('./apps/android/package.json').version")"
+          if [ -n "$RELEASE_TAG" ]; then name="${RELEASE_TAG#v}"; else name="${base}-dev+$(git rev-parse --short HEAD)"; fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "file=bookbandit-${name//+/-}.apk" >> "$GITHUB_OUTPUT"
+          echo "APK $name (versionCode ${{ github.run_number }})"
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @bookbandit/shared build
+      - run: pnpm --filter @bookbandit/web build
+      - run: pnpm --filter @bookbandit/android typecheck
+      - run: pnpm --filter @bookbandit/android test
+      - run: pnpm --filter @bookbandit/android build
+      - name: Copy web assets into the Android project
+        working-directory: apps/android
+        run: pnpm exec cap sync android
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: apps/android/android
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: this APK uses a throwaway debug key and won't install over an earlier one."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          {
+            echo "storeFile=release.keystore"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+          } > keystore.properties
+
+      - name: Unit tests and APK
+        working-directory: apps/android/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug \
+            -PversionCode=${{ github.run_number }} -PversionName="${{ steps.version.outputs.name }}"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/${{ steps.version.outputs.file }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.file }}
+          path: ${{ steps.version.outputs.file }}
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: env.RELEASE_TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" "${{ steps.version.outputs.file }}" --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f apps/android/android/release.keystore apps/android/android/keystore.properties

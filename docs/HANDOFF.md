@@ -63,6 +63,10 @@ turns the outside lists off. An admin imports a Kindle library at `/discover/kin
 `POST /api/admin/kindle/import`). Demo mode has an admin persona too: `?demo=admin`. See
 [discover-api.md](discover-api.md).
 
+Android tablet app: `pnpm --filter @bookbandit/web build && pnpm --filter @bookbandit/android build`,
+then `cap sync android` and `./gradlew assembleDebug` (JDK 21 + Android SDK). CI builds the APK on
+every PR and attaches it to releases. Details and signing: [apps/android/README.md](../apps/android/README.md).
+
 ## Recent changes
 
 Each workstream keeps its own change log in [changes/](changes/README.md), newest first, so
