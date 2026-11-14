@@ -1,0 +1,181 @@
+/* Audiobook player (/listen/:id). Uses the theme tokens from styles.css. */
+.bb-listen {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.bb-listen-back {
+  margin-bottom: 8px;
+}
+.bb-listen-main {
+  display: grid;
+  grid-template-columns: minmax(180px, 340px) 1fr;
+  gap: clamp(20px, 4vw, 48px);
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .bb-listen-main {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  .bb-listen-cover {
+    max-width: 260px;
+  }
+}
+.bb-listen-cover img,
+.bb-listen-cover .bb-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--bb-radius);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
+}
+.bb-listen-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+.bb-listen-info .bb-h1 {
+  margin: 0;
+}
+.bb-listen-info p {
+  margin: 0;
+}
+.bb-listen-chapter {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  background: var(--bb-surface);
+  color: var(--bb-text);
+  font: inherit;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .bb-listen-chapter {
+    align-self: center;
+  }
+}
+.bb-listen-scrub .bb-slider {
+  width: 100%;
+}
+.bb-listen-times {
+  display: flex;
+  justify-content: space-between;
+  color: var(--bb-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+.bb-listen-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 4vw, 36px);
+  margin: 4px 0;
+}
+.bb-listen-play {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bb-accent);
+  color: var(--bb-accent-text);
+  cursor: pointer;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--bb-accent) 40%, transparent);
+  transition: transform 0.1s;
+}
+.bb-listen-play:active {
+  transform: scale(0.95);
+}
+.bb-listen-play.is-loading {
+  animation: bb-listen-pulse 1s ease-in-out infinite;
+}
+@keyframes bb-listen-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+.bb-listen-skip {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border: 1px solid var(--bb-border);
+  border-radius: 50%;
+  background: var(--bb-surface);
+  color: var(--bb-text);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.bb-listen-skip small {
+  position: absolute;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.bb-listen-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 720px) {
+  .bb-listen-tools {
+    justify-content: center;
+  }
+}
+.bb-listen-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+}
+.bb-listen-panel [aria-checked="true"],
+.bb-listen-panel [aria-pressed="true"] {
+  background: var(--bb-accent);
+  border-color: var(--bb-accent);
+  color: var(--bb-accent-text);
+}
+.bb-listen-chapters {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  overflow: hidden;
+}
+.bb-listen-chapters button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--bb-tap);
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--bb-border);
+  background: transparent;
+  color: var(--bb-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bb-listen-chapters li:last-child button {
+  border-bottom: 0;
+}
+.bb-listen-chapters button[aria-current="true"] {
+  background: var(--bb-surface-2);
+  font-weight: 700;
+}
+.bb-listen.is-kid .bb-listen-play {
+  width: 112px;
+  height: 112px;
+}

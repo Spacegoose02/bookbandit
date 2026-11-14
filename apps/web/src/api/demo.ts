@@ -10,7 +10,7 @@ import type { Bookmark, BookDetail, BookSummary, Me, NewBookmark, Page, Progress
 const ADULT: Me = {
   id: "u-adult",
   displayName: "Sam",
-  role: "parent",
+  role: "admin",
   isKid: false,
   avatar: null,
   theme: "dark",
@@ -66,7 +66,14 @@ const RAW: [string, string, number, ContentRating | null, string?, number?][] = 
   ["Weeknight Soups", "Lena Park", 2022, "adult"],
   ["The Long Winter Road", "Margot Lindqvist", 1987, "adult"],
   ["Untitled Manuscript", "Unknown", 2010, null],
+  // Picture books for the toddler storyteller screen
+  ["Little Fox Says Goodnight", "Wren Calloway", 2024, "kids"],
+  ["Moon and the Sleepy Sea", "Odette Finch", 2023, "kids"],
+  ["Six Muddy Ducks", "Barnaby Press", 2025, "kids"],
 ];
+
+/** Demo books that also have an "audiobook" (a generated tune, see src/audio/demoAudio.ts). */
+const DEMO_AUDIO = new Set(["b1", "b3", "b9", "b15", "b16"]);
 
 const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i) => ({
   id: `b${i + 1}`,
@@ -82,19 +89,20 @@ const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i
   coverPath: coverSvg(title, author, i),
   kindleOnly: i === 10,
   kindleAsin: i === 10 ? "B000DEMO00" : null,
-  absItemId: null,
+  absItemId: DEMO_AUDIO.has(`b${i + 1}`) ? `abs-b${i + 1}` : null,
   authors: [{ id: `a-${author}`, name: author }],
   series: series ? [{ id: `series:${series}`, name: series, position: pos ?? null }] : [],
-  files: i === 10 ? [] : [{ id: `f${i + 1}`, format: "epub", sizeBytes: 120_000 }],
+  files: i === 10 ? [] : i === 9 ? [{ id: `f${i + 1}`, format: "pdf", sizeBytes: 20_000 }] : [{ id: `f${i + 1}`, format: "epub", sizeBytes: 120_000 }],
   added: Date.UTC(2026, 10, 14) - i * 86_400_000,
 }));
 
 function who(): Me {
   try {
     const p = new URLSearchParams(window.location.search).get("demo");
-    if (p === "kid" || p === "adult") sessionStorage.setItem("bb-demo-user", p);
+    if (p === "kid" || p === "adult" || p === "admin") sessionStorage.setItem("bb-demo-user", p);
     const saved = sessionStorage.getItem("bb-demo-user");
-    const base = saved === "kid" ? KID : ADULT;
+    // ?demo=admin: the same grown-up with admin tools (series editing, Kindle import).
+    const base = saved === "kid" ? KID : saved === "admin" ? { ...ADULT, role: "admin" as const } : ADULT;
     const theme = localStorage.getItem(`bb-demo-theme-${base.id}`);
     return theme ? { ...base, theme: theme as Me["theme"] } : base;
   } catch {
@@ -218,7 +226,7 @@ export const demoApi: Api = {
     return delay({ ...b, ...summary(b, who()) });
   },
   coverUrl: (b) => b.coverPath,
-  fileUrl: () => `${import.meta.env.BASE_URL}demo/sample.epub`,
+  fileUrl: (bookId) => `${import.meta.env.BASE_URL}demo/sample.${bookId === "b10" ? "pdf" : "epub"}`,
   async getProgress(bookId) {
     return delay(store.get<ProgressRecord | null>(`bb-demo-progress-${who().id}-${bookId}`, null));
   },
@@ -240,5 +248,8 @@ export const demoApi: Api = {
   async deleteBookmark(id) {
     const all = store.get<Bookmark[]>(`bb-demo-bookmarks-${who().id}`, []);
     store.set(`bb-demo-bookmarks-${who().id}`, all.filter((b) => b.id !== id));
+  },
+  async readingHeartbeat() {
+    // Demo mode doesn't track reading time.
   },
 };

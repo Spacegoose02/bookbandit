@@ -1,5 +1,8 @@
 import { useSession } from "../app/session";
+import { AccountPanel } from "../auth/AccountPanel";
 import { THEME_LIST } from "./themes";
+import { KindleSettings } from "../kindle/KindleSettings";
+import { StorytellerSetupLink } from "../storyteller/SetupLink";
 
 /** Big picture buttons so kids who can't read yet can still pick a theme. */
 export function ThemePicker({ compact = false }: { compact?: boolean }) {
@@ -41,8 +44,11 @@ export function SettingsPage() {
   const { me } = useSession();
   return (
     <div className="bb-page">
+      {me && !me.isKid && <AccountPanel />}
       <h1 className="bb-h1">{me?.isKid ? "Pick your colors" : "Appearance"}</h1>
       <ThemePicker />
+      <KindleSettings />
+      <StorytellerSetupLink />
     </div>
   );
 }

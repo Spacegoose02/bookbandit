@@ -1,7 +1,14 @@
 import { useEffect } from "react";
+import { AdminHome } from "./admin/AdminHome";
+import { AdminLayout } from "./admin/AdminLayout";
+import { ConnectionsPage } from "./admin/ConnectionsPage";
+import { InboxPage, ReviewPage } from "./admin/InboxPage";
+import { PeoplePage } from "./admin/PeoplePage";
+import { FamilyPage, KidPage } from "./family/FamilyPage";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api/client";
 import { Layout } from "./app/Layout";
+import { SignIn } from "./auth/SignIn";
 import { useSession } from "./app/session";
 import { KidHome } from "./kid/KidHome";
 import { BookPage } from "./library/BookPage";
@@ -10,6 +17,16 @@ import { HomePage } from "./library/HomePage";
 import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
 import { SettingsPage } from "./themes/ThemePicker";
+import { ListenPage } from "./audio/ListenPage";
+import { StorytellerGate } from "./storyteller/StorytellerGate";
+import { StorytellerPage } from "./storyteller/StorytellerPage";
+import { StorytellerSetup } from "./storyteller/StorytellerSetup";
+import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
+import { CookbookPage } from "./discover/CookbookPage";
+import { DiscoverPage } from "./discover/DiscoverPage";
+import { KindleImportPage } from "./discover/KindleImportPage";
+import { SeriesListPage } from "./series/SeriesListPage";
+import { SeriesPage } from "./series/SeriesPage";
 
 export function App() {
   const { me } = useSession();
@@ -25,12 +42,35 @@ export function App() {
 
   return (
     <Routes>
+      <Route path="/who" element={<SignIn switching />} />
       <Route path="/read/:id" element={me ? <ReaderPage /> : null} />
+      <Route path="/storyteller" element={me ? <StorytellerPage /> : null} />
+      <Route path="/cook/:id" element={me ? <CookbookPage /> : null} />
       <Route element={<Layout />}>
-        <Route index element={me?.isKid ? <KidHome /> : <HomePage />} />
+        <Route index element={me?.isKid ? <StorytellerGate fallback={<KidHome />} /> : <HomePage />} />
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="listen/:id" element={<ListenPage />} />
+        <Route path="storyteller/setup" element={<StorytellerSetup />} />
+        <Route path="discover" element={<DiscoverPage />} />
+        <Route path="discover/kindle-import" element={<KindleImportPage />} />
+        <Route path="series" element={<SeriesListPage />} />
+        <Route path="series/:id" element={<SeriesPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="categories/:id" element={<CategoryPageView />} />
+        <Route path="admin" element={<AdminLayout area="admin" />}>
+          <Route index element={<AdminHome />} />
+          <Route path="inbox" element={<InboxPage />} />
+          <Route path="review" element={<ReviewPage />} />
+          <Route path="people" element={<PeoplePage />} />
+          <Route path="settings" element={<ConnectionsPage />} />
+        </Route>
+        <Route path="family" element={<AdminLayout area="family" />}>
+          <Route index element={<FamilyPage />} />
+          <Route path="kids/:id" element={<KidPage />} />
+          <Route path="people" element={<PeoplePage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

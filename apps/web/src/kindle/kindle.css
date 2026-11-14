@@ -1,0 +1,41 @@
+.bb-kindle {
+  display: contents;
+}
+.bb-kindle-ask {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 460px;
+  padding: 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+}
+.bb-kindle-ask p,
+.bb-kindle-settings p {
+  margin: 0;
+}
+.bb-kindle-ok {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--bb-accent);
+  font-weight: 600;
+}
+.bb-kindle .bb-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.bb-settings-section {
+  margin-top: 32px;
+  max-width: 560px;
+}
+.bb-settings-section form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.bb-settings-section .bb-field {
+  width: 100%;
+}

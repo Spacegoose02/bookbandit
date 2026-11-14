@@ -344,6 +344,31 @@ export const bookmarks = sqliteTable(
   ],
 );
 
+/**
+ * Time spent reading or listening, for the parent dashboard and reading streaks.
+ * Clients send heartbeats with small deltas; the server caps each delta by the wall-clock
+ * time since the previous beat, so a stuck or tampered client can't inflate the total.
+ */
+export const readingSessions = sqliteTable(
+  "reading_sessions",
+  {
+    /** Client-chosen UUID, one per open book. */
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    bookId: text("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["read", "listen"] }).notNull().default("read"),
+    deviceName: text("device_name"),
+    startedAt: ms("started_at").notNull(),
+    lastBeatAt: ms("last_beat_at").notNull(),
+    seconds: integer("seconds").notNull().default(0),
+  },
+  (t) => [index("reading_sessions_user_started_idx").on(t.userId, t.startedAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Requests, jobs, AI
 // ---------------------------------------------------------------------------
