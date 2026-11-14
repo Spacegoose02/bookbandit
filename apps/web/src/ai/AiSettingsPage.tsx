@@ -9,6 +9,9 @@ import {
   aiApi,
   type AiFeature,
   type AiSettings,
+  type EmbeddingStatus,
+  type MetadataSuggestion,
+  type MetadataValue,
   type ProviderSettings,
   type RatingRunStatus,
   type RatingSuggestion,
@@ -21,6 +24,8 @@ const FEATURE_LABELS: Record<AiFeature, [string, string]> = {
   bookChat: ["Book chat", "Spoiler-free chat in the reader; falls back to grown-up chat"],
   moderation: ["Moderation", "Checks kids' messages and answers (Llama Guard works well)"],
   rating: ["Rating helper", "Suggests ratings for unrated books"],
+  metadata: ["Metadata cleanup", "Suggests fixes to titles, authors, series and descriptions; falls back to grown-up chat"],
+  embeddings: ["Meaning search", "An embeddings model (Ollama nomic-embed-text, OpenAI text-embedding-3-small, Gemini text-embedding-004)"],
 };
 
 /** Presets for the "Add provider" menu. Setup details for each: docs/ai.md. */
@@ -41,6 +46,10 @@ const PRESETS: { label: string; p: ProviderSettings }[] = [
     label: "OpenAI",
     p: { id: "openai", name: "OpenAI", kind: "openai", baseUrl: "https://api.openai.com/v1", model: "gpt-5-mini" },
   },
+  {
+    label: "Ollama embeddings (for meaning search)",
+    p: { id: "embed", name: "Ollama embeddings", kind: "openai", baseUrl: "http://ollama:11434/v1", model: "nomic-embed-text" },
+  },
   { label: "Anthropic (Claude)", p: { id: "claude", name: "Claude", kind: "anthropic", model: "claude-haiku-5-5" } },
   { label: "Google Gemini", p: { id: "gemini", name: "Gemini", kind: "gemini", model: "gemini-2.5-flash" } },
 ];
@@ -56,6 +65,9 @@ export function AiSettingsPage() {
   const [run, setRun] = useState<RatingRunStatus | null>(null);
   const [suggestions, setSuggestions] = useState<RatingSuggestion[]>([]);
   const [searchTest, setSearchTest] = useState<string | null>(null);
+  const [emb, setEmb] = useState<EmbeddingStatus | null>(null);
+  const [metaRun, setMetaRun] = useState<RatingRunStatus | null>(null);
+  const [meta, setMeta] = useState<MetadataSuggestion[]>([]);
 
   // The demo signs in as a parent; let it show this page too.
   const admin = me?.role === "admin" || isDemo;
@@ -65,7 +77,28 @@ export function AiSettingsPage() {
     aiApi.settings().then(setS, (e: Error) => setError(e.message));
     aiApi.ratingStatus().then(setRun, () => {});
     aiApi.suggestions().then(setSuggestions, () => {});
+    aiApi.embeddings().then(setEmb, () => {});
+    aiApi.metadataStatus().then(setMetaRun, () => {});
+    aiApi.metadataSuggestions().then(setMeta, () => {});
   }, [admin]);
+
+  const embBusy = emb?.job?.status === "queued" || emb?.job?.status === "running";
+  useEffect(() => {
+    if (!embBusy || isDemo) return;
+    const t = setInterval(() => void aiApi.embeddings().then(setEmb, () => {}), 2000);
+    return () => clearInterval(t);
+  }, [embBusy]);
+
+  useEffect(() => {
+    if (!metaRun?.running) return;
+    const t = setInterval(() => {
+      aiApi.metadataStatus().then((r) => {
+        setMetaRun(r);
+        if (!r.running) void aiApi.metadataSuggestions().then(setMeta);
+      });
+    }, 1500);
+    return () => clearInterval(t);
+  }, [metaRun?.running]);
 
   useEffect(() => {
     if (!run?.running) return;
@@ -100,6 +133,8 @@ export function AiSettingsPage() {
     try {
       setS(await aiApi.saveSettings(s!));
       setSaved("Saved");
+      // Picking an embeddings model starts indexing on the server.
+      void aiApi.embeddings().then(setEmb, () => {});
     } catch (e) {
       setError((e as Error).message);
     }
@@ -374,6 +409,109 @@ export function AiSettingsPage() {
           ))}
         </ul>
       </section>
+
+      <section className="bb-settings-card">
+        <h2>Meaning search</h2>
+        <p className="bb-muted">
+          Finds books by what they're about ("a girl and her fox in a haunted marsh"), shows up under library search, and
+          makes "More like this" smarter. Needs an embeddings model under <b>Meaning search</b> above. Books are indexed in
+          the background; new ones are picked up the next time someone searches, or with the button below.
+        </p>
+        {emb && !emb.configured && <p className="bb-muted">Off: no embeddings model picked.</p>}
+        {emb?.configured && (
+          <>
+            <div className="bb-meter" role="progressbar" aria-valuemin={0} aria-valuemax={emb.total} aria-valuenow={emb.indexed}>
+              <span style={{ width: `${emb.total ? Math.min(100, (emb.indexed / emb.total) * 100) : 0}%` }} />
+            </div>
+            <p>
+              {emb.indexed} of {emb.total} books indexed with <code>{emb.model}</code>
+              {embBusy ? " · indexing now…" : ""}
+              {emb.job?.status === "failed" && emb.job.lastError ? (
+                <span className="bb-error"> · last run failed: {emb.job.lastError}</span>
+              ) : null}
+            </p>
+            <button
+              type="button"
+              className="bb-btn"
+              disabled={embBusy}
+              onClick={() => void aiApi.startEmbeddings().then(setEmb, (e: Error) => setError(e.message))}
+            >
+              {embBusy ? "Indexing…" : "Index new and changed books"}
+            </button>
+          </>
+        )}
+      </section>
+
+      <section className="bb-settings-card">
+        <h2>Metadata cleanup</h2>
+        <p className="bb-muted">
+          Barnaby looks for messy titles (file names, ALL CAPS), "Last, First" author names, series stuck in titles and
+          descriptions full of HTML or ads. Nothing changes until you accept a fix, one field at a time.
+        </p>
+        <button
+          type="button"
+          className="bb-btn"
+          disabled={metaRun?.running}
+          onClick={() => void aiApi.startMetadata(25).then(setMetaRun, (e: Error) => setError(e.message))}
+        >
+          {metaRun?.running ? `Checking… ${metaRun.done}/${metaRun.total}` : "Check 25 books"}
+        </button>
+        {metaRun && !metaRun.running && metaRun.total > 0 && (
+          <span className="bb-test-result">
+            Last run: {metaRun.done} checked, {metaRun.applied} fixes suggested, {metaRun.failed} failed
+          </span>
+        )}
+        <ul className="bb-suggestions bb-meta-suggestions">
+          {meta.map((m) => (
+            <li key={m.id}>
+              <div>
+                <strong>{m.bookTitle}</strong>
+                <span className="bb-muted"> · {FIELD_LABELS[m.field]}</span>
+                <p className="bb-meta-diff">
+                  <del>{showValue(m.current)}</del>
+                  <span aria-hidden> → </span>
+                  <ins>{showValue(m.suggested)}</ins>
+                </p>
+                {m.reason && <p className="bb-muted bb-small">{m.reason}</p>}
+              </div>
+              <button
+                type="button"
+                className="bb-btn bb-btn-small bb-btn-primary"
+                onClick={() =>
+                  void aiApi.acceptMetadata(m.id).then(
+                    () => setMeta((l) => l.filter((x) => x !== m)),
+                    (e: Error) => setError(e.message),
+                  )
+                }
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                className="bb-btn bb-btn-small"
+                onClick={() => void aiApi.dismissMetadata(m.id).then(() => setMeta((l) => l.filter((x) => x !== m)))}
+              >
+                Dismiss
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
+}
+
+const FIELD_LABELS: Record<MetadataSuggestion["field"], string> = {
+  title: "title",
+  subtitle: "subtitle",
+  authors: "authors",
+  series: "series",
+  description: "description",
+};
+
+function showValue(v: MetadataValue): string {
+  if (v == null || v === "") return "(none)";
+  if (typeof v === "string") return v.length > 220 ? `${v.slice(0, 220)}…` : v;
+  if (Array.isArray(v)) return v.join(", ");
+  return `${v.name}${v.position != null ? ` #${v.position}` : ""}`;
 }

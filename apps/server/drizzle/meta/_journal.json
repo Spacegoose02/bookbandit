@@ -68,8 +68,15 @@
     {
       "idx": 9,
       "version": "6",
-      "when": 1794632574524,
-      "tag": "0009_migrate",
+      "when": 1794632559711,
+      "tag": "0009_ai_round2",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794632673037,
+      "tag": "0010_migrate",
       "breakpoints": true
     }
   ]

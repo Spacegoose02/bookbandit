@@ -50,6 +50,8 @@ export function BarnabyChat({
   const [convId, setConvId] = useState<string | null>(conversationId ?? null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  /** The reply so far, while Barnaby is writing it (grown-ups' chats stream; kids' arrive whole). */
+  const [partial, setPartial] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [web, setWeb] = useState(false);
   const [remaining, setRemaining] = useState(status.remainingToday);
@@ -68,7 +70,7 @@ export function BarnabyChat({
   useEffect(() => {
     if (readOnly) return;
     end.current?.scrollIntoView?.({ block: "end", behavior: "smooth" });
-  }, [messages, sending, readOnly]);
+  }, [messages, sending, partial, readOnly]);
 
   async function send(message: string) {
     const trimmed = message.trim();
@@ -85,13 +87,18 @@ export function BarnabyChat({
     };
     setMessages((m) => [...m, pending]);
     setText("");
+    setPartial("");
     try {
-      const r = await aiApi.chat({
-        message: trimmed,
-        conversationId: convId ?? undefined,
-        bookId: convId ? undefined : book?.id,
-        webSearch: web || undefined,
-      });
+      const r = await aiApi.chatStream(
+        {
+          message: trimmed,
+          conversationId: convId ?? undefined,
+          bookId: convId ? undefined : book?.id,
+          webSearch: web || undefined,
+        },
+        (piece) => setPartial((p) => p + piece),
+      );
+      setPartial("");
       setMessages((m) => [...m.filter((x) => x !== pending), r.message, r.reply]);
       setRemaining(r.remainingToday);
       if (r.conversationId !== convId) {
@@ -101,6 +108,7 @@ export function BarnabyChat({
       if (r.searchError) setError(kid ? "Barnaby couldn't search the web just now." : `Web search failed: ${r.searchError}`);
     } catch (e) {
       setMessages((m) => m.filter((x) => x !== pending));
+      setPartial("");
       setText(trimmed);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -145,7 +153,12 @@ export function BarnabyChat({
             </div>
           ),
         )}
-        {sending && (
+        {sending && partial && (
+          <BarnabyRow>
+            <p className="bb-chat-streaming">{partial}</p>
+          </BarnabyRow>
+        )}
+        {sending && !partial && (
           <div className="bb-chat-row">
             <BarnabyAvatar size={kid ? 52 : 40} thinking />
             <div className="bb-chat-bubble">
