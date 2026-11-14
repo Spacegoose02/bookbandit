@@ -7,6 +7,7 @@ import { useSession } from "../app/session";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { ThemePicker } from "../themes/ThemePicker";
 import { pickReadableFile } from "./formats";
+import { fraction, pageLocator, PdfView, startPage, type PdfPosition } from "./pdf";
 import { defaultDeviceName, ProgressSync, resolveStartPosition } from "./progressSync";
 import { readerCss } from "./readerCss";
 import { useReaderPrefs } from "./useReaderPrefs";
@@ -40,7 +41,9 @@ export function ReaderPage() {
   const [chrome, setChrome] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const pdfRef = useRef<PdfView | null>(null);
+  const [pdfPos, setPdfPos] = useState<PdfPosition | null>(null);
+  const isPdf = pdfPos !== null || pdfRef.current !== null;
 
   // --- open the book -------------------------------------------------------
   useEffect(() => {
@@ -70,9 +73,28 @@ export function ReaderPage() {
       }
       const url = api.fileUrl(detail.id, file.id);
       if (file.format === "pdf") {
-        // TODO: foliate's PDF support needs pdf.js; until it's bundled, use the browser's viewer.
-        setPdfUrl(url);
+        if (!hostRef.current) return;
+        const pdf = new PdfView(hostRef.current, (pos) => {
+          setPdfPos(pos);
+          sync.report(pageLocator(pos), pos.page === pos.total - 1);
+        });
+        pdfRef.current = pdf;
+        try {
+          await pdf.open(url);
+        } catch (e) {
+          if (disposed) return;
+          setErrorText(e instanceof Error ? e.message : String(e));
+          setStatus("error");
+          return;
+        }
+        if (disposed) return;
+        const start = await resolveStartPosition(api, localStorage, id);
+        if (disposed) return;
+        await pdf.goTo(startPage(start?.locator, pdf.total));
+        if (start && start.fromDevice && start.fromDevice !== deviceName())
+          setToast(kid ? "Here's where you stopped!" : `Picked up where you left off on ${start.fromDevice}`);
         setStatus("ready");
+        api.bookmarks(id).then((b) => !disposed && setBookmarks(b), () => undefined);
         return;
       }
 
@@ -129,6 +151,9 @@ export function ReaderPage() {
       viewRef.current?.close();
       viewRef.current?.remove();
       viewRef.current = null;
+      pdfRef.current?.close();
+      pdfRef.current = null;
+      setPdfPos(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, me?.id]);
@@ -151,8 +176,8 @@ export function ReaderPage() {
   useEffect(() => applyLayout(), [applyLayout]);
 
   // --- navigation ------------------------------------------------------------
-  const prev = useCallback(() => void viewRef.current?.goLeft(), []);
-  const next = useCallback(() => void viewRef.current?.goRight(), []);
+  const prev = useCallback(() => (pdfRef.current ? pdfRef.current.prev() : void viewRef.current?.goLeft()), []);
+  const next = useCallback(() => (pdfRef.current ? pdfRef.current.next() : void viewRef.current?.goRight()), []);
   const onKey = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft" || e.key === "PageUp") prev();
@@ -173,9 +198,13 @@ export function ReaderPage() {
   }, [toast]);
 
   // --- bookmarks -------------------------------------------------------------
-  const here = loc?.cfi ? bookmarks.find((b) => b.locator.kind === "epub" && b.locator.cfi === loc.cfi) : undefined;
+  const here = pdfPos
+    ? bookmarks.find((b) => b.locator.kind === "page" && b.locator.page === pdfPos.page)
+    : loc?.cfi
+      ? bookmarks.find((b) => b.locator.kind === "epub" && b.locator.cfi === loc.cfi)
+      : undefined;
   const toggleBookmark = async () => {
-    if (!loc?.cfi) return;
+    if (!pdfPos && !loc?.cfi) return;
     if (here) {
       setBookmarks((bs) => bs.filter((b) => b.id !== here.id));
       await api.deleteBookmark(here.id).catch(() => setBookmarks((bs) => [...bs, here]));
@@ -185,8 +214,8 @@ export function ReaderPage() {
       const b = await api.addBookmark({
         bookId: id,
         kind: "bookmark",
-        locator: { kind: "epub", cfi: loc.cfi, percent: loc.fraction },
-        text: loc.tocItem?.label ?? null,
+        locator: pdfPos ? pageLocator(pdfPos) : { kind: "epub", cfi: loc!.cfi!, percent: loc!.fraction },
+        text: pdfPos ? `Page ${pdfPos.page + 1}` : (loc?.tocItem?.label ?? null),
         note: null,
         color: null,
       });
@@ -224,7 +253,8 @@ export function ReaderPage() {
       </BarnabyEmpty>
     );
 
-  const pct = Math.round((loc?.fraction ?? 0) * 100);
+  const frac = pdfPos ? fraction(pdfPos) : (loc?.fraction ?? 0);
+  const pct = Math.round(frac * 100);
 
   return (
     <div className={`bb-reader${kid ? " is-kid" : ""}${chrome ? "" : " is-immersive"}`}>
@@ -236,7 +266,7 @@ export function ReaderPage() {
           <strong>{book?.title ?? ""}</strong>
           {!kid && loc?.tocItem?.label && <span className="bb-muted">{loc.tocItem.label}</span>}
         </div>
-        {!kid && (
+        {!kid && !pdfPos && (
           <button className="bb-icon-btn" aria-label="Contents" aria-pressed={panel === "contents"} onClick={() => setPanel(panel === "contents" ? null : "contents")}>
             ☰
           </button>
@@ -255,25 +285,18 @@ export function ReaderPage() {
       </header>
 
       <div className="bb-reader-stage">
-        {pdfUrl ? (
-          <iframe className="bb-pdf" src={pdfUrl} title={book?.title ?? "Book"} />
-        ) : (
-          <>
-            <div ref={hostRef} className="bb-reader-host" />
-            {status === "loading" && <div className="bb-reader-loading">Opening book…</div>}
-            <button className="bb-turn bb-turn-prev" onClick={prev} aria-label="Previous page">
-              <span aria-hidden>‹</span>
-            </button>
-            <button className="bb-turn bb-turn-next" onClick={next} aria-label="Next page">
-              <span aria-hidden>›</span>
-            </button>
-            <button className="bb-immersive-toggle" onClick={() => setChrome((c) => !c)} aria-label={chrome ? "Hide toolbar" : "Show toolbar"} />
-          </>
-        )}
+        <div ref={hostRef} className={isPdf ? "bb-pdf-host" : "bb-reader-host"} />
+        {status === "loading" && <div className="bb-reader-loading">Opening book…</div>}
+        <button className="bb-turn bb-turn-prev" onClick={prev} aria-label="Previous page">
+          <span aria-hidden>‹</span>
+        </button>
+        <button className="bb-turn bb-turn-next" onClick={next} aria-label="Next page">
+          <span aria-hidden>›</span>
+        </button>
+        <button className="bb-immersive-toggle" onClick={() => setChrome((c) => !c)} aria-label={chrome ? "Hide toolbar" : "Show toolbar"} />
       </div>
 
-      {!pdfUrl && (
-        <footer className="bb-reader-foot">
+      <footer className="bb-reader-foot">
           {kid ? (
             <div className="bb-kid-progress" aria-label={`${pct}% of the book`}>
               <span style={{ width: `${pct}%` }} />
@@ -286,17 +309,22 @@ export function ReaderPage() {
                 type="range"
                 min={0}
                 max={1000}
-                value={Math.round((loc?.fraction ?? 0) * 1000)}
+                value={Math.round(frac * 1000)}
                 aria-label="Position in book"
-                onChange={(e) => void viewRef.current?.goToFraction(Number(e.target.value) / 1000)}
+                onChange={(e) => {
+                  const f = Number(e.target.value) / 1000;
+                  if (pdfRef.current) void pdfRef.current.goTo(Math.round(f * (pdfRef.current.total - 1)));
+                  else void viewRef.current?.goToFraction(f);
+                }}
               />
               <span className="bb-muted bb-small">
-                {pct}%{loc?.location ? ` · loc ${loc.location.current + 1} of ${loc.location.total}` : ""}
+                {pdfPos
+                  ? `Page ${pdfPos.page + 1} of ${pdfPos.total}`
+                  : `${pct}%${loc?.location ? ` · loc ${loc.location.current + 1} of ${loc.location.total}` : ""}`}
               </span>
             </>
           )}
-        </footer>
-      )}
+      </footer>
 
       {panel && (
         <aside className="bb-panel" role="dialog" aria-label={panel}>
@@ -346,18 +374,21 @@ export function ReaderPage() {
               {bookmarks.length === 0 && <p className="bb-muted">No bookmarks yet. Tap 📑 to mark a page.</p>}
               <ul className="bb-list">
                 {[...bookmarks]
-                  .sort((a, b) => (a.locator.kind === "epub" && b.locator.kind === "epub" ? a.locator.percent - b.locator.percent : 0))
+                  .sort((a, b) => sortKey(a.locator) - sortKey(b.locator))
                   .map((b) => (
                     <li key={b.id}>
                       <button
                         className="bb-list-btn"
                         onClick={() => {
                           if (b.locator.kind === "epub") void viewRef.current?.goTo(b.locator.cfi);
+                          else if (b.locator.kind === "page") void pdfRef.current?.goTo(b.locator.page);
                           setPanel(null);
                         }}
                       >
                         <strong>{b.text ?? "Bookmark"}</strong>
-                        <span className="bb-muted">{b.locator.kind === "epub" ? `${Math.round(b.locator.percent * 100)}%` : ""}</span>
+                        <span className="bb-muted">
+                          {b.locator.kind === "epub" ? `${Math.round(b.locator.percent * 100)}%` : b.locator.kind === "page" ? `p. ${b.locator.page + 1}` : ""}
+                        </span>
                       </button>
                       <button
                         className="bb-icon-btn"
@@ -397,6 +428,12 @@ export function ReaderPage() {
       )}
     </div>
   );
+}
+
+function sortKey(l: Bookmark["locator"]): number {
+  if (l.kind === "epub") return l.percent;
+  if (l.kind === "page") return l.totalPages > 0 ? l.page / l.totalPages : l.page;
+  return 0;
 }
 
 function Toc({
