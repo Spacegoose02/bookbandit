@@ -44,6 +44,9 @@ with Google through Tinyauth (the email header is trusted only from `TRUSTED_PRO
 `GOOGLE_SIGN_IN_URL` to show a Google button). Paired tablets show "Who's reading?" and kids sign in
 with a PIN or pictures. API details: `apps/server/src/auth/` and `apps/web/API_CONTRACT.md`.
 
+Barnaby AI is optional and off until an admin adds a provider at `/barnaby/settings`; local Ollama, cloud
+providers, SearXNG web search and kid mode are set up as described in [ai.md](ai.md).
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set
@@ -57,6 +60,7 @@ are optional. Details: `apps/server/src/library/README.md`.
 
 | Date | Change | PR |
 | --- | --- | --- |
+| 2026-11-14 | Barnaby AI: providers (Ollama/LM Studio/llama.cpp/OpenAI-compatible, Anthropic, Gemini) chosen per feature, SearXNG web search with sources, moderation (word filter + Llama Guard or any model), grown-up chat, kid mode (parent switch, no chat under 5, daily limit, content lock, personal details removed, parent log), spoiler-free book chat, rating helper, usage log (migration 0003). Web: floating Barnaby button, `/barnaby`, `/barnaby/family`, `/barnaby/settings`. Setup: [ai.md](ai.md) | this PR |
 | 2026-11-14 | Sign-in screens: first-run admin setup, username/password, Google button (`GOOGLE_SIGN_IN_URL`), tablet pairing by code, "Who's reading?" with kid PIN and picture pads, Settings → your name and kids' names, Switch reader / Sign out. Tablet browsers keep the device token in a `bb_device` cookie | this PR |
 | 2026-11-14 | PDF reader on pdf.js: page-by-page view, page progress sync, page bookmarks; demo PDF | lead |
 | 2026-11-14 | Wave 2 workstreams planned (admin, listening/storyteller, AI, requests/downloads, discover, Android, e-reader sync) | lead |
