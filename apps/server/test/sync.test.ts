@@ -275,9 +275,10 @@ describe("shelves", () => {
     const res = await call("Dad", "PUT", `/api/shelves/kids/${ids.Emma}/books/${ids.Thriller}`);
     expect(res.statusCode).toBe(422);
     // An admin can see inbox books, but the kid can't, so it can't go on their shelf either.
-    expect((await call("Admin", "PUT", `/api/shelves/kids/${ids.Emma}/books/${ids["Inbox Book"]}`)).statusCode).toBe(
-      422,
-    );
+    const inbox = await call("Admin", "PUT", `/api/shelves/kids/${ids.Emma}/books/${ids["Inbox Book"]}`);
+    expect(inbox.statusCode).toBe(422);
+    expect(inbox.json().error).toMatch(/inbox/);
+    expect(res.json().error).toMatch(/reading level/);
 
     await call("Dad", "PUT", `/api/shelves/kids/${ids.Emma}/books/${ids["Picture Book"]}`);
     rate("Picture Book", "teen");

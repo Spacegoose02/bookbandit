@@ -8,6 +8,11 @@ re-rated above a kid's level disappears from their progress, bookmarks and shelv
 Times are integer ms since epoch unless noted. `percent` is a fraction from 0 to 1.
 Types live in `@bookbandit/shared` (`ReadingLocator`, `ProgressRecord`, `BookmarkRecord`).
 
+**Do a full sync now and then.** The `since` cursors only return rows that changed. If a book is
+re-rated or approved so a reader can see it again, its old progress and bookmarks didn't change, so
+they won't come back through `since`. Clients should do a full sync (no `since`) on app start or
+once a day, and use `since` in between.
+
 ## Progress
 
 | Route | What it does |
@@ -41,7 +46,7 @@ For stickers, `text` holds the sticker's name. `color` is a hex like `#ffcc00` o
 | `GET /api/shelves/continue?limit=` | Started, unfinished books, most recently read first, with progress. |
 | `GET /api/shelves/finished?limit=` | Finished books. |
 | `GET /api/shelves/kids/:kidId?storyteller=` | A kid's hand-picked shelf with their progress. `kidId` may be `me`. Visible to the kid, a linked parent, or an admin; anyone else gets 404. |
-| `PUT /api/shelves/kids/:kidId/books/:bookId` | Parent/admin adds a book (`{ storyteller? }`). Kids get 403. A book above the kid's level gets 422. |
+| `PUT /api/shelves/kids/:kidId/books/:bookId` | Parent/admin adds a book (`{ storyteller? }`). Kids get 403. A book above the kid's level, or still waiting in the inbox, gets 422 with a reason. |
 | `DELETE /api/shelves/kids/:kidId/books/:bookId` | Parent/admin removes it. |
 
 Kid shelves are filtered as the kid and as the viewer, so a later re-rating hides a book there too.

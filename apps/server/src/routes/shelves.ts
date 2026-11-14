@@ -155,6 +155,8 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
       if (!body) return reply;
       const kid = resolveKid(viewer, req.params.kidId, true);
       const book = loadVisibleBook(db, viewer, req.params.bookId);
+      // Only an admin gets this far with an unapproved book; it isn't a reading-level problem.
+      if (!book.approved) return reply.code(422).send({ error: "This book is still waiting in the inbox" });
       try {
         assertCanSee(kid, book);
       } catch (err) {
