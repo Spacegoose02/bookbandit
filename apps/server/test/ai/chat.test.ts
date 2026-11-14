@@ -54,6 +54,26 @@ describe("admin settings", () => {
     expect(again.json().providers.find((p: { id: string }) => p.id === "claude").hasApiKey).toBe(true);
   });
 
+  it("adds http:// to addresses typed without it", async () => {
+    const res = await configure({
+      providers: [{ ...OLLAMA_SETTINGS.providers[0], baseUrl: "192.168.86.35:11434/v1/" }, OLLAMA_SETTINGS.providers[1]],
+      search: { enabled: true, url: " 192.168.86.35:8189 " },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().search.url).toBe("http://192.168.86.35:8189");
+    expect(res.json().providers[0].baseUrl).toBe("http://192.168.86.35:11434/v1");
+  });
+
+  it("names the field that's wrong instead of just 'Invalid request'", async () => {
+    const bad = await configure({ search: { enabled: true, url: "not a url at all" } });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().message).toMatch(/^SearXNG URL: /);
+    const missing = await configure({ providers: [{ id: "lan", name: "LAN box", kind: "openai", model: "x" }], features: {} });
+    expect(missing.json().message).toBe("Provider “LAN box” base URL: required for OpenAI-compatible servers");
+    const off = await configure({ search: { enabled: true, url: "" } });
+    expect(off.json().message).toBe("SearXNG URL: required when search is on");
+  });
+
   it("rejects features pointing at unknown providers", async () => {
     const res = await configure({ features: { chat: "nope" } });
     expect(res.statusCode).toBe(400);
