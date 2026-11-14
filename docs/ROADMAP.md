@@ -12,7 +12,7 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 - [x] Server-side content lock (kids/middle grade/teen/adult/explicit, unrated = adult) with tests
 - [x] Tinyauth sign-in, trusted only from the reverse proxy
 - [x] Family accounts: kid accounts under a parent, PIN/picture sign-in, QR device pairing, local password fallback (`ws/auth`)
-- [ ] Web sign-in screen and own-profile editor (`ws/auth`, in progress)
+- [x] Web sign-in screen and own-profile editor (`ws/auth`)
 - [x] Scan `/books`, read file metadata, Open Library / Google Books / Hardcover lookup, inbox approval (`ws/library`)
 - [x] Ratings from metadata, keywords and the `/books/adult` folder (`ws/library`)
 - [x] Reading progress, bookmarks, highlights, stickers, Continue reading and kid shelves API (`ws/sync`)
