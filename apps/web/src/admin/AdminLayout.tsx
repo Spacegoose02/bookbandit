@@ -30,6 +30,7 @@ export function AdminLayout({ area }: { area: "admin" | "family" }) {
           ["/admin/import", "Move in"],
           ["/admin/audio", "Audiobooks"],
           ["/barnaby/settings", "Barnaby AI"],
+          ["/readaloud/settings", "Read-aloud"], // ws/readaloud
           ["/family", "Family"],
         ]
       : [

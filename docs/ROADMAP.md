@@ -95,9 +95,9 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Kid AI mode with Barnaby (moderation, personal-detail removal, parent log, daily limits, no chat under 5) (`ws/ai`)
 
-- [ ] Narration with a local TTS server (Kokoro/Piper) and sentence highlighting (`ws/readaloud`)
+- [x] Narration with a local TTS server (Kokoro/Piper) and sentence highlighting (`ws/readaloud`; highlights word by word, per-person voice, cached audio)
 
-- [ ] Word help and after-chapter quizzes for kids, logged for parents (`ws/readaloud`)
+- [x] Word help and after-chapter quizzes for kids, logged for parents (`ws/readaloud`)
 
 ## Phase 4: Own the audio (optional)
 
@@ -109,7 +109,7 @@ Goal: Audiobookshelf can be switched off.
 
 - [x] Import Audiobookshelf progress and bookmarks; write listening positions back to Audiobookshelf while both run (`ws/audio`)
 
-- [ ] Read-along (EPUB3 media overlays) (`ws/readaloud`)
+- [x] Read-along (EPUB3 media overlays) (`ws/readaloud`)
 
 ## Phase 5: Kids, safety and release
 

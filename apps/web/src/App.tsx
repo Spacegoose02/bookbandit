@@ -36,6 +36,7 @@ import { KindleImportPage } from "./discover/KindleImportPage";
 import { ImportPage } from "./imports/ImportPage";
 import { SeriesListPage } from "./series/SeriesListPage";
 import { SeriesPage } from "./series/SeriesPage";
+import { NarrationSettingsPage } from "./readaloud/NarrationSettingsPage"; // ws/readaloud
 import { LibrarianLayout } from "./librarian/LibrarianLayout";
 import { HealthPage } from "./librarian/HealthPage";
 import { DuplicatesPage } from "./librarian/DuplicatesPage";
@@ -80,6 +81,7 @@ export function App() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="categories/:id" element={<CategoryPageView />} />
         <Route path="settings/ereaders" element={<EreadersPage />} />
+        <Route path="readaloud/settings" element={<NarrationSettingsPage />} /> {/* ws/readaloud */}
         <Route path="admin" element={<AdminLayout area="admin" />}>
           <Route index element={<AdminHome />} />
           <Route path="inbox" element={<InboxPage />} />

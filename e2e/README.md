@@ -45,6 +45,7 @@ The ids and tokens go to `.run/state.json` for the tests.
 | Barnaby: the model never sees a locked title for a kid; book chat and "More like this" on a locked book are 404 | `lock-ai.spec.ts` |
 | Discover: "popular in your family" | `lock-discover-requests.spec.ts` |
 | Requests: a locked title is never "already in the library" | `lock-discover-requests.spec.ts` |
+| Audio (tracks, cover, progress, bookmarks), chapter quizzes and word help on a locked book | `lock-wave3.spec.ts` |
 
 Each door also has a control (Dad's sign-in sees the adult book) so a test can't pass by
 returning nothing. A new endpoint that returns books gets a line here and a check in the right spec.
