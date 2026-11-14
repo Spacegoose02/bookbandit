@@ -65,7 +65,10 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+      # The default package list includes "tools", which the SDK no longer has; ask only for what we use.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36
 
       - name: Version
         id: version
