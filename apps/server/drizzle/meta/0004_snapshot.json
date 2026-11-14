@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "76357161-587a-4d9b-b4bb-52b3db1bfcec",
+  "id": "f2342ba2-39f1-4fed-bc06-5c938dc9f66b",
   "prevId": "56c8692f-0cdf-4911-b669-abe77aa11d02",
   "tables": {
     "ai_messages": {
@@ -414,48 +414,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "cover_url": {
-          "name": "cover_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "published_year": {
-          "name": "published_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "rating_reason": {
-          "name": "rating_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "job_id": {
-          "name": "job_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {},
@@ -479,19 +437,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "decided_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "book_requests_book_id_books_id_fk": {
-          "name": "book_requests_book_id_books_id_fk",
-          "tableFrom": "book_requests",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
           ],
           "columnsTo": [
             "id"
@@ -1290,49 +1235,6 @@
         },
         "finished_at": {
           "name": "finished_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "max_attempts": {
-          "name": "max_attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 5
-        },
-        "progress": {
-          "name": "progress",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "result": {
-          "name": "result",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -2216,68 +2118,228 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "job_logs": {
-      "name": "job_logs",
+    "storyteller_sessions": {
+      "name": "storyteller_sessions",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": true
+          "autoincrement": false
         },
-        "job_id": {
-          "name": "job_id",
+        "kid_id": {
+          "name": "kid_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "at": {
-          "name": "at",
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "night": {
+          "name": "night",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "level": {
-          "name": "level",
-          "type": "text",
+        "last_beat_at": {
+          "name": "last_beat_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed": {
+          "name": "completed",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'info'"
+          "default": false
         },
-        "message": {
-          "name": "message",
-          "type": "text",
+        "listened_ms": {
+          "name": "listened_ms",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {
-        "job_logs_job_idx": {
-          "name": "job_logs_job_idx",
+        "storyteller_sessions_kid_night_idx": {
+          "name": "storyteller_sessions_kid_night_idx",
           "columns": [
-            "job_id",
-            "id"
+            "kid_id",
+            "night"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "job_logs_job_id_jobs_id_fk": {
-          "name": "job_logs_job_id_jobs_id_fk",
-          "tableFrom": "job_logs",
-          "tableTo": "jobs",
+        "storyteller_sessions_kid_id_users_id_fk": {
+          "name": "storyteller_sessions_kid_id_users_id_fk",
+          "tableFrom": "storyteller_sessions",
+          "tableTo": "users",
           "columnsFrom": [
-            "job_id"
+            "kid_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "storyteller_sessions_book_id_books_id_fk": {
+          "name": "storyteller_sessions_book_id_books_id_fk",
+          "tableFrom": "storyteller_sessions",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "storyteller_settings": {
+      "name": "storyteller_settings",
+      "columns": {
+        "kid_id": {
+          "name": "kid_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "stories_per_night": {
+          "name": "stories_per_night",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "minutes_per_night": {
+          "name": "minutes_per_night",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sleep_timer_minutes": {
+          "name": "sleep_timer_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "read_aloud": {
+          "name": "read_aloud",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'UTC'"
+        },
+        "night_starts_hour": {
+          "name": "night_starts_hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 12
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "storyteller_settings_kid_id_users_id_fk": {
+          "name": "storyteller_settings_kid_id_users_id_fk",
+          "tableFrom": "storyteller_settings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "kid_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "storyteller_settings_updated_by_users_id_fk": {
+          "name": "storyteller_settings_updated_by_users_id_fk",
+          "tableFrom": "storyteller_settings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

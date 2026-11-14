@@ -88,7 +88,6 @@ workstream once it lands. Add your entry there, not here.
 
 Admin follow-ups: the sign-in thread adds `<AdminNavLinks role={me.role} />` (from
 `apps/web/src/admin/AdminLayout.tsx`) to the top bar; until then `/admin` and `/family` are reached by URL.
-Once reading sessions land, the family dashboard adds minutes read per kid.
 
 ## Decisions so far
 

@@ -18,6 +18,10 @@ import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
 import { RequestsPage } from "./requests/RequestsPage";
 import { SettingsPage } from "./themes/ThemePicker";
+import { ListenPage } from "./audio/ListenPage";
+import { StorytellerGate } from "./storyteller/StorytellerGate";
+import { StorytellerPage } from "./storyteller/StorytellerPage";
+import { StorytellerSetup } from "./storyteller/StorytellerSetup";
 import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
 import { CookbookPage } from "./discover/CookbookPage";
 import { DiscoverPage } from "./discover/DiscoverPage";
@@ -41,13 +45,16 @@ export function App() {
     <Routes>
       <Route path="/who" element={<SignIn switching />} />
       <Route path="/read/:id" element={me ? <ReaderPage /> : null} />
+      <Route path="/storyteller" element={me ? <StorytellerPage /> : null} />
       <Route path="/cook/:id" element={me ? <CookbookPage /> : null} />
       <Route element={<Layout />}>
-        <Route index element={me?.isKid ? <KidHome /> : <HomePage />} />
+        <Route index element={me?.isKid ? <StorytellerGate fallback={<KidHome />} /> : <HomePage />} />
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="requests" element={<RequestsPage />} />
+        <Route path="listen/:id" element={<ListenPage />} />
+        <Route path="storyteller/setup" element={<StorytellerSetup />} />
         <Route path="discover" element={<DiscoverPage />} />
         <Route path="discover/kindle-import" element={<KindleImportPage />} />
         <Route path="series" element={<SeriesListPage />} />
