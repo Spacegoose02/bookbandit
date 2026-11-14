@@ -44,6 +44,10 @@ with Google through Tinyauth (the email header is trusted only from `TRUSTED_PRO
 `GOOGLE_SIGN_IN_URL` to show a Google button). Paired tablets show "Who's reading?" and kids sign in
 with a PIN or pictures. API details: `apps/server/src/auth/` and `apps/web/API_CONTRACT.md`.
 
+E-readers (OPDS apps, KOReader, Kobo): create a sign-in under **E-readers** in the web app. The
+reverse proxy must let `/opds`, `/kosync` and `/kobo` through without Tinyauth; the e-reader signs
+in to Bookbandit itself. Setup steps: `apps/server/src/ereader/README.md`.
+
 Data lives in `./data/config` (SQLite) and `./data/books` unless `CONFIG_DIR` / `BOOKS_DIR` are set.
 
 Library scanning: the server scans `BOOKS_DIR` once when it starts listening (set

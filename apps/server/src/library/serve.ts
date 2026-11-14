@@ -108,10 +108,18 @@ export async function serveRoutes(app: FastifyInstance, opts: { db: Db; booksDir
   });
 }
 
-function sendFile(reply: FastifyReply, abs: string, size: number, type: string, filename: string, range: string | undefined) {
+export function sendFile(
+  reply: FastifyReply,
+  abs: string,
+  size: number,
+  type: string,
+  filename: string,
+  range: string | undefined,
+  disposition: "inline" | "attachment" = "inline",
+) {
   reply.header("accept-ranges", "bytes");
   reply.header("cache-control", "private, no-transform");
-  reply.header("content-disposition", `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  reply.header("content-disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(filename)}`);
   reply.type(type);
   const r = parseRange(range, size);
   if (r === "invalid") {
@@ -128,7 +136,7 @@ function sendFile(reply: FastifyReply, abs: string, size: number, type: string, 
   return reply.send(createReadStream(abs));
 }
 
-function downloadName(title: string, format: BookFormat): string {
+export function downloadName(title: string, format: BookFormat): string {
   const ext = format === "kepub" ? "kepub.epub" : format;
   const safe = title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").trim().slice(0, 120) || "book";
   return `${safe}.${ext}`;
