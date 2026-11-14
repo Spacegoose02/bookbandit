@@ -18,6 +18,12 @@ import { flushAllPending } from "./reader/progressSync";
 import { ReaderPage } from "./reader/ReaderPage";
 import { RequestsPage } from "./requests/RequestsPage";
 import { SettingsPage } from "./themes/ThemePicker";
+import { CategoriesPage, CategoryPageView } from "./discover/CategoriesPage";
+import { CookbookPage } from "./discover/CookbookPage";
+import { DiscoverPage } from "./discover/DiscoverPage";
+import { KindleImportPage } from "./discover/KindleImportPage";
+import { SeriesListPage } from "./series/SeriesListPage";
+import { SeriesPage } from "./series/SeriesPage";
 
 export function App() {
   const { me } = useSession();
@@ -35,12 +41,19 @@ export function App() {
     <Routes>
       <Route path="/who" element={<SignIn switching />} />
       <Route path="/read/:id" element={me ? <ReaderPage /> : null} />
+      <Route path="/cook/:id" element={me ? <CookbookPage /> : null} />
       <Route element={<Layout />}>
         <Route index element={me?.isKid ? <KidHome /> : <HomePage />} />
         <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
         <Route path="book/:id" element={<BookPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="requests" element={<RequestsPage />} />
+        <Route path="discover" element={<DiscoverPage />} />
+        <Route path="discover/kindle-import" element={<KindleImportPage />} />
+        <Route path="series" element={<SeriesListPage />} />
+        <Route path="series/:id" element={<SeriesPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="categories/:id" element={<CategoryPageView />} />
         <Route path="admin" element={<AdminLayout area="admin" />}>
           <Route index element={<AdminHome />} />
           <Route path="inbox" element={<InboxPage />} />

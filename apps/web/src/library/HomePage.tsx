@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { Shelf } from "../api/types";
 import { useSession } from "../app/session";
 import { BarnabyEmpty, BarnabySays } from "../brand/Barnaby";
+import { ExploreLinks } from "../discover/ExploreLinks";
 import { BookCard } from "./BookCard";
 
 export function ShelfRow({ shelf }: { shelf: Shelf }) {
@@ -44,6 +45,7 @@ export function HomePage() {
 
   return (
     <div className="bb-page">
+      <ExploreLinks />
       <BarnabySays>
         Hi {me?.displayName ?? "there"}! {nonEmpty.some((s) => s.kind === "continue") ? "Pick up where you left off?" : "What shall we read today?"}
       </BarnabySays>
