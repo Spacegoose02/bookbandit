@@ -3,6 +3,7 @@
  * answers from the sample library so the chat can be shown without a server or model.
  */
 import { api as libraryApi, ApiError, isDemo } from "../api/client";
+import type { BookSummary } from "../api/types";
 
 export interface AiStatus {
   available: boolean;
@@ -12,6 +13,50 @@ export interface AiStatus {
   webSearch: boolean;
   bookChat: boolean;
   remainingToday: number | null;
+  /** Meaning search is set up and this reader may use it. */
+  meaningSearch?: boolean;
+  /** "Find a book" (smart requests): grown-ups with a chat provider. */
+  smartRequests?: boolean;
+}
+
+/** A book Barnaby found: "more like this" adds `reason`, meaning search adds `score`. */
+export interface FoundBook extends BookSummary {
+  reason?: string;
+  score?: number;
+}
+
+export interface SmartRequestResult {
+  interpreted: {
+    like: string[];
+    age: number | null;
+    topics: string[];
+    maxRating: string;
+    forKid: { id: string; displayName: string } | null;
+  };
+  picks: (BookSummary & { reason: string })[];
+  outside: { title: string; author: string; reason: string }[];
+}
+
+export type MetadataField = "title" | "subtitle" | "authors" | "series" | "description";
+export type MetadataValue = string | string[] | { name: string; position: number | null } | null;
+
+export interface MetadataSuggestion {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  field: MetadataField;
+  current: MetadataValue;
+  suggested: MetadataValue;
+  reason: string;
+  status: "pending" | "accepted" | "dismissed";
+}
+
+export interface EmbeddingStatus {
+  configured: boolean;
+  model: string | null;
+  indexed: number;
+  total: number;
+  job: { id: string; status: string; progress: number | null; lastError: string | null; finishedAt: number | null } | null;
 }
 
 export interface AiSource {
@@ -80,7 +125,7 @@ export interface ProviderSettings {
   apiKey?: string | null;
 }
 
-export const AI_FEATURES = ["chat", "kidChat", "bookChat", "moderation", "rating"] as const;
+export const AI_FEATURES = ["chat", "kidChat", "bookChat", "moderation", "rating", "metadata", "embeddings"] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
 export interface AiSettings {
@@ -111,9 +156,23 @@ export interface RatingSuggestion {
   status: string;
 }
 
+export type ChatBody = { message: string; conversationId?: string; bookId?: string; webSearch?: boolean };
+
 export interface AiApi {
   status(): Promise<AiStatus>;
-  chat(body: { message: string; conversationId?: string; bookId?: string; webSearch?: boolean }): Promise<ChatResponse>;
+  chat(body: ChatBody): Promise<ChatResponse>;
+  /** Like chat, calling `onDelta` with each piece of the reply as Barnaby writes it. */
+  chatStream(body: ChatBody, onDelta: (text: string) => void): Promise<ChatResponse>;
+  similar(bookId: string, limit?: number): Promise<FoundBook[]>;
+  meaningSearch(q: string, limit?: number): Promise<{ available: boolean; items: FoundBook[]; error?: string }>;
+  smartRequest(text: string, forKidId?: string): Promise<SmartRequestResult>;
+  embeddings(): Promise<EmbeddingStatus>;
+  startEmbeddings(): Promise<EmbeddingStatus>;
+  metadataStatus(): Promise<RatingRunStatus>;
+  startMetadata(limit: number): Promise<RatingRunStatus>;
+  metadataSuggestions(): Promise<MetadataSuggestion[]>;
+  acceptMetadata(id: string, value?: MetadataValue): Promise<void>;
+  dismissMetadata(id: string): Promise<void>;
   conversations(bookId?: string): Promise<AiConversation[]>;
   conversation(id: string): Promise<{ conversation: AiConversation; messages: AiMessage[] }>;
   deleteConversation(id: string): Promise<void>;
@@ -156,9 +215,70 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 const enc = encodeURIComponent;
 
+/** POST /api/ai/chat/stream and read its server-sent events. */
+async function chatStream(body: ChatBody, onDelta: (text: string) => void): Promise<ChatResponse> {
+  const res = await fetch("/api/ai/chat/stream", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const b = (await res.json()) as { message?: string };
+      if (b.message) message = b.message;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(res.status, message);
+  }
+  if (!(res.headers.get("content-type") ?? "").includes("event-stream") || !res.body) return (await res.json()) as ChatResponse;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let done: ChatResponse | null = null;
+  const handle = (chunk: string) => {
+    const event = /^event: (.*)$/m.exec(chunk)?.[1];
+    const data = /^data: (.*)$/m.exec(chunk)?.[1];
+    if (!event || !data) return;
+    const parsed = JSON.parse(data);
+    if (event === "delta") onDelta(parsed.text);
+    else if (event === "done") done = parsed as ChatResponse;
+    else if (event === "error") throw new ApiError(parsed.statusCode ?? 502, parsed.message ?? "Barnaby lost his train of thought.");
+  };
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (end) break;
+    buf += decoder.decode(value, { stream: true });
+    let i: number;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      handle(buf.slice(0, i));
+      buf = buf.slice(i + 2);
+    }
+  }
+  if (buf.trim()) handle(buf);
+  if (!done) throw new ApiError(502, "Barnaby's answer was cut off. Try again?");
+  return done;
+}
+
 export const httpAiApi: AiApi = {
   status: () => request("/api/ai/status"),
   chat: (body) => request("/api/ai/chat", post(body)),
+  chatStream,
+  similar: (bookId, limit = 8) =>
+    request<{ items: FoundBook[] }>(`/api/ai/books/${enc(bookId)}/similar?limit=${limit}`).then((r) => r.items),
+  meaningSearch: (q, limit = 12) => request(`/api/ai/search?${new URLSearchParams({ q, limit: String(limit) })}`),
+  smartRequest: (text, forKidId) => request("/api/ai/smart-request", post(forKidId ? { text, forKidId } : { text })),
+  embeddings: () => request("/api/admin/ai/embeddings"),
+  startEmbeddings: () => request("/api/admin/ai/embeddings/run", post({})),
+  metadataStatus: () => request("/api/admin/ai/metadata/run"),
+  startMetadata: (limit) => request("/api/admin/ai/metadata/run", post({ limit })),
+  metadataSuggestions: () =>
+    request<{ items: MetadataSuggestion[] }>("/api/admin/ai/metadata/suggestions").then((r) => r.items),
+  acceptMetadata: (id, value) =>
+    request(`/api/admin/ai/metadata/suggestions/${enc(id)}/accept`, post(value === undefined ? {} : { value })),
+  dismissMetadata: (id) => request(`/api/admin/ai/metadata/suggestions/${enc(id)}/dismiss`, post({})),
   conversations: (bookId) =>
     request<{ items: AiConversation[] }>(`/api/ai/conversations${bookId ? `?bookId=${enc(bookId)}` : ""}`).then((r) => r.items),
   conversation: (id) => request(`/api/ai/conversations/${enc(id)}`),
@@ -216,8 +336,24 @@ const DEMO_SETTINGS: AiSettings = {
       hasApiKey: false,
     },
     { id: "claude", name: "Claude", kind: "anthropic", model: "claude-haiku-5-5", hasApiKey: true },
+    {
+      id: "embed",
+      name: "Ollama embeddings",
+      kind: "openai",
+      baseUrl: "http://ollama:11434/v1",
+      model: "nomic-embed-text",
+      hasApiKey: false,
+    },
   ],
-  features: { chat: "claude", kidChat: "ollama", bookChat: "claude", moderation: "guard", rating: "ollama" },
+  features: {
+    chat: "claude",
+    kidChat: "ollama",
+    bookChat: "claude",
+    moderation: "guard",
+    rating: "ollama",
+    metadata: "claude",
+    embeddings: "embed",
+  },
   search: {
     enabled: true,
     url: "http://searxng:8080",
@@ -355,6 +491,59 @@ const DEMO_LOG: { conversation: AiConversation; messages: AiMessage[] }[] = [
   },
 ];
 
+const DEMO_METADATA: MetadataSuggestion[] = [
+  {
+    id: "md1",
+    bookId: "b20",
+    bookTitle: "Untitled Manuscript",
+    field: "title",
+    current: "Untitled Manuscript",
+    suggested: "The Salt Road (draft)",
+    reason: "The file name and first page give the real title.",
+    status: "pending",
+  },
+  {
+    id: "md2",
+    bookId: "b17",
+    bookTitle: "the_long_winter_road_v2 (retail)",
+    field: "title",
+    current: "the_long_winter_road_v2 (retail)",
+    suggested: "The Long Winter Road",
+    reason: "Removed file-name junk and fixed the capitals.",
+    status: "pending",
+  },
+  {
+    id: "md3",
+    bookId: "b17",
+    bookTitle: "the_long_winter_road_v2 (retail)",
+    field: "authors",
+    current: ["Lindqvist, Margot"],
+    suggested: ["Margot Lindqvist"],
+    reason: "Author names read first name first.",
+    status: "pending",
+  },
+  {
+    id: "md4",
+    bookId: "b9",
+    bookTitle: "Pixel Quest (Pixel Quest #1)",
+    field: "series",
+    current: null,
+    suggested: { name: "Pixel Quest", position: 1 },
+    reason: "The series was stuck in the title.",
+    status: "pending",
+  },
+  {
+    id: "md5",
+    bookId: "b13",
+    bookTitle: "Gardens of Ash",
+    field: "description",
+    current: "<p>A family saga.</p> ★★★★★ \"Unputdownable!\" Buy now and save 20%",
+    suggested: "A family saga.",
+    reason: "Removed HTML, a review quote and an ad.",
+    status: "pending",
+  },
+];
+
 export const demoAiApi: AiApi = {
   status: async () => {
     const kid = demoKid();
@@ -366,8 +555,102 @@ export const demoAiApi: AiApi = {
       webSearch: true,
       bookChat: true,
       remainingToday: kid ? 30 - demoSent : null,
+      meaningSearch: true,
+      smartRequests: !kid,
     };
   },
+  chatStream: async (body, onDelta) => {
+    const r = await demoAiApi.chat(body);
+    if (demoKid()) return r;
+    // Grown-ups see the reply appear a few words at a time, like the real thing.
+    const words = r.reply.content.split(/(?<= )/);
+    for (const w of words) {
+      onDelta(w);
+      await new Promise((ok) => setTimeout(ok, 25));
+    }
+    return r;
+  },
+  similar: async (bookId, limit = 8) => {
+    const page = await libraryApi.books(new URLSearchParams({ limit: "60" }));
+    const self = page.items.find((b) => b.id === bookId);
+    const author = self?.authors?.[0]?.name;
+    const series = self?.series?.[0]?.name;
+    return page.items
+      .filter((b) => b.id !== bookId)
+      .map((b, i) => {
+        const sameSeries = !!series && b.series?.some((s) => s.name === series);
+        const sameAuthor = !!author && b.authors?.some((a) => a.name === author);
+        const sameAge = b.rating === self?.rating;
+        const score = (sameSeries ? 3 : 0) + (sameAuthor ? 2 : 0) + (sameAge ? 1 : 0) - i * 0.01;
+        const reason = sameSeries ? `Same series: ${series}` : sameAuthor ? `Also by ${author}` : sameAge ? "A similar story" : "Also in your library";
+        return { ...b, reason, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+  },
+  meaningSearch: async (q, limit = 12) => {
+    await new Promise((r) => setTimeout(r, 300));
+    const page = await libraryApi.books(new URLSearchParams({ limit: "60" }));
+    const lower = q.toLowerCase();
+    const plots: [RegExp, RegExp][] = [
+      [/robot|machine|neighbo|friend/, /robot/i],
+      [/sea|ocean|light|storm|island|coast/, /lighthouse|sea/i],
+      [/sleep|bed|night|tired|moon/, /goodnight|sleepy|moon/i],
+      [/game|video|level|arcade|computer/, /pixel/i],
+      [/snow|winter|cold|journey|road/, /winter|road/i],
+      [/dino|fossil|dig/, /dinosaur/i],
+      [/cook|soup|dinner|recipe/, /soup/i],
+      [/japan|travel|quiet|calm/, /kyoto|quiet/i],
+    ];
+    const wanted = plots.filter(([q]) => q.test(lower)).map(([, t]) => t);
+    const items = page.items
+      .filter((b) => wanted.some((t) => t.test(b.title)))
+      .map((b, i) => ({ ...b, score: Math.round((0.82 - i * 0.05) * 100) / 100 }))
+      .slice(0, limit);
+    return { available: true, items };
+  },
+  smartRequest: async (text) => {
+    await new Promise((r) => setTimeout(r, 600));
+    const age = Number(/(\d+)[- ]?year/.exec(text)?.[1]) || null;
+    const max = age == null ? "adult" : age < 8 ? "kids" : age < 13 ? "middle_grade" : age < 18 ? "teen" : "adult";
+    const order = ["kids", "middle_grade", "teen", "adult", "explicit"];
+    const page = await libraryApi.books(new URLSearchParams({ limit: "60" }));
+    // Closest to the age asked for first.
+    const fits = page.items
+      .filter((b) => b.rating && order.indexOf(b.rating) <= order.indexOf(max))
+      .sort((a, b) => order.indexOf(b.rating!) - order.indexOf(a.rating!));
+    const like = /like ([A-Z][\w' :]+?)(?: for| about|$)/.exec(text)?.[1]?.trim();
+    const reasons = [
+      "A big-hearted adventure with the same mix of humour and puzzles.",
+      "Short chapters and a brave hero who solves problems with friends.",
+      "Gentle peril and lots of heart, just right for that age.",
+      "Funny, fast and full of surprises.",
+    ];
+    return {
+      interpreted: { like: like ? [like] : [], age, topics: ["adventure", "friendship"], maxRating: max, forKid: null },
+      picks: fits
+        .filter((b) => b.title !== like)
+        .slice(0, 4)
+        .map((b, i) => ({ ...b, reason: reasons[i % reasons.length]! })),
+      outside: [
+        { title: "The Wild Robot", author: "Peter Brown", reason: "A robot learns to survive on a wild island; loved by 8 to 12 year olds." },
+        { title: "Zita the Spacegirl", author: "Ben Hatke", reason: "A graphic-novel space adventure full of friendly monsters." },
+      ],
+    };
+  },
+  embeddings: async () => ({
+    configured: true,
+    model: "nomic-embed-text",
+    indexed: 22,
+    total: 24,
+    job: { id: "j1", status: "running", progress: 0.6, lastError: null, finishedAt: null },
+  }),
+  startEmbeddings: async () => demoAiApi.embeddings(),
+  metadataStatus: async () => ({ running: false, total: 25, done: 25, suggested: 3, applied: 5, failed: 0, lastError: null }),
+  startMetadata: async () => ({ running: true, total: 25, done: 0, suggested: 0, applied: 0, failed: 0, lastError: null }),
+  metadataSuggestions: async () => structuredClone(DEMO_METADATA),
+  acceptMetadata: async (mid) => void DEMO_METADATA.splice(DEMO_METADATA.findIndex((m) => m.id === mid), 1),
+  dismissMetadata: async (mid) => void DEMO_METADATA.splice(DEMO_METADATA.findIndex((m) => m.id === mid), 1),
   chat: async (body) => {
     const kid = demoKid();
     await new Promise((r) => setTimeout(r, 700));

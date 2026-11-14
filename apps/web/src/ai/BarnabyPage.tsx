@@ -56,6 +56,7 @@ export function BarnabyPage() {
         </ul>
         {!me.isKid && (
           <nav className="bb-conv-links">
+            {status?.smartRequests && <Link to="/barnaby/find">🔎 Find a book</Link>}
             {grownUp && <Link to="/barnaby/family">👨‍👩‍👧 Kids' Barnaby chats</Link>}
             {(me.role === "admin" || isDemo) && <Link to="/barnaby/settings">⚙️ Barnaby settings</Link>}
           </nav>

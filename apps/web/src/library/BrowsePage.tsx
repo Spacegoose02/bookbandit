@@ -6,6 +6,7 @@ import { useSession } from "../app/session";
 import { BarnabyEmpty } from "../brand/Barnaby";
 import { BookGrid } from "./BookCard";
 import { FilterBar } from "./FilterBar";
+import { MeaningMatches } from "../ai/MeaningMatches";
 import { filtersFromSearch, filtersToApiQuery, filtersToSearch, type LibraryFilters } from "./filters";
 
 const PAGE = 48;
@@ -89,6 +90,7 @@ export function BrowsePage({ title = "Library" }: { title?: string }) {
           <BookGrid books={books} />
         </>
       )}
+      {filters.q && <MeaningMatches q={filters.q} exclude={books.map((b) => b.id)} />}
       {canLoadMore && (
         <div className="bb-center">
           <button className="bb-btn" onClick={loadMore} disabled={loading}>

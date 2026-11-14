@@ -63,7 +63,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 - [x] Admin UI: inbox approval with metadata edit and merge, rating review, scan status, users and kids, paired devices, Audiobookshelf/SMTP/metadata settings (`ws/admin`)
 - [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them)
 - [x] AI provider settings (Ollama / OpenAI-compatible / Anthropic / Gemini), usage log, AI rating helper (`ws/ai`, [ai.md](ai.md))
-- [ ] AI metadata cleanup (`ws/ai`)
+- [x] AI metadata cleanup (`ws/ai`)
 
 ## Phase 3: Polish and devices
 
@@ -81,7 +81,7 @@ Goal: the Calibre desktop app is no longer needed.
 - [x] Kindle library import (metadata-only, "Read in Kindle") (`ws/discover`)
 
 - [x] AI: ask your library, spoiler-free book chat, web answers via SearXNG with sources (`ws/ai`)
-- [ ] AI: more like this, smart requests, meaning search (embeddings), streaming replies (`ws/ai`)
+- [x] AI: more like this, smart requests, meaning search (embeddings), streaming replies, rating helper on the job runner (`ws/ai`)
 
 - [x] Kid AI mode with Barnaby (moderation, personal-detail removal, parent log, daily limits, no chat under 5) (`ws/ai`)
 
