@@ -1,0 +1,13 @@
+{
+  "name": "BookBandit",
+  "short_name": "BookBandit",
+  "description": "Your family's library and reader",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14161b",
+  "theme_color": "#14161b",
+  "icons": [
+    { "src": "/brand/barnaby-face-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/brand/barnaby-face-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

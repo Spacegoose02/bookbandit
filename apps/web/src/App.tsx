@@ -1,27 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { api } from "./api/client";
+import { Layout } from "./app/Layout";
+import { useSession } from "./app/session";
+import { KidHome } from "./kid/KidHome";
+import { BookPage } from "./library/BookPage";
+import { BrowsePage } from "./library/BrowsePage";
+import { HomePage } from "./library/HomePage";
+import { flushAllPending } from "./reader/progressSync";
+import { ReaderPage } from "./reader/ReaderPage";
+import { SettingsPage } from "./themes/ThemePicker";
 
-interface BookSummary {
-  id: string;
-  title: string;
-}
-
-/** Placeholder home screen. The web workstream replaces this with shelves and the reader. */
 export function App() {
-  const [books, setBooks] = useState<BookSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { me } = useSession();
 
+  // Send any reading positions saved while offline, now and whenever the network returns.
   useEffect(() => {
-    fetch("/api/books")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: { items: BookSummary[] }) => setBooks(data.items))
-      .catch((e: Error) => setError(e.message));
-  }, []);
+    if (!me) return;
+    const flush = () => void flushAllPending(api, localStorage);
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [me]);
 
   return (
-    <main style={{ fontFamily: "system-ui", padding: 24 }}>
-      <h1>Bookbandit</h1>
-      {error && <p>Couldn't load books: {error}</p>}
-      {books && (books.length ? <ul>{books.map((b) => <li key={b.id}>{b.title}</li>)}</ul> : <p>No books yet.</p>)}
-    </main>
+    <Routes>
+      <Route path="/read/:id" element={me ? <ReaderPage /> : null} />
+      <Route element={<Layout />}>
+        <Route index element={me?.isKid ? <KidHome /> : <HomePage />} />
+        <Route path="browse" element={me?.isKid ? <Navigate to="/" replace /> : <BrowsePage />} />
+        <Route path="book/:id" element={<BookPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
   );
 }
