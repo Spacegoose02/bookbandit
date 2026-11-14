@@ -15,12 +15,49 @@ export const AI_SETTINGS_KEY = "ai.settings";
 export const AI_FEATURES = ["chat", "kidChat", "bookChat", "moderation", "rating", "metadata", "embeddings"] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
-const httpUrl = z
-  .string()
-  .trim()
-  .url()
-  .refine((u) => /^https?:\/\//i.test(u), "must be http(s)")
-  .transform((u) => u.replace(/\/+$/, ""));
+/** Adds http:// to a bare host ("192.168.1.5:8080", "ollama:11434/v1"); blank means not set. */
+export function normalizeUrl(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  const t = v.trim();
+  if (!t) return undefined;
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `http://${t}`;
+}
+
+const httpUrl = z.preprocess(
+  normalizeUrl,
+  z
+    .string()
+    .url("isn't a valid web address")
+    .refine((u) => /^https?:\/\//i.test(u), "must start with http:// or https://")
+    .transform((u) => u.replace(/\/+$/, ""))
+    // Blank becomes undefined above, which every URL field allows (the superRefine says when one is required).
+    .optional(),
+);
+
+const FIELD_LABELS: Record<string, string> = {
+  baseUrl: "base URL",
+  model: "model",
+  name: "name",
+  id: "id",
+  apiKey: "API key",
+  timeoutMs: "timeout",
+  kind: "kind",
+};
+
+/** "SearXNG URL isn't a valid web address", "Provider “Ollama” base URL: required…", for a settings form. */
+export function describeSettingsIssue(issue: { path: (string | number)[]; message: string }, body: unknown): string {
+  const [a, b, c] = issue.path;
+  let where = issue.path.join(".");
+  if (a === "search" && b === "url") where = "SearXNG URL";
+  else if (a === "search" && b === "kidAllowlist") where = "Kid sites list";
+  else if (a === "providers" && typeof b === "number") {
+    const p = (body as { providers?: { name?: string; id?: string }[] } | null)?.providers?.[b];
+    const label = p?.name || p?.id || `#${b + 1}`;
+    where = `Provider “${label}”${c ? ` ${FIELD_LABELS[String(c)] ?? String(c)}` : ""}`;
+  } else if (a === "features" && b) where = `“${String(b)}” provider`;
+  else if (a === "kidDefaults") where = "Kids' daily limit";
+  return `${where}: ${issue.message}`;
+}
 
 const ProviderInput = z.object({
   id: z
