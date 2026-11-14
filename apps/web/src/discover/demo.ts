@@ -4,7 +4,7 @@
  */
 import { demoApi } from "../api/demo";
 import type { BookSummary } from "../api/types";
-import type { Category, DiscoverApi, DiscoverItem, ManagedCategory, SeriesBook, SeriesDetail } from "./api";
+import type { Category, DiscoverApi, DiscoverItem, DiscoverList, ManagedCategory, SeriesBook, SeriesDetail } from "./api";
 
 const wait = <T>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 60));
 
@@ -75,8 +75,47 @@ function outside(i: number): DiscoverItem {
     bookId: null,
     coverPath: null,
     onKindle: false,
+    requestable: true,
   };
 }
+
+let namedCount = 10;
+/** An outside book from "Title|Author|Year". */
+function named(spec: string): DiscoverItem {
+  const [title, author, year] = spec.split("|") as [string, string, string];
+  const i = namedCount++;
+  return { ...outside(0), key: `openlibrary:demo-${title}`, title, authors: [author], year: Number(year), coverUrl: outsideCover(title, author, i), requestable: true };
+}
+
+/** Real prize winners (same list as the server's awards.ts); demo covers are drawn, not real. */
+const GROWN_UP_PRIZES: [string, string, string][] = [
+  ["Flesh", "David Szalay", "Booker Prize 2025"],
+  ["James", "Percival Everett", "Pulitzer Prize 2025"],
+  ["The Safekeep", "Yael van der Wouden", "Women's Prize 2025"],
+  ["Some Desperate Glory", "Emily Tesh", "Hugo Award 2024"],
+  ["Orbital", "Samantha Harvey", "Booker Prize 2024"],
+  ["Night Watch", "Jayne Anne Phillips", "Pulitzer Prize 2024"],
+  ["Nettle & Bone", "T. Kingfisher", "Hugo Award 2023"],
+  ["Demon Copperhead", "Barbara Kingsolver", "Pulitzer Prize 2023"],
+];
+const KIDS_PRIZES: [string, string, string][] = [
+  ["Home in the Woods", "Eliza Wheeler", "Caldecott Medal 2025"],
+  ["Big", "Vashti Harrison", "Caldecott Medal 2024"],
+  ["Hot Dog", "Doug Salati", "Caldecott Medal 2023"],
+  ["Watercress", "Andrea Wang", "Caldecott Medal 2022"],
+  ["We Are Water Protectors", "Carole Lindstrom", "Caldecott Medal 2021"],
+];
+function prize([title, author, note]: [string, string, string], i: number): DiscoverItem {
+  return { ...named(`${title}|${author}|${note.slice(-4)}`), coverUrl: outsideCover(title, author, i), note };
+}
+
+const GENRE_DEMO: [string, string, string[]][] = [
+  ["genre-fantasy", "Fantasy", ["The Ember Crown|Talia Voss|2025", "Seven Silver Doors|Rhiannon Ash|2024", "Kingdom of Glass Birds|Mateo Ruiz|2026", "The Last Lamplighter|Odile Marsh|2023", "Thornwood|Kit Adair|2025"]],
+  ["genre-mystery-crime", "Mystery & crime", ["Murder at Larkspur Lane|Penny Croft|2025", "The Quiet Witness|Ravi Sethi|2024", "Dead Reckoning|Hal Brenner|2026", "A Body in the Bookshop|Nell Ashby|2025"]],
+  ["genre-romance", "Romance", ["The Summer of Second Chances|Jo Bellamy|2025", "Love, Annotated|Priya Kapoor|2026", "Snowed In at Hollyfield|Clara Dunn|2024", "Meet Me at the Mill|Sam Whitlow|2025"]],
+  ["genre-science-fiction", "Science fiction", ["Signal From Kepler Nine|Ade Okonjo|2026", "The Long Orbit|Freya Lund|2025", "Ghosts of the Generation Ship|Arun Pillai|2024", "Red Dust Lullaby|Vera Kostova|2025"]],
+  ["genre-children-s-books", "Popular with kids", ["The Snail Who Raced the Moon|Bea Pickering|2025", "Otto and the Big Sneeze|Liam Fairweather|2024", "Twelve Tiny Dragons|Mina Cho|2026", "Grandpa's Upside-Down Day|Ray Osei|2025"]],
+];
 
 // Series edits made in the demo live for the page session.
 const seriesEdits = new Map<string, { name?: string; description?: string | null; order?: string[] }>();
@@ -184,25 +223,66 @@ export const demoDiscoverApi: DiscoverApi = {
     const books = await visibleBooks();
     const me = await demoApi.me();
     const family = books.filter((b) => b.percent != null || ["b1", "b4", "b9", "b12"].includes(b.id)).slice(0, 8);
-    const pick = (ids: string[]) => ids.map((id) => books.find((b) => b.id === id)).filter((b): b is BookSummary => !!b);
-    const lists = [
-      {
-        id: "openlibrary-weekly",
-        name: "Trending this week",
-        source: "openlibrary" as const,
-        items: me.isKid
-          ? pick(["b1", "b3", "b2"]).map(item)
-          : [outside(0), ...pick(["b9"]).map(item), outside(1), ...pick(["b11"]).map(item), outside(2), ...pick(["b7"]).map(item), outside(3)],
-      },
-      {
-        id: "openlibrary-yearly",
-        name: "Popular this year",
-        source: "openlibrary" as const,
-        items: me.isKid ? [] : [outside(4), ...pick(["b13", "b4"]).map(item), outside(5)],
-      },
-      { id: "family", name: "Popular in your family", source: "library" as const, items: family.map(item) },
-    ].filter((l) => l.items.length);
-    return wait({ lists, online: true, requests: !me.isKid });
+    const pick = (ids: string[], note?: string) =>
+      ids
+        .map((id) => books.find((b) => b.id === id))
+        .filter((b): b is BookSummary => !!b)
+        .map((b) => ({ ...item(b), ...(note ? { note } : {}) }));
+    const noted = (ids: [string, string][]) => ids.flatMap(([id, note]) => pick([id], note));
+    const out = (names: string[], extra: Partial<DiscoverItem> = {}) => names.map((n) => ({ ...named(n), ...extra }));
+    const seen = new Set<string>();
+    const lists: DiscoverList[] = [];
+    // Same de-duplication as the server: a book shows in the first row that has it.
+    const add = (l: Omit<DiscoverList, "items">, items: DiscoverItem[], min = 1) => {
+      const fresh = items.filter((i) => !seen.has(i.bookId ?? i.title) && seen.add(i.bookId ?? i.title));
+      if (fresh.length >= min) lists.push({ ...l, items: fresh });
+    };
+
+    if (me.isKid) {
+      add({ id: "series-next", name: "Next in your series", source: "foryou", group: "foryou" }, pick(["b2"], "Book 2 of Dino Readers"));
+      add(
+        { id: "because-b1", name: "Because you read The Dinosaur Who Loved Books", source: "foryou", group: "foryou", aboutBookId: "b1" },
+        noted([["b3", "Also about books and libraries"], ["b16", "A similar story"]]),
+      );
+      add({ id: "openlibrary-weekly", name: "Trending this week", source: "openlibrary", group: "popular" }, pick(["b1", "b3", "b2"]));
+      add({ id: "genre-children-s-books", name: "Children's Books", source: "library", group: "genres" }, pick(["b15", "b17", "b16", "b3", "b2"]));
+      add({ id: "awards-kids", name: "Award-winning kids' books", source: "awards", group: "awards" }, KIDS_PRIZES.map((p, i) => ({ ...prize(p, i), requestable: true })));
+      add({ id: "family", name: "Popular in your family", source: "library", group: "family" }, family.map(item));
+      return wait({ lists, online: true, requests: false });
+    }
+
+    add(
+      { id: "series-next", name: "Next in your series", source: "foryou", group: "foryou" },
+      [
+        { ...named("Tides of Pebble Bay|Ada Brightwater|2022"), note: "Book 3 of Pebble Bay" },
+        { ...named("The Pebble Bay Lantern|Ada Brightwater|2024"), note: "Book 4 of Pebble Bay" },
+        ...pick(["b8"], "Book 2 of Pixel Quest"),
+      ],
+    );
+    add(
+      { id: "because-b4", name: "Because you read Storm Over Pebble Bay", source: "foryou", group: "foryou", aboutBookId: "b4" },
+      [
+        ...noted([["b6", "Also about adventure and friendship"], ["b9", "A similar story"]]),
+        ...out(["The Salt Marsh Society|Corin Hale|2023", "Wreckers' Moon|Isla Penrose|2021", "The Kite Signal|Dev Anand Rao|2024", "Gull Island Summer|Maren Holt|2022"]),
+      ],
+    );
+    add(
+      { id: "author-ada-brightwater", name: "More by Ada Brightwater", source: "foryou", group: "foryou" },
+      out(["The Clockmaker's Ferry|Ada Brightwater|2017", "A Map Made of Fog|Ada Brightwater|2021", "Harbour Lights|Ada Brightwater|2015"]),
+    );
+    add(
+      { id: "openlibrary-weekly", name: "Trending this week", source: "openlibrary", group: "popular" },
+      [outside(0), ...pick(["b9"]), outside(1), ...pick(["b11"]), outside(2), ...pick(["b7"]), outside(3)],
+    );
+    add(
+      { id: "openlibrary-new", name: "New and noteworthy", source: "openlibrary", group: "popular" },
+      [outside(4), ...pick(["b13"]), outside(5), ...out(["The Ninth Orchard|Sefa Mensah|2026", "Paper Comets|Lucía Ibarra|2025", "What the River Kept|Noor Haddad|2026"])],
+    );
+    for (const [id, name, titles] of GENRE_DEMO) add({ id, name, source: "openlibrary", group: "genres" }, out(titles), 3);
+    add({ id: "awards", name: "Prize winners", source: "awards", group: "awards" }, GROWN_UP_PRIZES.map((p, i) => ({ ...prize(p, i + 3), requestable: true })));
+    add({ id: "awards-kids", name: "Award-winning kids' books", source: "awards", group: "awards" }, KIDS_PRIZES.map((p, i) => ({ ...prize(p, i), requestable: true })));
+    add({ id: "family", name: "Popular in your family", source: "library", group: "family" }, family.map(item));
+    return wait({ lists, online: true, requests: true });
   },
   async seriesList(q) {
     const all = await allSeries();

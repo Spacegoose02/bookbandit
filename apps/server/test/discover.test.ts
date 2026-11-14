@@ -96,7 +96,8 @@ describe("GET /api/discover", () => {
     const res = await get("/api/discover", "kid");
     expect(res.statusCode).toBe(200);
     expect(res.json().requests).toBe(false);
-    const items = res.json().lists.flatMap((l: { items: unknown[] }) => l.items);
+    // Hand-picked kids' prize lists say who they're for; every other outside book is unrated.
+    const items = res.json().lists.filter((l: { id: string }) => l.id !== "awards-kids").flatMap((l: { items: unknown[] }) => l.items);
     expect(items.map((i: { title: string }) => i.title)).toEqual(["The Happy Hippo"]);
     expect(JSON.stringify(res.json())).not.toContain(ids.thriller);
     expect(JSON.stringify(res.json())).not.toContain("Not Here Yet");
