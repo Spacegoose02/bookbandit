@@ -1,17 +1,13 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { isDemo } from "../api/client";
 import { BarnabyEmpty, BarnabyLogo } from "../brand/Barnaby";
+import { SignIn } from "../auth/SignIn";
 import { useSession } from "./session";
 
 export function Layout() {
   const { me, error } = useSession();
 
-  if (error === "signin")
-    return (
-      <BarnabyEmpty title="Please sign in">
-        <p>BookBandit couldn't tell who you are. Sign in through your family's login page, then come back.</p>
-      </BarnabyEmpty>
-    );
+  if (error === "signin") return <SignIn />;
   if (error)
     return (
       <BarnabyEmpty title="Barnaby can't reach the server">
@@ -36,6 +32,11 @@ export function Layout() {
               <NavLink to="/settings" className="bb-nav-big">
                 <span aria-hidden>🎨</span> Colors
               </NavLink>
+              {!isDemo && (
+                <a href="/who" className="bb-nav-big">
+                  <span aria-hidden>👋</span> Switch
+                </a>
+              )}
             </>
           ) : (
             <>
@@ -44,7 +45,7 @@ export function Layout() {
               </NavLink>
               <NavLink to="/browse">Library</NavLink>
               <NavLink to="/settings" end>
-                Appearance
+                Settings
               </NavLink>
               <NavLink to="/settings/ereaders">E-readers</NavLink>
             </>
