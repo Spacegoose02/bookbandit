@@ -71,7 +71,8 @@ Set `api_endpoint=https://<server>/kobo/<token>` in `.kobo/Kobo/Kobo eReader.con
   missing or foreign token means a full resend. Books that become invisible (re-rated, unapproved,
   deleted, no file) are sent as `IsRemoved` with no metadata and dropped from the device.
 - Downloads are KEPUB via kepubify (`KEPUBIFY_PATH`, cached in `CONFIG_DIR/cache/kepub`), or the
-  EPUB when kepubify isn't available or fails. TODO(jobs): pre-convert in the job runner.
+  EPUB when kepubify isn't available or fails. Admin → Librarian → Convert → "Prepare for Kobo" converts
+  every EPUB ahead of time on the job runner, so a sync never waits on kepubify.
 - Reading state: PUT writes `kobo_reading_states` (verbatim) and `reading_progress` (chapter from
   the bookmark's `Source`, plus the percentage). GET and sync return the Kobo's own bookmark while
   it's newest, else the web position as the chapter's first `KoboSpan`. Changed positions go out
