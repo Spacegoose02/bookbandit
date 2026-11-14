@@ -57,7 +57,7 @@ Goal: kids read on their own tablets and Kavita is switched off.
 
 - [ ] Admin UI: inbox approval, rating review, scan status, users and kids, integration settings (`ws/admin`)
 
-- [ ] Parent dashboard: reading, requests, kid AI chats (`ws/admin`)
+- [ ] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; reading-time API done by the lead)
 
 - [x] Admin UI: inbox approval with metadata edit and merge, rating review, scan status, users and kids, paired devices, Audiobookshelf/SMTP/metadata settings (`ws/admin`)
 - [x] Parent dashboard: reading, requests, kid AI chats (`ws/admin`; request approval buttons wait for `ws/requests`, chats fill once `ws/ai` logs them, minutes read wait for reading sessions)

@@ -50,3 +50,19 @@ For stickers, `text` holds the sticker's name. `color` is a hex like `#ffcc00` o
 | `DELETE /api/shelves/kids/:kidId/books/:bookId` | Parent/admin removes it. |
 
 Kid shelves are filtered as the kid and as the viewer, so a later re-rating hides a book there too.
+
+## Reading time
+
+Active reading and listening time, for the parent dashboard and streaks. Clients count only time
+when the book is on screen and the reader did something in the last few minutes, then send it in
+heartbeats about once a minute (the web reader does this in `apps/web/src/reader/readingTimer.ts`).
+
+| Route | What it does |
+| --- | --- |
+| `POST /api/reading/heartbeat` | `{ sessionId (client UUID), bookId, seconds 1–300, kind: "read" \| "listen", deviceName? }`. Adds time to the session, creating it on the first beat (201, later 200). The server counts at most the wall-clock time since the session's last beat plus 5 s, so a client can't inflate it; the response's `counted` says how much was kept. A book the reader can't see is 404; a session id that belongs to another reader or book is 409. |
+| `GET /api/reading/stats?userId=&days=&utcOffset=` | Totals for the last `days` (1–90, default 7). `userId` defaults to the caller; a linked parent or a same-household admin may ask about a kid. Returns `{ user, totalSeconds, streakDays, days: [{ date, readSeconds, listenSeconds }], books: [{ id, title, coverPath, seconds }] }`. `utcOffset` is the viewer's offset in minutes (as `-new Date().getTimezoneOffset()`) so days split at local midnight. |
+
+Books in `books` are filtered as both the subject and the viewer, so a book re-rated above a kid's
+level drops out of the list while its minutes still count in the totals. Anyone else asking about
+a user gets 404; a kid asking about someone else gets 403. Sessions live in `reading_sessions`
+(migration 0003).
