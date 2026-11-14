@@ -34,6 +34,7 @@ async function ask(page, text, { web = false } = {}) {
   await page.fill(".bb-chat-input textarea", text);
   await page.click(".bb-chat-send");
   await page.waitForSelector(".bb-chat-row .bb-dots", { state: "detached" });
+  await page.waitForSelector(".bb-chat-streaming", { state: "detached" });
 }
 
 (async () => {

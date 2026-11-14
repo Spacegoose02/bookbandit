@@ -1,16 +1,21 @@
 /** Admin-only Barnaby settings, provider tests, usage and the rating helper (CLAUDE.md rule 4). */
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { CONTENT_RATINGS } from "@bookbandit/shared";
 import { books } from "../db/schema.js";
 import { httpError, requireAdmin } from "../auth/plugin.js";
 import type { AiContext } from "./context.js";
 import { makeProvider, ProviderError } from "./providers/index.js";
-import { createRatingRunner } from "./rating.js";
+import type { JobRunner } from "../jobs/index.js";
+import { AI_JOB_TYPES, batchStatus, latestJob, queueEmbedding, startBatch } from "./jobs.js";
+import { embeddingStatus } from "./embeddings.js";
+import { acceptMetadata, listMetadataSuggestions, metadataCandidates } from "./metadata.js";
+import { ratingCandidates } from "./rating.js";
+import { aiMetadataChecks, aiMetadataSuggestions } from "./schema.js";
 import { aiRatingSuggestions } from "./schema.js";
 import { webSearch } from "./search.js";
-import { AiSettingsInput, getAiSettings, publicAiSettings, saveAiSettings } from "./settings.js";
+import { AiSettingsInput, getAiSettings, providerFor, publicAiSettings, saveAiSettings } from "./settings.js";
 import { tracked, usageSummary } from "./usage.js";
 
 const TestBody = z.object({ providerId: z.string().min(1) });
@@ -25,8 +30,18 @@ const SuggestionQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 const AcceptBody = z.object({ rating: z.enum(CONTENT_RATINGS).optional() });
+const MetadataRunBody = z.object({
+  bookIds: z.array(z.string().min(1)).max(500).optional(),
+  limit: z.number().int().min(1).max(500).default(25),
+});
+const MetadataQuery = z.object({
+  status: z.enum(["pending", "accepted", "dismissed"]).default("pending"),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+});
+const MetadataAccept = z.object({ value: z.unknown().optional() });
+const EmbedBody = z.object({ bookIds: z.array(z.string().min(1)).max(5000).optional() });
 
-export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { runner: ReturnType<typeof createRatingRunner> }) {
+export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { runner: JobRunner }) {
   const { db } = ctx;
 
   app.get("/api/admin/ai/settings", async (req) => {
@@ -35,9 +50,13 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
   });
 
   app.put("/api/admin/ai/settings", async (req) => {
-    requireAdmin(req);
+    const admin = requireAdmin(req);
     AiSettingsInput.parse(req.body); // 400 with zod details before touching anything
-    return publicAiSettings(saveAiSettings(db, ctx.box, req.body));
+    const saved = saveAiSettings(db, ctx.box, req.body);
+    // A new or changed embeddings model: build the meaning-search index in the background.
+    const emb = embeddingStatus(ctx);
+    if (emb.configured && emb.indexed < emb.total) queueEmbedding(ctx, ctx.runner, admin.userId);
+    return publicAiSettings(saved);
   });
 
   function provider(id: string) {
@@ -91,17 +110,24 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
 
   // ---- Rating helper ---------------------------------------------------------
 
+  // Runs on the job runner as `ai.rating`; progress is also on the admin jobs page.
   app.get("/api/admin/ai/rating/run", async (req) => {
     requireAdmin(req);
-    return ctx.runner.status();
+    return batchStatus(ctx, AI_JOB_TYPES.rating);
   });
 
   app.post("/api/admin/ai/rating/run", async (req, reply) => {
     const admin = requireAdmin(req);
     const body = RunBody.parse(req.body ?? {});
-    void ctx.runner.start({ ...body, userId: admin.userId });
+    if (!providerFor(getAiSettings(db, ctx.box), "rating")) throw httpError(503, "Pick a provider for the rating helper first");
+    const ids = body.bookIds?.length
+      ? db.select({ id: books.id }).from(books).where(inArray(books.id, body.bookIds)).all().map((b) => b.id)
+      : ratingCandidates(ctx, body.limit);
     reply.code(202);
-    return ctx.runner.status();
+    return startBatch(ctx, ctx.runner, AI_JOB_TYPES.rating, ids, `Rating helper: ${ids.length} books`, {
+      userId: admin.userId,
+      applyStricter: body.applyStricter,
+    });
   });
 
   app.get("/api/admin/ai/rating/suggestions", async (req) => {
@@ -142,4 +168,70 @@ export async function aiAdminRoutes(app: FastifyInstance, ctx: AiContext & { run
     if (!r.changes) throw httpError(404, "Not found");
     return { bookId: req.params.bookId, status: "dismissed" };
   });
+}
+
+/** Metadata cleanup and meaning-search indexing (admin-only). */
+export async function aiAdminJobRoutes(app: FastifyInstance, ctx: AiContext & { runner: JobRunner }) {
+  const { db } = ctx;
+
+  app.get("/api/admin/ai/metadata/run", async (req) => {
+    requireAdmin(req);
+    return batchStatus(ctx, AI_JOB_TYPES.metadata);
+  });
+
+  app.post("/api/admin/ai/metadata/run", async (req, reply) => {
+    const admin = requireAdmin(req);
+    const body = MetadataRunBody.parse(req.body ?? {});
+    if (!providerFor(getAiSettings(db, ctx.box), "metadata")) throw httpError(503, "Pick a provider for metadata cleanup first");
+    let ids: string[];
+    if (body.bookIds?.length) {
+      ids = db.select({ id: books.id }).from(books).where(inArray(books.id, body.bookIds)).all().map((b) => b.id);
+      // Asked for by name: look again even if checked before.
+      if (ids.length) db.delete(aiMetadataChecks).where(inArray(aiMetadataChecks.bookId, ids)).run();
+    } else ids = metadataCandidates(db, body.limit);
+    reply.code(202);
+    return startBatch(ctx, ctx.runner, AI_JOB_TYPES.metadata, ids, `Metadata cleanup: ${ids.length} books`, { userId: admin.userId });
+  });
+
+  app.get("/api/admin/ai/metadata/suggestions", async (req) => {
+    requireAdmin(req);
+    const q = MetadataQuery.parse(req.query);
+    return { items: listMetadataSuggestions(db, q.status, q.limit) };
+  });
+
+  app.post<{ Params: { id: string } }>("/api/admin/ai/metadata/suggestions/:id/accept", async (req) => {
+    requireAdmin(req);
+    const body = MetadataAccept.parse(req.body ?? {});
+    const r = acceptMetadata(db, req.params.id, body.value);
+    // The book's text changed, so its meaning-search embedding is stale.
+    if (providerFor(getAiSettings(db, ctx.box), "embeddings")) queueEmbedding(ctx, ctx.runner, null, [r.bookId]);
+    return r;
+  });
+
+  app.post<{ Params: { id: string } }>("/api/admin/ai/metadata/suggestions/:id/dismiss", async (req) => {
+    requireAdmin(req);
+    const r = db.update(aiMetadataSuggestions).set({ status: "dismissed" }).where(eq(aiMetadataSuggestions.id, req.params.id)).run();
+    if (!r.changes) throw httpError(404, "Not found");
+    return { id: req.params.id, status: "dismissed" };
+  });
+
+  app.get("/api/admin/ai/embeddings", async (req) => {
+    requireAdmin(req);
+    const job = latestEmbedJob();
+    return { ...embeddingStatus(ctx), job };
+  });
+
+  app.post("/api/admin/ai/embeddings/run", async (req, reply) => {
+    const admin = requireAdmin(req);
+    const body = EmbedBody.parse(req.body ?? {});
+    if (!providerFor(getAiSettings(db, ctx.box), "embeddings")) throw httpError(503, "Pick an embeddings provider first");
+    queueEmbedding(ctx, ctx.runner, admin.userId, body.bookIds);
+    reply.code(202);
+    return { ...embeddingStatus(ctx), job: latestEmbedJob() };
+  });
+
+  function latestEmbedJob() {
+    const j = latestJob(ctx, AI_JOB_TYPES.embed);
+    return j ? { id: j.id, status: j.status, progress: j.progress, result: j.result, lastError: j.lastError, finishedAt: j.finishedAt } : null;
+  }
 }
