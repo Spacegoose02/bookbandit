@@ -79,9 +79,13 @@ const cookieOf = (setCookie: string | string[] | undefined, name: string) =>
     .map((c) => c.split(";")[0]!)
     .find((c) => c.startsWith(`${name}=`));
 
-/** Runs the whole round trip and returns the callback response. */
-async function signIn(p: ReturnType<typeof provider>, tamper: { state?: string } = {}) {
-  const start = await f.app.inject({ method: "GET", url: "/api/auth/sso/start" });
+/** Runs the whole round trip and returns the callback response. `link` = link to this signed-in session instead. */
+async function signIn(p: ReturnType<typeof provider>, tamper: { state?: string } = {}, link?: { cookie: string }) {
+  const start = await f.app.inject({
+    method: "GET",
+    url: link ? "/api/auth/sso/start?link=1" : "/api/auth/sso/start",
+    headers: link ? { cookie: link.cookie } : {},
+  });
   expect(start.statusCode).toBe(302);
   const to = new URL(start.headers.location as string);
   expect(to.origin + to.pathname).toBe(`${ISSUER}/authorize`);
@@ -90,7 +94,8 @@ async function signIn(p: ReturnType<typeof provider>, tamper: { state?: string }
   p.state.nonce = to.searchParams.get("nonce")!;
   const flow = cookieOf(start.headers["set-cookie"], "bb_sso")!;
   const state = tamper.state ?? to.searchParams.get("state")!;
-  return f.app.inject({ method: "GET", url: `/auth/sso/callback?code=abc&state=${state}`, headers: { cookie: flow } });
+  const cookie = link ? `${flow}; ${link.cookie}` : flow;
+  return f.app.inject({ method: "GET", url: `/auth/sso/callback?code=abc&state=${state}`, headers: { cookie } });
 }
 
 async function whoAmI(res: { headers: Record<string, unknown> }) {
@@ -113,6 +118,7 @@ describe("single sign-on (OIDC)", () => {
     expect((await f.app.inject({ method: "GET", url: "/api/auth/status" })).json().sso).toEqual({
       label: "Tinyauth",
       url: "/api/auth/sso/start",
+      linkUrl: "/api/auth/sso/start?link=1",
     });
 
     const res = await signIn(p);
@@ -231,5 +237,109 @@ describe("linking sign-in emails on People", () => {
       payload: { provider: "tinyauth", subject: "x@example.com" },
     });
     expect([403, 404]).toContain(res.statusCode);
+  });
+});
+
+describe("linking your own account to Tinyauth", () => {
+  /** A password session for a fresh grown-up with a username. */
+  async function passwordSession(role: "adult" | "admin", username: string) {
+    const made = await f.app.inject({
+      method: "POST",
+      url: "/api/users",
+      headers: f.as("admin"),
+      payload: { displayName: username, role, username, password: "password123" },
+    });
+    expect(made.statusCode).toBe(201);
+    const login = await f.app.inject({ method: "POST", url: "/api/auth/login", payload: { username, password: "password123" } });
+    return { id: made.json().id as string, cookie: cookieOf(login.headers["set-cookie"], "bb_session")! };
+  }
+
+  it("adds the Tinyauth email to the signed-in person, who can then sign in with it", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    const me = await passwordSession("adult", "cousin");
+    p.state.email = "cousin@gmail.com";
+    const res = await signIn(p, {}, me);
+    expect(res.headers.location).toBe("/settings?sso_linked=1");
+    expect(cookieOf(res.headers["set-cookie"], "bb_session")).toBeUndefined(); // still the same session
+
+    const again = await signIn(p);
+    expect((await whoAmI(again))?.id).toBe(me.id);
+    // No extra account was made.
+    expect(f.db.select().from(users).where(eq(users.displayName, "cousin@gmail.com")).all()).toHaveLength(0);
+  });
+
+  it("works for an admin too", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    const me = await passwordSession("admin", "boss");
+    p.state.email = "boss@gmail.com";
+    expect((await signIn(p, {}, me)).headers.location).toBe("/settings?sso_linked=1");
+    expect((await whoAmI(await signIn(p)))?.id).toBe(me.id);
+  });
+
+  it("merges an account single sign-on made on its own, and refuses a real person's email", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    p.state.email = "cousin@gmail.com";
+    const stray = (await whoAmI(await signIn(p)))!; // SSO made a separate account first
+    const me = await passwordSession("adult", "cousin");
+    expect((await signIn(p, {}, me)).headers.location).toBe("/settings?sso_linked=1");
+    expect(f.db.select().from(users).where(eq(users.id, stray.id)).get()!.disabled).toBe(true);
+    expect((await whoAmI(await signIn(p)))?.id).toBe(me.id);
+
+    p.state.email = "dad@example.com"; // Dad's profile, not a throwaway
+    expect((await signIn(p, {}, me)).headers.location).toBe("/settings?sso_error=taken");
+    expect(f.db.select().from(userIdentities).where(eq(userIdentities.subject, "dad@example.com")).get()!.userId).toBe(f.ids.parent);
+  });
+
+  it("needs a signed-in grown-up: not anonymous, not a kid", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    const anon = await f.app.inject({ method: "GET", url: "/api/auth/sso/start?link=1" });
+    expect(anon.headers.location).toBe("/settings?sso_error=link_signin");
+    const kid = await f.app.inject({ method: "GET", url: "/api/auth/sso/start?link=1", headers: f.as("kid") });
+    expect(kid.headers.location).toBe("/settings?sso_error=link_signin");
+  });
+
+  it("refuses a link finished by someone else's browser session", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    const me = await passwordSession("adult", "cousin");
+    const other = await passwordSession("adult", "neighbor");
+    const start = await f.app.inject({ method: "GET", url: "/api/auth/sso/start?link=1", headers: { cookie: me.cookie } });
+    const to = new URL(start.headers.location as string);
+    p.state.nonce = to.searchParams.get("nonce")!;
+    p.state.email = "cousin@gmail.com";
+    const flow = cookieOf(start.headers["set-cookie"], "bb_sso")!;
+    const res = await f.app.inject({
+      method: "GET",
+      url: `/auth/sso/callback?code=abc&state=${to.searchParams.get("state")}`,
+      headers: { cookie: `${flow}; ${other.cookie}` },
+    });
+    expect(res.headers.location).toBe("/settings?sso_error=link_signin");
+  });
+
+  it("unlinks your own email but never your last way to sign in", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    const me = await passwordSession("adult", "cousin");
+    p.state.email = "cousin@gmail.com";
+    await signIn(p, {}, me);
+    const id = f.db.select().from(userIdentities).where(eq(userIdentities.subject, "cousin@gmail.com")).get()!.id;
+    const ok = await f.app.inject({ method: "DELETE", url: `/api/auth/sso/identities/${id}`, headers: { cookie: me.cookie } });
+    expect(ok.statusCode).toBe(200);
+
+    // Aunt signs in only with her email: removing it would lock her out.
+    const auntId = f.db.select().from(userIdentities).where(eq(userIdentities.subject, "aunt@example.com")).get()!.id;
+    const last = await f.app.inject({ method: "DELETE", url: `/api/auth/sso/identities/${auntId}`, headers: f.as("adult") });
+    expect(last.statusCode).toBe(400);
+    // And nobody can unlink someone else's.
+    const theirs = await f.app.inject({ method: "DELETE", url: `/api/auth/sso/identities/${auntId}`, headers: { cookie: me.cookie } });
+    expect(theirs.statusCode).toBe(404);
+    // Kids can't.
+    const kidId = f.db.select().from(userIdentities).where(eq(userIdentities.subject, "emma@example.com")).get()!.id;
+    const kid = await f.app.inject({ method: "DELETE", url: `/api/auth/sso/identities/${kidId}`, headers: f.as("kid") });
+    expect(kid.statusCode).toBe(403);
   });
 });

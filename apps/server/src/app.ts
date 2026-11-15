@@ -6,7 +6,7 @@ import { authPlugin } from "./auth/plugin.js";
 import { parseTrustedProxies } from "./auth/trusted-proxy.js";
 import { authRoutes } from "./auth/routes.js";
 import { loadSessionSecret, SessionSigner } from "./auth/sessions.js";
-import { SSO_START_PATH, ssoConfigFrom, ssoRoutes, type SsoOptions } from "./auth/oidc.js";
+import { SSO_LINK_PATH, SSO_START_PATH, ssoConfigFrom, ssoRoutes, type SsoOptions } from "./auth/oidc.js";
 import { userRoutes } from "./routes/users.js";
 import { deviceRoutes } from "./routes/devices.js";
 import { healthRoutes } from "./routes/health.js";
@@ -85,7 +85,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     trustedProxies,
     googleSignInUrl: config.GOOGLE_SIGN_IN_URL,
     emailHeader: config.AUTH_HEADER_EMAIL,
-    sso: sso ? { label: sso.label, url: SSO_START_PATH } : undefined,
+    sso: sso ? { label: sso.label, url: SSO_START_PATH, linkUrl: SSO_LINK_PATH } : undefined,
   });
   if (sso) await app.register(ssoRoutes, { db, sessions, trustedProxies, sso, ...deps.sso });
   await app.register(userRoutes, { db });

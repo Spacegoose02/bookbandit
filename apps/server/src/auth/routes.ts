@@ -33,7 +33,7 @@ export interface AuthRouteOptions {
   /** Where the web app's "Sign in with Google" button points (Tinyauth login page). */
   googleSignInUrl?: string;
   /** Set when single sign-on (OIDC) is on: the button text and where it starts. */
-  sso?: { label: string; url: string };
+  sso?: { label: string; url: string; linkUrl: string };
   /** Header the proxy sets with the signed-in email (to explain an unlinked Google account). */
   emailHeader?: string;
   /** Per account across all addresses, looser, so one bad actor can't lock a grown-up out for long. */

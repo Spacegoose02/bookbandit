@@ -14,7 +14,9 @@ import { BarnabyEmpty, BarnabyLogo } from "../brand/Barnaby";
 import { authApi, enterApp, PICTURE_EMOJI, type AuthStatus, type Profile } from "./api";
 
 /** What went wrong on the way back from single sign-on (`/?sso_error=…`). */
-const SSO_ERRORS: Record<string, string> = {
+export const SSO_ERRORS: Record<string, string> = {
+  taken: "That Tinyauth account already belongs to someone else here. An admin can move it on the People page.",
+  link_signin: "Sign in to BookBandit first, then link your Tinyauth account from Settings.",
   unlinked: "That account isn't linked to anyone in BookBandit yet. Ask the person who set up BookBandit to add your email on the People page.",
   setup: "BookBandit isn't set up yet. Open it once to create the family and its first admin.",
   disabled: "This profile is turned off. Ask the person who set up BookBandit.",
