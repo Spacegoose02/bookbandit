@@ -22,6 +22,7 @@ export function profileCard(db: Db, u: UserRow) {
     displayName: u.displayName,
     avatar: u.avatar,
     role: u.role,
+    familyId: u.familyId,
     signIn: signInKind(u, ids),
   };
 }
@@ -40,6 +41,7 @@ export function userView(db: Db, u: UserRow) {
   return {
     id: u.id,
     householdId: u.householdId,
+    familyId: u.familyId,
     displayName: u.displayName,
     role: u.role,
     birthYear: u.birthYear,

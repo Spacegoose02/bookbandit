@@ -33,6 +33,24 @@ export const households = sqliteTable("households", {
   createdAt: createdAt(),
 });
 
+/**
+ * A family inside the household (the whole server): its own parents, grown-ups and kids. Parents
+ * manage their own family's kids and settings; only a server admin manages families and the server.
+ * People with no family (e.g. a new single sign-on account) wait for an admin to place them.
+ */
+export const families = sqliteTable(
+  "families",
+  {
+    id: id(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("families_household_idx").on(t.householdId)],
+);
+
 /** A person: adult or kid. Kids are always linked to at least one parent (see parentLinks). */
 export const users = sqliteTable(
   "users",
@@ -41,6 +59,8 @@ export const users = sqliteTable(
     householdId: text("household_id")
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
+    /** Their family; null until an admin places them in one. */
+    familyId: text("family_id").references(() => families.id, { onDelete: "set null" }),
     displayName: text("display_name").notNull(),
     role: text("role", { enum: ROLES }).notNull(),
     /** Kids: required to compute their content limit. Adults: optional. */
@@ -98,6 +118,8 @@ export const devices = sqliteTable(
     householdId: text("household_id")
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
+    /** The family whose tablet this is: "Who's reading?" shows only them. Null: the whole household. */
+    familyId: text("family_id").references(() => families.id, { onDelete: "set null" }),
     /** When set, the device is locked to this user (e.g. a kid's own tablet). */
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -307,6 +329,26 @@ export const kidShelf = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.kidId, t.bookId] })],
+);
+
+/**
+ * "Parent approved" for a whole family: a parent picks a book once and it shows on every kid's
+ * Parent approved row in that family (each kid still only sees it within their own limit).
+ * Per-kid picks are the kid_shelf rows above.
+ */
+export const familyPicks = sqliteTable(
+  "family_picks",
+  {
+    familyId: text("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    bookId: text("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.familyId, t.bookId] })],
 );
 
 // ---------------------------------------------------------------------------

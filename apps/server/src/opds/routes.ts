@@ -12,10 +12,10 @@ import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { and, asc, count, desc, eq, inArray, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { z, ZodError } from "zod";
 import type { Db } from "../db/client.js";
-import { authors, bookAuthors, bookFiles, books, bookSeries, bookTags, kidShelf, readingProgress, series, tags } from "../db/schema.js";
+import { authors, bookAuthors, bookFiles, books, bookSeries, bookTags, familyPicks, kidShelf, readingProgress, series, tags } from "../db/schema.js";
 import type { Reader } from "../auth/reader.js";
 import { visibleBooksWhere, ContentLockedError } from "../content/lock.js";
 import { hiddenTagIds } from "../discover/category-store.js";
@@ -199,7 +199,7 @@ export async function opdsRoutes(app: FastifyInstance, opts: OpdsOptions) {
     const entries = [
       navEntry({ id: "urn:bookbandit:continue", title: "Continue reading", href: "/opds/continue", content: "Books you've started" }),
       ...(reader.isKid
-        ? [navEntry({ id: "urn:bookbandit:kid", title: "My shelf", href: "/opds/kid", content: "Books picked for you" })]
+        ? [navEntry({ id: "urn:bookbandit:kid", title: "Parent approved", href: "/opds/kid", content: "Books your parents picked for you" })]
         : []),
       navEntry({ id: "urn:bookbandit:new", title: "Recently added", href: "/opds/new", content: "Newest books first" }),
       navEntry({ id: "urn:bookbandit:all", title: "All books", href: "/opds/books", content: "Everything, by title" }),
@@ -279,10 +279,15 @@ export async function opdsRoutes(app: FastifyInstance, opts: OpdsOptions) {
       reply,
       acquisitionFeed(reader, {
         id: "urn:bookbandit:kid",
-        title: "My shelf",
+        title: "Parent approved",
         self: "/opds/kid",
         page,
-        narrow: inArray(books.id, db.select({ id: kidShelf.bookId }).from(kidShelf).where(eq(kidShelf.kidId, reader.userId))),
+        narrow: or(
+          inArray(books.id, db.select({ id: kidShelf.bookId }).from(kidShelf).where(eq(kidShelf.kidId, reader.userId))),
+          reader.familyId
+            ? inArray(books.id, db.select({ id: familyPicks.bookId }).from(familyPicks).where(eq(familyPicks.familyId, reader.familyId)))
+            : undefined,
+        )!,
         orderBy: [asc(books.sortTitle)],
       }),
     );

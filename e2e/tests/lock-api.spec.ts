@@ -78,3 +78,23 @@ test("signed-out callers get nothing", async ({ request }) => {
   expect((await request.get("/api/books")).status()).toBe(401);
   expect((await request.get(`/api/books/${w.books.kids.id}/files/${w.books.kids.fileId}`)).status()).toBe(401);
 });
+
+test("books a parent approves for the whole family still respect a kid's limit", async ({ request }) => {
+  const w = world();
+  const dad = bearer(w.dad.token);
+  const me = await (await request.get("/api/users/me", { headers: dad })).json();
+  // Dad can't see the inbox or explicit books himself (404), but approves everything else.
+  for (const k of [...KID_LOCKED, "kids"] as const) await request.put(`/api/families/${me.familyId}/approved/${w.books[k].id}`, { headers: dad });
+  const teen = await request.put(`/api/families/${me.familyId}/approved/${w.books.teen.id}`, { headers: dad });
+  expect((await teen.json()).hiddenFrom).toContain("Emma");
+  const shelves = (await (await request.get("/api/shelves", { headers: kid() })).json()).items;
+  const approved = shelves.find((s: { kind: string }) => s.kind === "kid");
+  expect(titlesOf(approved.books)).toEqual([BOOKS.kids.title]);
+  const paged = JSON.stringify(await (await request.get("/api/books?shelf=kid", { headers: kid() })).json());
+  const mine = JSON.stringify(await (await request.get("/api/shelves/kids/me", { headers: kid() })).json());
+  for (const t of lockedTitles) {
+    expect(paged).not.toContain(t);
+    expect(mine).not.toContain(t);
+  }
+  for (const k of [...KID_LOCKED, "kids"] as const) await request.delete(`/api/families/${me.familyId}/approved/${w.books[k].id}`, { headers: dad });
+});

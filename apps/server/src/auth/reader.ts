@@ -5,6 +5,8 @@ import type { users } from "../db/schema.js";
 export interface Reader extends ReaderAccess {
   userId: string;
   householdId: string;
+  /** Their family inside the household; null until an admin places them in one. */
+  familyId: string | null;
   role: Role;
   displayName: string;
 }
@@ -13,6 +15,8 @@ export interface Reader extends ReaderAccess {
 export interface DeviceContext {
   id: string;
   householdId: string;
+  /** The family whose tablet this is; null means the whole household (older pairings). */
+  familyId: string | null;
   /** Set when the device is locked to one person (e.g. a kid's own tablet). */
   userId: string | null;
   name: string;
@@ -33,6 +37,7 @@ export function toReader(u: typeof users.$inferSelect): Reader {
   return {
     userId: u.id,
     householdId: u.householdId,
+    familyId: u.familyId,
     role: u.role,
     displayName: u.displayName,
     birthYear: u.birthYear,

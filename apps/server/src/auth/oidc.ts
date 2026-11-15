@@ -165,7 +165,10 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
     return claims;
   }
 
-  /** A new grown-up ("adult", no admin rights) in the family, linked to this email. Null before first-run setup. */
+  /**
+   * A new grown-up ("adult", no admin rights) linked to this email, in no family yet: they can read,
+   * and an admin places them in a family under Admin → People. Null before first-run setup.
+   */
   function createAccount(email: string, displayName: string) {
     return db.transaction((tx) => {
       const owner = tx.select().from(users).where(eq(users.role, "admin")).orderBy(asc(users.createdAt)).limit(1).get();

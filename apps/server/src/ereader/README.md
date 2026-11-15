@@ -28,7 +28,7 @@ e-reader authenticates to Bookbandit itself. The web app's own pages stay behind
 
 ## OPDS 1.2 (`/opds`)
 
-Navigation: Continue reading, My shelf (kids), Recently added, All books, Authors, Series,
+Navigation: Continue reading, Parent approved (kids), Recently added, All books, Authors, Series,
 Genres, and search (OpenSearch at `/opds/search.xml` plus a `{searchTerms}` link). Feeds page at 50.
 Entries carry authors, language, year, publisher, ISBN, description, series, cover and one
 acquisition link per file. Downloads (`/opds/books/:id/files/:fileId`) support Range and refuse

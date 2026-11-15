@@ -4,7 +4,7 @@ import type { FastifyInstance, InjectOptions } from "fastify";
 import { buildApp } from "../src/app.js";
 import { openDb, type Db } from "../src/db/client.js";
 import { loadConfig } from "../src/config.js";
-import { books, households, parentLinks, userIdentities, users } from "../src/db/schema.js";
+import { books, families, households, parentLinks, userIdentities, users } from "../src/db/schema.js";
 import { hashSecret } from "../src/auth/secrets.js";
 
 let app: FastifyInstance;
@@ -17,8 +17,9 @@ const kidBirthYear = new Date().getUTCFullYear() - 8; // 7 by our conservative a
 beforeEach(async () => {
   ({ db, close } = openDb(":memory:"));
   const [home] = db.insert(households).values({ name: "Home" }).returning().all();
+  const family = db.insert(families).values({ householdId: home!.id, name: "Home" }).returning().get();
   const mk = (displayName: string, role: "admin" | "parent" | "adult" | "kid", extra: Partial<typeof users.$inferInsert> = {}) =>
-    db.insert(users).values({ householdId: home!.id, displayName, role, ...extra }).returning().all()[0]!;
+    db.insert(users).values({ householdId: home!.id, familyId: family.id, displayName, role, ...extra }).returning().all()[0]!;
   const admin = mk("Admin", "admin", { secretHash: await hashSecret("admin-password") });
   const dad = mk("Dad", "parent");
   const mom = mk("Mom", "parent");
@@ -51,6 +52,12 @@ afterEach(async () => {
 });
 
 const as = (email: string) => ({ "remote-email": email });
+/** Put someone in a second family in the same household (e.g. an uncle's). */
+const moveToOtherFamily = (userId: string) => {
+  const other = db.insert(families).values({ householdId: ids.home, name: "Cousins" }).returning().get();
+  db.update(users).set({ familyId: other.id }).where(eq(users.id, userId)).run();
+  return other.id;
+};
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 const call = (o: InjectOptions) => app.inject(o);
 const titles = async (headers: Record<string, string>) => {
@@ -171,7 +178,8 @@ describe("kid accounts", () => {
     expect(db.select().from(users).all().find((u) => u.id === ids.emma)!.birthYear).toBe(kidBirthYear);
   });
 
-  it("only a linked parent or admin can edit a kid; others can't even see them", async () => {
+  it("only a parent in the kid's family or an admin can edit a kid; others can't even see them", async () => {
+    moveToOtherFamily(ids.mom);
     expect((await call({ method: "PATCH", url: `/api/users/${ids.emma}`, headers: as("mom@example.com"), payload: { birthYear: 2000 } })).statusCode).toBe(404);
     expect((await call({ method: "GET", url: `/api/users/${ids.emma}`, headers: as("aunt@example.com") })).statusCode).toBe(404);
     const dad = await call({ method: "PATCH", url: `/api/users/${ids.emma}`, headers: as("dad@example.com"), payload: { birthYear: kidBirthYear - 1 } });
@@ -184,8 +192,8 @@ describe("kid accounts", () => {
     expect((await call({ method: "POST", url: `/api/users/${ids.emma}/parents`, headers: h, payload: { parentId: ids.aunt } })).statusCode).toBe(400);
     expect((await call({ method: "POST", url: `/api/users/${ids.emma}/parents`, headers: h, payload: { parentId: ids.mom } })).statusCode).toBe(201);
     expect((await call({ method: "DELETE", url: `/api/users/${ids.emma}/parents/${ids.dad}`, headers: h })).statusCode).toBe(200);
-    // Dad is no longer linked, so can no longer manage Emma.
-    expect((await call({ method: "PATCH", url: `/api/users/${ids.emma}`, headers: h, payload: { displayName: "E" } })).statusCode).toBe(404);
+    // Dad isn't linked any more, but he's still a parent in Emma's family, so he still manages her.
+    expect((await call({ method: "PATCH", url: `/api/users/${ids.emma}`, headers: h, payload: { displayName: "E" } })).statusCode).toBe(200);
   });
 
   it("changing a kid's sign-in method clears the old secret", async () => {
@@ -269,7 +277,8 @@ describe("QR device pairing", () => {
     expect(again.statusCode).toBe(400);
   });
 
-  it("a parent can't lock a device to a kid they aren't linked to; kids can't pair", async () => {
+  it("a parent can't lock a device to a kid in another family; kids can't pair", async () => {
+    moveToOtherFamily(ids.mom);
     expect(
       (await call({ method: "POST", url: "/api/devices/pairings", headers: as("mom@example.com"), payload: { name: "T", userId: ids.emma } })).statusCode,
     ).toBe(404);

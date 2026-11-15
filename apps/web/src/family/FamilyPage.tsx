@@ -2,77 +2,102 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { RATING_LABELS } from "@bookbandit/shared";
 import { BarnabyAvatar, BarnabyEmpty } from "../brand/Barnaby";
-import { adminApi, type ChatMessage, type KidChat, type KidRequest } from "../admin/api";
+import { adminApi, type ChatMessage, type KidCard, type KidChat, type KidRequest, type KidStats } from "../admin/api";
 import { ReadingTimeCard, WeekMinutes } from "./ReadingTime";
 import { LearningCard } from "../readaloud/LearningCard"; // ws/readaloud hook
 import { KidRewardsCard } from "../kid/KidRewardsCard";
+import { ApprovedCard } from "./approved";
 import { Bar, Card, Cover, ErrorNote, RatingPill, timeAgo, useLoad } from "../admin/ui";
 
-/** Parent dashboard: one card per kid with this week's reading, requests and Barnaby chats. */
+/**
+ * Parent dashboard: one card per kid with this week's reading, requests and Barnaby chats.
+ * Parents see their own family's kids; an admin sees every family's, grouped by family.
+ */
 export function FamilyPage() {
-  const kids = useLoad(() => adminApi.familyKids());
+  const data = useLoad(() => adminApi.familyKids());
+  const kids = data.data?.kids ?? [];
+  const families = data.data?.families ?? [];
+  const groups =
+    families.length > 1
+      ? [
+          ...families.map((f) => ({ id: f.id, name: f.name, kids: kids.filter((k) => k.familyId === f.id) })),
+          { id: "none", name: "Not in a family yet", kids: kids.filter((k) => !families.some((f) => f.id === k.familyId)) },
+        ].filter((g) => g.kids.length > 0)
+      : [{ id: "all", name: null as string | null, kids }];
+  const title = families.length === 1 ? `${families[0]!.name}: your kids` : families.length > 1 ? "Every family's kids" : "Your kids";
   return (
     <>
-      <h1 className="bb-h1">Your kids</h1>
-      <ErrorNote error={kids.error} />
-      {kids.data && kids.data.length === 0 ? (
-        <BarnabyEmpty title="No kids linked to you yet" size={140}>
+      <h1 className="bb-h1">{title}</h1>
+      <ErrorNote error={data.error} />
+      {data.data && kids.length === 0 ? (
+        <BarnabyEmpty title="No kids in your family yet" size={140}>
           <Link className="bb-link" to="/family/people">
             Add a kid
           </Link>
         </BarnabyEmpty>
       ) : (
-        <div className="bb-kid-cards">
-          {kids.data?.map((k) => (
-            <Link key={k.id} to={`/family/kids/${k.id}`} className="bb-kid-card">
-              <div className="bb-kid-card-head">
-                <span className="bb-person-avatar" aria-hidden>
-                  {k.avatar ?? "🙂"}
-                </span>
-                <div>
-                  <strong>{k.displayName}</strong>
-                  <div className="bb-muted bb-small">
-                    {k.age != null ? `${k.age} · ` : ""}
-                    {RATING_LABELS[k.maxRating]}
-                  </div>
-                </div>
-              </div>
-              <p className="bb-kid-card-now">
-                {k.stats.lastBook ? (
-                  <>
-                    Reading <strong>{k.stats.lastBook.title}</strong>
-                    <span className="bb-muted"> · {timeAgo(k.stats.lastReadAt)}</span>
-                  </>
-                ) : (
-                  <span className="bb-muted">Hasn't opened a book yet</span>
-                )}
-              </p>
-              <dl className="bb-kid-stats">
-                <div>
-                  <dt>Read this week</dt>
-                  <WeekMinutes kidId={k.id} />
-                </div>
-                <div>
-                  <dt>Finished this month</dt>
-                  <dd>{k.stats.finishedLast30Days}</dd>
-                </div>
-                <div className={k.stats.pendingRequests ? "is-warn" : ""}>
-                  <dt>Requests waiting</dt>
-                  <dd>{k.stats.pendingRequests}</dd>
-                </div>
-                <div className={k.stats.aiFlaggedLast7Days ? "is-warn" : ""}>
-                  <dt>Barnaby questions this week</dt>
-                  <dd>
-                    {k.stats.aiQuestionsLast7Days}
-                    {k.stats.aiFlaggedLast7Days ? <small> ({k.stats.aiFlaggedLast7Days} flagged)</small> : null}
-                  </dd>
-                </div>
-              </dl>
-            </Link>
-          ))}
-        </div>
+        groups.map((g) => (
+          <section key={g.id} className="bb-family-group">
+            {g.name && <h2 className="bb-family-group-title">{g.name}</h2>}
+            <div className="bb-kid-cards">
+              {g.kids.map((k) => (
+                <KidCardLink key={k.id} k={k} />
+              ))}
+            </div>
+          </section>
+        ))
       )}
     </>
+  );
+}
+
+function KidCardLink({ k }: { k: KidCard & { stats: KidStats } }) {
+  return (
+    <Link to={`/family/kids/${k.id}`} className="bb-kid-card">
+      <div className="bb-kid-card-head">
+        <span className="bb-person-avatar" aria-hidden>
+          {k.avatar ?? "🙂"}
+        </span>
+        <div>
+          <strong>{k.displayName}</strong>
+          <div className="bb-muted bb-small">
+            {k.age != null ? `${k.age} · ` : ""}
+            {RATING_LABELS[k.maxRating]}
+          </div>
+        </div>
+      </div>
+      <p className="bb-kid-card-now">
+        {k.stats.lastBook ? (
+          <>
+            Reading <strong>{k.stats.lastBook.title}</strong>
+            <span className="bb-muted"> · {timeAgo(k.stats.lastReadAt)}</span>
+          </>
+        ) : (
+          <span className="bb-muted">Hasn't opened a book yet</span>
+        )}
+      </p>
+      <dl className="bb-kid-stats">
+        <div>
+          <dt>Read this week</dt>
+          <WeekMinutes kidId={k.id} />
+        </div>
+        <div>
+          <dt>Finished this month</dt>
+          <dd>{k.stats.finishedLast30Days}</dd>
+        </div>
+        <div className={k.stats.pendingRequests ? "is-warn" : ""}>
+          <dt>Requests waiting</dt>
+          <dd>{k.stats.pendingRequests}</dd>
+        </div>
+        <div className={k.stats.aiFlaggedLast7Days ? "is-warn" : ""}>
+          <dt>Barnaby questions this week</dt>
+          <dd>
+            {k.stats.aiQuestionsLast7Days}
+            {k.stats.aiFlaggedLast7Days ? <small> ({k.stats.aiFlaggedLast7Days} flagged)</small> : null}
+          </dd>
+        </div>
+      </dl>
+    </Link>
   );
 }
 
@@ -117,6 +142,7 @@ export function KidPage() {
       <div className="bb-family-grid">
         <ReadingTimeCard kidId={d.kid.id} kidName={d.kid.displayName} />
         <KidRewardsCard kidId={d.kid.id} kidName={d.kid.displayName} />
+        <ApprovedCard kidId={d.kid.id} kidName={d.kid.displayName} />
         <Card title={`Reading now (${reading.length})`}>
           {reading.length === 0 ? <p className="bb-muted">Nothing open right now.</p> : null}
           <ul className="bb-reading-list">

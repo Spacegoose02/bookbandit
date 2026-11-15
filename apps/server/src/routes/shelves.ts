@@ -1,5 +1,6 @@
 /**
- * Home shelves: Continue reading, Finished, and kid shelves that parents fill by hand.
+ * Home shelves: Continue reading, Finished, and kid shelves that parents fill by hand (shown to the
+ * kid as "Parent approved", together with books approved for their whole family).
  *
  * Kid shelves are filtered by the content lock twice: as the kid (so a parent can never put a
  * book above the kid's limit on it, even if the book is re-rated later) and as the viewer.
@@ -9,8 +10,9 @@ import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { canManageKids } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
-import { books, kidShelf, parentLinks, readingProgress, users } from "../db/schema.js";
+import { books, familyPicks, kidShelf, readingProgress, users } from "../db/schema.js";
 import { requireReader } from "../auth/plugin.js";
+import { isFamilyParentOf } from "../auth/permissions.js";
 import type { Reader } from "../auth/reader.js";
 import { assertCanSee, ContentLockedError, visibleBooksWhere } from "../content/lock.js";
 import { loadVisibleBook, parseOr400, toProgressRecord } from "./progress.js";
@@ -80,13 +82,7 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     if (!kid || kid.role !== "kid" || kid.householdId !== viewer.householdId) throw new ContentLockedError();
 
     const isSelf = kid.id === viewer.userId;
-    const isLinkedParent =
-      viewer.role === "parent" &&
-      db
-        .select({ kidId: parentLinks.kidId })
-        .from(parentLinks)
-        .where(and(eq(parentLinks.parentId, viewer.userId), eq(parentLinks.kidId, kid.id)))
-        .get() !== undefined;
+    const isLinkedParent = isFamilyParentOf(viewer, kid);
     const isAdmin = viewer.role === "admin";
 
     if (manage) {
@@ -99,6 +95,7 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     return {
       userId: kid.id,
       householdId: kid.householdId,
+      familyId: kid.familyId,
       role: kid.role,
       displayName: kid.displayName,
       birthYear: kid.birthYear,
@@ -114,7 +111,7 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     if (!q) return reply;
     const kid = resolveKid(viewer, req.params.kidId, false);
 
-    const rows = db
+    const picked = db
       .select({ book: bookSummary, storyteller: kidShelf.storyteller, addedAt: kidShelf.createdAt })
       .from(kidShelf)
       .innerJoin(books, eq(books.id, kidShelf.bookId))
@@ -126,8 +123,21 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
           visibleBooksWhere(viewer),
         ),
       )
-      .orderBy(desc(kidShelf.createdAt))
-      .all();
+      .all()
+      .map((r) => ({ ...r, familyPick: false }));
+    // Books a parent approved for the whole family show up too (not in storyteller mode).
+    const forFamily =
+      kid.familyId && q.storyteller !== "true"
+        ? db
+            .select({ book: bookSummary, addedAt: familyPicks.createdAt })
+            .from(familyPicks)
+            .innerJoin(books, eq(books.id, familyPicks.bookId))
+            .where(and(eq(familyPicks.familyId, kid.familyId), visibleBooksWhere(kid), visibleBooksWhere(viewer)))
+            .all()
+            .filter((r) => !picked.some((p) => p.book.id === r.book.id))
+            .map((r) => ({ ...r, storyteller: false, familyPick: true }))
+        : [];
+    const rows = [...picked, ...forFamily].sort((a, b) => b.addedAt - a.addedAt);
 
     // The kid's own progress on each book, so the shelf can show how far along they are.
     const ids = rows.map((r) => r.book.id);
@@ -141,7 +151,7 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     const byBook = new Map(progress.map((p) => [p.bookId, toProgressRecord(p)]));
 
     return {
-      kid: { id: kid.userId, displayName: kid.displayName },
+      kid: { id: kid.userId, displayName: kid.displayName, familyId: kid.familyId },
       items: rows.map((r) => ({ ...r, progress: byBook.get(r.book.id) ?? null })),
     };
   });

@@ -14,6 +14,7 @@ import { ElsewhereLinks } from "../imports/ElsewhereLinks";
 import { MoreLikeThis } from "../ai/MoreLikeThis";
 import { useSession } from "../app/session";
 import { useBookEditor, useBookEdited } from "../admin/BookEditHost";
+import { ApproveForKids } from "../family/approved"; // families: parent approved
 
 export function BookPage() {
   const { id = "" } = useParams();
@@ -118,6 +119,7 @@ export function BookPage() {
           <p className="bb-muted bb-small">This book lives in your Kindle library, so it opens in Amazon's Kindle reader.</p>
         )}
         {book.description && <p className="bb-description">{book.description}</p>}
+        {(me?.role === "parent" || me?.role === "admin") && !book.kindleOnly && <ApproveForKids bookId={book.id} />}
         <BookCategories categories={categories} />
         <dl className="bb-facts">
           {book.rating && (

@@ -23,6 +23,10 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 - [x] Web sign-in screen and own-profile editor (`ws/auth`)
 
+- [x] Families: more than one family on a server, each run by its own parents, with one server admin (`ws/auth`)
+
+- [x] Parent approved: a row on the kid home with books a parent picked for that kid or the whole family (`ws/auth`)
+
 - [x] Scan `/books`, read file metadata, Open Library / Google Books / Hardcover lookup, inbox approval (`ws/library`)
 
 - [x] Ratings from metadata, keywords and the `/books/adult` folder (`ws/library`)

@@ -1,7 +1,7 @@
 /**
  * Parent dashboard: what each kid is reading, what they asked for, and their Barnaby AI chats.
  *
- * Read-only. A parent sees the kids they are linked to; an admin sees every kid in the
+ * Read-only. A parent sees the kids in their own family; an admin sees every kid in the
  * household; nobody else (kids and plain adults get 403). Book lists go through
  * visibleBooksWhere for the parent (CLAUDE.md rule 1). AI chats are shown read-only and are
  * never editable or deletable here, so a kid can't ask a parent to "clean up" the log.
@@ -11,7 +11,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { ageFromBirthYear, canManageKids, maxAllowedRating } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
-import { aiMessages, authors, bookAuthors, bookRequests, books, parentLinks, readingProgress, users } from "../db/schema.js";
+import { aiMessages, authors, bookAuthors, bookRequests, books, families, readingProgress, users } from "../db/schema.js";
 import { httpError, requireReader } from "../auth/plugin.js";
 import { useAuthErrors } from "../auth/errors.js";
 import { loadManagedUser, type UserRow } from "../auth/permissions.js";
@@ -48,14 +48,13 @@ export async function familyRoutes(app: FastifyInstance, opts: { db: Db; now?: (
         .orderBy(asc(users.displayName))
         .all();
     }
+    if (!reader.familyId) return [];
     return db
-      .select({ u: users })
-      .from(parentLinks)
-      .innerJoin(users, eq(users.id, parentLinks.kidId))
-      .where(and(eq(parentLinks.parentId, reader.userId), eq(users.householdId, reader.householdId), eq(users.role, "kid")))
+      .select()
+      .from(users)
+      .where(and(eq(users.householdId, reader.householdId), eq(users.familyId, reader.familyId), eq(users.role, "kid")))
       .orderBy(asc(users.displayName))
-      .all()
-      .map((r) => r.u);
+      .all();
   }
 
   function kidCard(k: UserRow) {
@@ -69,6 +68,7 @@ export async function familyRoutes(app: FastifyInstance, opts: { db: Db; now?: (
       maxRating: maxAllowedRating({ birthYear: k.birthYear, isKid: true, explicitOptIn: false }, today),
       kidSignInMethod: k.kidSignInMethod,
       disabled: k.disabled,
+      familyId: k.familyId,
     };
   }
 
@@ -140,7 +140,12 @@ export async function familyRoutes(app: FastifyInstance, opts: { db: Db; now?: (
 
   app.get("/api/family/kids", async (req) => {
     const reader = requireGrownUpManager(req);
-    return { kids: myKids(reader).map((k) => ({ ...kidCard(k), stats: stats(reader, k.id) })) };
+    const kids = myKids(reader);
+    const familyIds = [...new Set(kids.map((k) => k.familyId).filter((x): x is string => !!x))];
+    const familyRows = familyIds.length
+      ? db.select({ id: families.id, name: families.name }).from(families).where(inArray(families.id, familyIds)).orderBy(asc(families.name)).all()
+      : [];
+    return { kids: kids.map((k) => ({ ...kidCard(k), stats: stats(reader, k.id) })), families: familyRows };
   });
 
   app.get("/api/family/kids/:id", async (req) => {

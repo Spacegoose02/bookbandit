@@ -100,10 +100,12 @@ const BOOKS: DemoBook[] = RAW.map(([title, author, year, rating, series, pos], i
 function who(): Me {
   try {
     const p = new URLSearchParams(window.location.search).get("demo");
-    if (p === "kid" || p === "adult" || p === "admin") sessionStorage.setItem("bb-demo-user", p);
+    if (p === "kid" || p === "adult" || p === "admin" || p === "parent") sessionStorage.setItem("bb-demo-user", p);
     const saved = sessionStorage.getItem("bb-demo-user");
     // ?demo=admin: the same grown-up with admin tools (requests, downloads, series editing, Kindle import).
-    const base = saved === "kid" ? KID : saved === "admin" ? { ...ADULT, role: "admin" as const } : ADULT;
+    // ?demo=parent: a family parent (not an admin) who looks after their own family only.
+    const base =
+      saved === "kid" ? KID : saved === "admin" ? { ...ADULT, role: "admin" as const } : saved === "parent" ? { ...ADULT, role: "parent" as const } : ADULT;
     const theme = localStorage.getItem(`bb-demo-theme-${base.id}`);
     const avatar = localStorage.getItem(`bb-demo-avatar-${base.id}`); // ws/kids buddy picker
     const withAvatar = avatar != null ? { ...base, avatar: avatar || null } : base;
@@ -181,7 +183,8 @@ export const demoApi: Api = {
     const shelves: Shelf[] = [];
     if (started.length) shelves.push({ id: "continue", name: "Keep reading", kind: "continue", books: started.map((b) => summary(b, me)) });
     if (me.isKid) {
-      shelves.push({ id: "kid", name: "My books", kind: "kid", books: books.map((b) => summary(b, me)) });
+      // Parent approved: a couple of books a grown-up picked (family/approved.tsx has the parent side).
+      shelves.push({ id: "kid", name: "Parent approved", kind: "kid", books: books.filter((b) => ["b1", "b3"].includes(b.id)).map((b) => summary(b, me)) });
       shelves.push({ id: "recent", name: "Recently added", kind: "recent", books: [...books].sort((a, b) => b.added - a.added).slice(0, 6).map((b) => summary(b, me)) });
     } else {
       shelves.push({ id: "recent", name: "Recently added", kind: "recent", books: [...books].sort((a, b) => b.added - a.added).slice(0, 8).map((b) => summary(b, me)) });

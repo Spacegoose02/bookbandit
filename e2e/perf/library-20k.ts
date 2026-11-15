@@ -135,8 +135,9 @@ async function seed(configDir: string) {
   const pinHash = await hashSecret("1357");
 
   const [home] = db.insert(s.households).values({ name: "Perf" }).returning().all();
+  const [fam] = db.insert(s.families).values({ householdId: home.id, name: "Perf" }).returning().all();
   const user = (displayName: string, role: string, extra: object = {}) =>
-    db.insert(s.users).values({ householdId: home.id, displayName, role, secretHash: hash, ...extra }).returning().all()[0];
+    db.insert(s.users).values({ householdId: home.id, familyId: fam.id, displayName, role, secretHash: hash, ...extra }).returning().all()[0];
   const admin = user("Admin", "admin");
   const parent = user("Parent", "parent");
   const kid = user("Kid", "kid", { birthYear: new Date().getUTCFullYear() - 9, kidSignInMethod: "pin", secretHash: pinHash });

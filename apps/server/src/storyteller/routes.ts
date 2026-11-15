@@ -219,5 +219,5 @@ export async function storytellerRoutes(app: FastifyInstance, opts: { db: Db }) 
 
 /** canManage only needs these fields of the target user. */
 function kidRow(kid: Reader) {
-  return { id: kid.userId, householdId: kid.householdId, role: kid.role } as Parameters<typeof canManage>[2];
+  return { id: kid.userId, householdId: kid.householdId, familyId: kid.familyId, role: kid.role } as Parameters<typeof canManage>[2];
 }

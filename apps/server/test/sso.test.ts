@@ -134,13 +134,16 @@ describe("single sign-on (OIDC)", () => {
     expect((await whoAmI(admin))?.id).toBe(f.ids.admin);
   });
 
-  it("creates an adult account (never admin) for a new email, once", async () => {
+  it("creates an adult account (never admin, in no family yet) for a new email, once", async () => {
     const p = provider();
     f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
     p.state.email = "grandma@example.com";
     p.state.name = "Grandma";
     const first = await whoAmI(await signIn(p));
-    expect(first).toMatchObject({ displayName: "Grandma", role: "adult" });
+    expect(first).toMatchObject({ displayName: "Grandma", role: "adult", familyId: null });
+    // The admin sees them waiting for a family.
+    const fams = await f.app.inject({ method: "GET", url: "/api/families", headers: f.as("admin") });
+    expect(fams.json().unassigned.map((u: { id: string }) => u.id)).toEqual([first!.id]);
     const again = await whoAmI(await signIn(p));
     expect(again?.id).toBe(first!.id);
     const links = f.db.select().from(userIdentities).where(eq(userIdentities.subject, "grandma@example.com")).all();

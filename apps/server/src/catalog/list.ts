@@ -14,6 +14,7 @@ import {
   collectionBooks,
   collections,
   kidShelf,
+  familyPicks,
   readingProgress,
   series,
 } from "../db/schema.js";
@@ -99,11 +100,15 @@ export function shelfWhere(db: Db, reader: Reader, shelf: string): SQL | undefin
             ),
           ),
       );
-    case "kid":
-      return inArray(
-        books.id,
-        db.select({ id: kidShelf.bookId }).from(kidShelf).where(eq(kidShelf.kidId, reader.userId)),
+    case "kid": {
+      // Parent approved: picked for this kid, or for their whole family.
+      const mine = inArray(books.id, db.select({ id: kidShelf.bookId }).from(kidShelf).where(eq(kidShelf.kidId, reader.userId)));
+      if (!reader.familyId) return mine;
+      return or(
+        mine,
+        inArray(books.id, db.select({ id: familyPicks.bookId }).from(familyPicks).where(eq(familyPicks.familyId, reader.familyId))),
       );
+    }
     case "series":
       if (!id) break;
       return inArray(
