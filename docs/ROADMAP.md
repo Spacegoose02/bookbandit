@@ -17,6 +17,8 @@ Goal: the family reads in Bookbandit every day and Calibre-Web is switched off.
 
 - [x] Tinyauth sign-in, trusted only from the reverse proxy
 
+- [x] Single sign-on with Tinyauth (OIDC) and admin-managed sign-in emails on People (`ws/auth`)
+
 - [x] Family accounts: kid accounts under a parent, PIN/picture sign-in, QR device pairing, local password fallback (`ws/auth`)
 
 - [x] Web sign-in screen and own-profile editor (`ws/auth`)

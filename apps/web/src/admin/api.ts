@@ -370,6 +370,11 @@ export interface AdminApi {
   setSecret(id: string, secret: SecretInput): Promise<UserView>;
   linkParent(kidId: string, parentId: string): Promise<UserView>;
   unlinkParent(kidId: string, parentId: string): Promise<UserView>;
+  /** Links an email for single sign-on / Tinyauth to an existing person. */
+  linkEmail(id: string, email: string): Promise<UserView>;
+  removeIdentity(id: string, identityId: string): Promise<UserView>;
+  /** Admin: give a sign-in email to someone else (e.g. merge an account SSO made into a real profile). */
+  moveEmail(id: string, identityId: string, toUserId: string): Promise<{ from: UserView; to: UserView }>;
 
   devices(): Promise<Device[]>;
   startPairing(name: string, userId: string | null): Promise<Pairing>;
@@ -441,6 +446,10 @@ export const httpAdminApi: AdminApi = {
   setSecret: (id, secret) => request(`/api/users/${enc(id)}/secret`, { method: "PUT", body: json(secret) }),
   linkParent: (kidId, parentId) => request(`/api/users/${enc(kidId)}/parents`, { method: "POST", body: json({ parentId }) }),
   unlinkParent: (kidId, parentId) => request(`/api/users/${enc(kidId)}/parents/${enc(parentId)}`, { method: "DELETE" }),
+  linkEmail: (id, email) => request(`/api/users/${enc(id)}/identities`, { method: "POST", body: json({ provider: "tinyauth", subject: email.trim().toLowerCase() }) }),
+  removeIdentity: (id, identityId) => request(`/api/users/${enc(id)}/identities/${enc(identityId)}`, { method: "DELETE" }),
+  moveEmail: (id, identityId, toUserId) =>
+    request(`/api/users/${enc(id)}/identities/${enc(identityId)}/move`, { method: "POST", body: json({ toUserId }) }),
 
   devices: () => request<{ devices: Device[] }>("/api/devices").then((r) => r.devices),
   startPairing: (name, userId) => request("/api/devices/pairings", { method: "POST", body: json({ name, userId }) }),

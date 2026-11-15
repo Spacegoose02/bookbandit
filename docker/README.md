@@ -26,6 +26,11 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 | `TRUSTED_PROXIES` | empty | IPs/CIDRs of your reverse proxy. Auth headers from anywhere else are ignored. |
 | `AUTH_HEADER_EMAIL` | `remote-email` | Header the proxy (Tinyauth) sets with the signed-in email. |
 | `GOOGLE_SIGN_IN_URL` | empty | Your Tinyauth login page. When set, the sign-in screen shows a "Sign in with Google" button. Username/password sign-in works without it. |
+| `PUBLIC_URL` | empty | Bookbandit's address as people reach it, e.g. `https://books.example.com`. Needed for single sign-on. |
+| `SSO_ISSUER` | empty | Single sign-on: your Tinyauth (or other OpenID Connect) address, e.g. `https://auth.example.com`. See [Single sign-on](#single-sign-on-with-tinyauth). |
+| `SSO_CLIENT_ID` / `SSO_CLIENT_SECRET` | empty | The client you add in Tinyauth for Bookbandit. |
+| `SSO_LABEL` | `Tinyauth` | Button text: "Sign in with …". |
+| `SSO_AUTO_CREATE` | `true` | A new email gets its own grown-up account (the "adult" role). `false` lets in only emails linked under People. |
 | `SESSION_SECRET` | generated | Signs password/PIN sessions. Generated once and kept in the database if empty. |
 | `TZ` | UTC | Time zone, e.g. `America/Chicago`. Sets when the nightly backup runs. |
 | `BACKUP_TIME` | `03:00` | Nightly database backup time (`HH:MM`), or `off`. |
@@ -39,6 +44,45 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 `/config` is chowned to `PUID:PGID` on start when its owner is wrong. `/books` is never chowned,
 so make sure `PUID:PGID` can read it (and write it, if you'll use uploads or downloads).
 Starting the container with `--user` skips the switch and runs as that user directly.
+
+## Single sign-on with Tinyauth
+
+This puts a **Sign in with Tinyauth** button on the sign-in page. It's set with environment
+variables on the two containers; nothing to turn on inside Bookbandit.
+
+1. In Tinyauth, add a client for Bookbandit:
+
+   ```
+   TINYAUTH_OIDC_CLIENTS_bookbandit_CLIENTID=bookbandit
+   TINYAUTH_OIDC_CLIENTS_bookbandit_CLIENTSECRET=<long random string>
+   TINYAUTH_OIDC_CLIENTS_bookbandit_TRUSTEDREDIRECTURIS=https://<your-bookbandit-site>/auth/sso/callback
+   TINYAUTH_OIDC_CLIENTS_bookbandit_NAME=Bookbandit
+   TINYAUTH_OIDC_CLIENTS_bookbandit_TRUSTED=true
+   ```
+
+2. On the Bookbandit container (Unraid template or docker-compose), set:
+
+   ```
+   PUBLIC_URL=https://<your-bookbandit-site>
+   SSO_ISSUER=https://<your-tinyauth-address>
+   SSO_CLIENT_ID=bookbandit
+   SSO_CLIENT_SECRET=<the same secret>
+   SSO_LABEL=Tinyauth          # optional, the button text
+   ```
+
+3. Restart both containers.
+
+Who signs in as whom: the email Tinyauth reports is matched to someone's **sign-in emails** (Admin →
+People → Sign-in emails, which the admin can add to any grown-up, their own profile included). An
+email nobody uses yet gets a new grown-up account with the "adult" role, so Tinyauth's approved-email
+list decides who gets in; set `SSO_AUTO_CREATE=false` to let in only linked emails. If someone who
+already had a profile signed in before their email was linked, open the new account's sign-in
+emails on People and use **Move to…** to put the email on their real profile. The leftover account
+is turned off (delete it from People if it's empty). Only admins can link or move emails.
+
+Single sign-on talks to Tinyauth directly, so it works without forward auth and `TRUSTED_PROXIES`.
+The older forward-auth setup (`TRUSTED_PROXIES` + `AUTH_HEADER_EMAIL`) still works too, and both use
+the same sign-in emails.
 
 ## Backups
 

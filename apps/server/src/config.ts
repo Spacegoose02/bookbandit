@@ -26,6 +26,22 @@ const Env = z.object({
    */
   GOOGLE_SIGN_IN_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   SESSION_SECRET: z.string().min(32).optional(),
+  /**
+   * Single sign-on (OpenID Connect, e.g. Tinyauth). All four of PUBLIC_URL, SSO_ISSUER,
+   * SSO_CLIENT_ID and SSO_CLIENT_SECRET turn it on; the provider's redirect URI is
+   * PUBLIC_URL + /auth/sso/callback. SSO_LABEL is the button text ("Sign in with <label>").
+   * New emails get an "adult" account unless SSO_AUTO_CREATE=false.
+   */
+  PUBLIC_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  SSO_ISSUER: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  SSO_CLIENT_ID: z.string().optional(),
+  SSO_CLIENT_SECRET: z.string().optional(),
+  SSO_LABEL: z.string().optional(),
+  /** Make a new "adult" account for an SSO email nobody uses yet (default). "false" refuses it instead. */
+  SSO_AUTO_CREATE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   /** Built web app to serve (index.html + assets). Defaults to apps/web/dist next to the server. */
   WEB_DIR: z.string().optional(),
   /** Calibre's converter (installed in the Docker image) and kepubify, for format conversion. */

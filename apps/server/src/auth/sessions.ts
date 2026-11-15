@@ -24,7 +24,7 @@ export interface SessionPayload {
   /** paired device id this session is bound to, if signed in on one */
   d: string | null;
   /** how they signed in */
-  m: "password" | "pin" | "picture";
+  m: "password" | "pin" | "picture" | "sso";
   iat: number;
   exp: number;
 }
@@ -65,6 +65,26 @@ export class SessionSigner {
       const p = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
       if (typeof p.u !== "string" || typeof p.exp !== "number" || p.exp <= now) return null;
       return p;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Signs any small JSON value (used for the single sign-on round trip's state cookie). */
+  seal(value: unknown): string {
+    const body = Buffer.from(JSON.stringify(value)).toString("base64url");
+    return `${body}.${this.sign(`seal:${body}`)}`;
+  }
+
+  /** The value `seal` signed, or null when the signature doesn't match. */
+  unseal<T>(sealed: string): T | null {
+    const [body, sig] = sealed.split(".");
+    if (!body || !sig) return null;
+    const expected = Buffer.from(this.sign(`seal:${body}`), "base64url");
+    const given = Buffer.from(sig, "base64url");
+    if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+    try {
+      return JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as T;
     } catch {
       return null;
     }

@@ -36,7 +36,8 @@ Web-side types: `apps/web/src/api/types.ts`. Shared types: `@bookbandit/shared`.
 
 Reflowable books (EPUB, AZW3, MOBI, FB2) and CBZ save `{ kind: "epub", cfi, percent }`.
 PDF opens in the browser's own viewer for now and doesn't report a position yet.
-| GET | `/api/auth/status` | ws/auth | `setupRequired, signedIn, device, google: {url} \| null, unlinkedEmail, limits`. Drives the sign-in screens. |
+| GET | `/api/auth/status` | ws/auth | `setupRequired, signedIn, device, google: {url} \| null, sso: {label, url} \| null, unlinkedEmail, limits`. Drives the sign-in screens. |
+| GET | `/api/auth/sso/start` → `/auth/sso/callback` | ws/auth | Single sign-on (OIDC) round trip; a plain link, not fetch. Lands on `/` signed in, or `/?sso_error=<code>`. |
 | POST | `/api/auth/setup` | ws/auth | First run only: `{ householdName, displayName, username, password, email? }`. |
 | POST | `/api/auth/login` | ws/auth | `{ username, password }` or `{ userId, password }` from the picker. Sets the `bb_session` cookie. |
 | GET | `/api/auth/profiles` | ws/auth | "Who's reading?" tiles; only on a paired tablet or when signed in. |
@@ -44,6 +45,8 @@ PDF opens in the browser's own viewer for now and doesn't report a position yet.
 | POST | `/api/auth/sign-out` | ws/auth | Clears the session cookie; a paired tablet stays paired. |
 | POST | `/api/devices/claim` | ws/auth | `{ code, name? }`. Sets the `bb_device` cookie in a tablet's browser. |
 | GET / PATCH | `/api/users`, `/api/users/:id` | ws/auth | Settings → kids' names (`{ displayName }`, linked parent or admin). |
+| POST / DELETE | `/api/users/:id/identities`, `/api/users/:id/identities/:identityId` | ws/auth | People → Sign-in emails: `{ provider: "tinyauth", subject: email }`. |
+| POST | `/api/users/:id/identities/:identityId/move` | ws/auth | Admin: `{ toUserId }` → `{ from, to }`. The old account is turned off if it has no sign-in left. |
 
 ## Demo mode
 

@@ -95,6 +95,8 @@ const IdentityBody = z.discriminatedUnion("provider", [
   z.object({ provider: z.literal("local"), subject: username }).strict(),
 ]);
 
+const MoveIdentityBody = z.object({ toUserId: z.string().uuid() }).strict();
+
 const ParentBody = z.object({ parentId: z.string().uuid() }).strict();
 
 const canBeParent = (role: Role) => role === "parent" || role === "admin";
@@ -347,6 +349,33 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
       .run();
     if (res.changes === 0) throw httpError(404, "Not found");
     return userView(db, getUser(target.id)!);
+  });
+
+  /**
+   * Admin: move a sign-in email to someone else, e.g. an account single sign-on made on its own
+   * for a family member who already had a profile. If that leaves the old account with no way to
+   * sign in, it's turned off (not deleted, so nothing is lost; an admin can delete it after).
+   */
+  app.post<{ Params: { id: string; identityId: string } }>("/api/users/:id/identities/:identityId/move", async (req) => {
+    const reader = requireAdmin(req);
+    const { toUserId } = MoveIdentityBody.parse(req.body);
+    const from = loadVisibleUser(db, reader, req.params.id);
+    const to = loadVisibleUser(db, reader, toUserId);
+    if (from.id === to.id) throw httpError(400, "That email already belongs to them");
+    const identity = db
+      .select()
+      .from(userIdentities)
+      .where(and(eq(userIdentities.id, req.params.identityId), eq(userIdentities.userId, from.id)))
+      .get();
+    if (!identity) throw httpError(404, "Not found");
+    if (identity.provider !== "tinyauth") throw httpError(400, "Only sign-in emails can be moved");
+    db.transaction((tx) => {
+      tx.update(userIdentities).set({ userId: to.id }).where(eq(userIdentities.id, identity.id)).run();
+      const left = tx.select({ n: sql<number>`count(*)` }).from(userIdentities).where(eq(userIdentities.userId, from.id)).get()!.n;
+      const canStillSignIn = left > 0 || (from.role === "kid" && !!from.secretHash);
+      if (!canStillSignIn && from.id !== reader.userId) tx.update(users).set({ disabled: true }).where(eq(users.id, from.id)).run();
+    });
+    return { from: userView(db, getUser(from.id)!), to: userView(db, getUser(to.id)!) };
   });
 
   // ---- parent links -------------------------------------------------------
