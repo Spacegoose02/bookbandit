@@ -43,7 +43,7 @@ export async function homeShelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     const out: (Shelf | null)[] = [];
 
     out.push(shelf(reader, "continue", "Continue reading", "continue", q.perShelf));
-    if (reader.isKid) out.push(shelf(reader, "kid", "My shelf", "kid", q.perShelf));
+    if (reader.isKid) out.push(shelf(reader, "kid", "Parent approved", "kid", q.perShelf));
     out.push(shelf(reader, "recent", "Recently added", "recent", q.perShelf));
 
     // Section tags (Kids, Cookbooks, ...) that have visible books.

@@ -324,6 +324,26 @@ export const kidShelf = sqliteTable(
   (t) => [primaryKey({ columns: [t.kidId, t.bookId] })],
 );
 
+/**
+ * "Parent approved" for a whole family: a parent picks a book once and it shows on every kid's
+ * Parent approved row in that family (each kid still only sees it within their own limit).
+ * Per-kid picks are the kid_shelf rows above.
+ */
+export const familyPicks = sqliteTable(
+  "family_picks",
+  {
+    familyId: text("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    bookId: text("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.familyId, t.bookId] })],
+);
+
 // ---------------------------------------------------------------------------
 // Reading state (per user, synced across devices)
 // ---------------------------------------------------------------------------

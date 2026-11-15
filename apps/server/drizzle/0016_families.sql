@@ -7,6 +7,17 @@ CREATE TABLE `families` (
 );
 --> statement-breakpoint
 CREATE INDEX `families_household_idx` ON `families` (`household_id`);--> statement-breakpoint
+CREATE TABLE `family_picks` (
+	`family_id` text NOT NULL,
+	`book_id` text NOT NULL,
+	`added_by` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`family_id`, `book_id`),
+	FOREIGN KEY (`family_id`) REFERENCES `families`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`added_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
 ALTER TABLE `devices` ADD `family_id` text REFERENCES families(id) ON DELETE set null;--> statement-breakpoint
 ALTER TABLE `users` ADD `family_id` text REFERENCES families(id) ON DELETE set null;--> statement-breakpoint
 -- Everyone already here is one family: put each household's people and tablets in a family of the same name.

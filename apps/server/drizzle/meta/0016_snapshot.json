@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "be921ce1-2b89-4786-aa07-68bafa0df2b8",
+  "id": "085da957-d777-46ad-b075-1a223459ffbf",
   "prevId": "41309c3a-dbe5-4bac-b2d1-1c9f6ebce3f5",
   "tables": {
     "ai_messages": {
@@ -1309,6 +1309,93 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "family_picks": {
+      "name": "family_picks",
+      "columns": {
+        "family_id": {
+          "name": "family_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "added_by": {
+          "name": "added_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "family_picks_family_id_families_id_fk": {
+          "name": "family_picks_family_id_families_id_fk",
+          "tableFrom": "family_picks",
+          "tableTo": "families",
+          "columnsFrom": [
+            "family_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "family_picks_book_id_books_id_fk": {
+          "name": "family_picks_book_id_books_id_fk",
+          "tableFrom": "family_picks",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "family_picks_added_by_users_id_fk": {
+          "name": "family_picks_added_by_users_id_fk",
+          "tableFrom": "family_picks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "added_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "family_picks_family_id_book_id_pk": {
+          "columns": [
+            "family_id",
+            "book_id"
+          ],
+          "name": "family_picks_family_id_book_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

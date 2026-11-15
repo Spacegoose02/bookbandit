@@ -49,6 +49,8 @@ export function KidHome() {
   const fresh = (shelves.find((s) => s.kind === "recent")?.books ?? []).filter((b) => !seen.has(b.id)).slice(0, 10);
   const all = dedupe(shelves.filter((s) => s.kind !== "continue").flatMap((s) => s.books));
   const [hero, ...moreReading] = keepReading;
+  // Books a parent approved for this kid or the whole family (the server keeps them within the kid's limit).
+  const approved = shelves.find((s) => s.kind === "kid")?.books ?? [];
   const rows = AGE_ROWS.map((r) => ({ ...r, books: all.filter((b) => (b.rating ?? "kids") === r.rating) })).filter((r) => r.books.length);
   const unrowed = all.filter((b) => !AGE_ROWS.some((r) => r.rating === (b.rating ?? "kids")));
   const earned = rewards?.badges.filter((b) => b.earnedAt) ?? [];
@@ -112,6 +114,19 @@ export function KidHome() {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {approved.length > 0 && (
+        <section aria-labelledby="kid-approved" className="bb-kid-approved">
+          <h2 className="bb-kid-h2" id="kid-approved">
+            <span aria-hidden>👍</span> Parent approved
+          </h2>
+          <div className="bb-kid-row">
+            {approved.map((b) => (
+              <KidBook key={b.id} book={b} />
+            ))}
+          </div>
         </section>
       )}
 

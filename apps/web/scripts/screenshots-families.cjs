@@ -20,7 +20,12 @@ async function open(browser, viewport, persona, url, ready) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   await page.goto(`${BASE}/?demo=${persona}`);
-  await page.evaluate(() => localStorage.setItem("bb-demo-theme-u-adult", "dark"));
+  await page.evaluate(() => {
+    localStorage.setItem("bb-demo-theme-u-adult", "dark");
+    // The demo kid is a storyteller profile by default; show the reading kid's home instead.
+    localStorage.setItem("bb-demo-storyteller-settings", JSON.stringify({ enabled: false }));
+    localStorage.setItem("bb-storyteller-on-u-kid", "0");
+  });
   await page.goto(`${BASE}${url}`);
   await page.waitForSelector(ready);
   await page.waitForTimeout(500);
@@ -58,6 +63,20 @@ async function shot(page, name, fullPage = true) {
     await page.goto(`${BASE}/admin`);
     await page.waitForTimeout(500);
     await shot(page, `parent-no-admin${suffix}`, false);
+    // Parent approved: approve from a book's page, see it on the kid's dashboard page.
+    await page.goto(`${BASE}/book/b3`);
+    await page.waitForSelector(".bb-approve");
+    await shot(page, `approve-book${suffix}`, false);
+    await page.goto(`${BASE}/family/kids/u-kid`);
+    await page.waitForSelector(".bb-approved-item");
+    await page.locator(".bb-approved-card").scrollIntoViewIfNeeded();
+    await shot(page, `approved-card${suffix}`, false);
+    await ctx.close();
+
+    // The kid's home: Parent approved comes right after Keep reading.
+    ({ ctx, page } = await open(browser, vp, "kid", "/", ".bb-kid-approved"));
+    await page.locator(".bb-kid-approved").scrollIntoViewIfNeeded();
+    await shot(page, `kid-home-approved${suffix}`, false);
     await ctx.close();
   }
   await browser.close();

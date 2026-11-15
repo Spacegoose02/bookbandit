@@ -150,4 +150,59 @@ describe("families", () => {
     expect((await call(f.as("admin"), "DELETE", `/api/families/${empty.id}`)).statusCode).toBe(200);
     expect(f.db.select().from(families).where(eq(families.id, empty.id)).get()).toBeUndefined();
   });
+
+  describe("parent approved", () => {
+    const shelfOf = async (headers: Record<string, string>) => {
+      const res = await call(headers, "GET", "/api/shelves");
+      const kid = res.json().items.find((x: { kind: string }) => x.kind === "kid");
+      return kid ? { name: kid.name as string, titles: (kid.books as { title: string }[]).map((b) => b.title).sort() } : null;
+    };
+
+    it("shows a book approved for the whole family to every kid in it, within each kid's limit", async () => {
+      const picture = f.book("Picture Book", "kids");
+      const teen = f.book("Teen Book", "teen");
+      const home = await call(f.as("parent"), "PUT", `/api/families/${f.ids.home}/approved/${picture}`);
+      expect(home.json()).toEqual({ ok: true, hiddenFrom: [] });
+      const tooOld = await call(f.as("parent"), "PUT", `/api/families/${f.ids.home}/approved/${teen}`);
+      expect(tooOld.json().hiddenFrom).toEqual(["Emma"]);
+
+      expect(await shelfOf(f.as("kid"))).toEqual({ name: "Parent approved", titles: ["Picture Book"] });
+      const paged = await call(f.as("kid"), "GET", "/api/books?shelf=kid");
+      expect(paged.json().items.map((b: { title: string }) => b.title)).toEqual(["Picture Book"]);
+      const kidView = await call(f.as("kid"), "GET", "/api/shelves/kids/me");
+      expect(kidView.json().items.map((x: { book: { title: string }; familyPick: boolean }) => [x.book.title, x.familyPick])).toEqual([["Picture Book", true]]);
+      // The cousins' family doesn't get the Home family's picks.
+      const leo = await call(asUncle, "GET", `/api/shelves/kids/${f.ids.otherKid}`);
+      expect(leo.json().items).toEqual([]);
+    });
+
+    it("mixes per-kid picks with family picks", async () => {
+      const a = f.book("Just For Emma", "kids");
+      const b = f.book("For Everyone", "kids");
+      expect((await call(f.as("parent"), "PUT", `/api/shelves/kids/${f.ids.kid}/books/${a}`)).statusCode).toBe(204);
+      await call(f.as("parent"), "PUT", `/api/families/${f.ids.home}/approved/${b}`);
+      expect((await shelfOf(f.as("kid")))?.titles).toEqual(["For Everyone", "Just For Emma"]);
+      await call(f.as("parent"), "DELETE", `/api/families/${f.ids.home}/approved/${b}`);
+      expect((await shelfOf(f.as("kid")))?.titles).toEqual(["Just For Emma"]);
+    });
+
+    it("only lets that family's parents (or the admin) approve for it", async () => {
+      const b = f.book("Picture Book", "kids");
+      expect((await call(asUncle, "PUT", `/api/families/${f.ids.home}/approved/${b}`)).statusCode).toBe(404);
+      expect((await call(f.as("adult"), "PUT", `/api/families/${f.ids.home}/approved/${b}`)).statusCode).toBe(403);
+      expect((await call(f.as("kid"), "PUT", `/api/families/${f.ids.home}/approved/${b}`)).statusCode).toBe(403);
+      expect((await call(f.as("admin"), "PUT", `/api/families/${f.ids.cousins}/approved/${b}`)).statusCode).toBe(200);
+      const inbox = f.book("Not approved yet", "kids", { approved: false });
+      expect((await call(f.as("admin"), "PUT", `/api/families/${f.ids.home}/approved/${inbox}`)).statusCode).toBe(422);
+    });
+
+    it("tells the book page who it's approved for", async () => {
+      const b = f.book("Middle Grade", "middle_grade");
+      await call(f.as("parent"), "PUT", `/api/families/${f.ids.home}/approved/${b}`);
+      const res = (await call(f.as("parent"), "GET", `/api/books/${b}/approvals`)).json();
+      expect(res.family).toMatchObject({ id: f.ids.home, approved: true });
+      expect(res.kids).toEqual([expect.objectContaining({ id: f.ids.kid, approved: false, canSee: false })]);
+      expect((await call(f.as("adult"), "GET", `/api/books/${b}/approvals`)).statusCode).toBe(403);
+    });
+  });
 });

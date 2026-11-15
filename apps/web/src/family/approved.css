@@ -1,0 +1,28 @@
+/* Parent approved: the book page panel and the family dashboard card. */
+.bb-approve {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--bb-border);
+  border-radius: 12px;
+}
+.bb-approve-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+.bb-approve .bb-chips {
+  margin-top: 0.5rem;
+}
+.bb-approved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-approved-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+}
+.bb-approved-item + .bb-approved-item {
+  border-top: 1px solid var(--bb-border);
+}

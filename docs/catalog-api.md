@@ -33,7 +33,7 @@ the reader can see, sorted by sort name.
 ## Home shelves
 
 `GET /api/shelves?perShelf=20&maxSeries=5` → `{ items: Shelf[] }` where a shelf is
-`{ id, name, kind, total, books }`. Order: Continue reading, My shelf (kids only), Recently added,
+`{ id, name, kind, total, books }`. Order: Continue reading, Parent approved (kids only: picked for them or their whole family), Recently added,
 section tags (Kids, Cookbooks, ...), household collections (shared ones plus the reader's own),
 then the series with the most recently added books. Empty shelves are left out. Each shelf's `id`
 works as `?shelf=` on `/api/books` to page through the rest.

@@ -58,3 +58,17 @@ an admin places them.
 
 Migration `0016_families` puts everyone already on the server, and every paired tablet, into one
 family named after the household, so nothing changes until a second family is added.
+
+## Parent approved
+
+Parents (and admins) approve books for one kid or for their whole family. Kids see both on their
+home in a **Parent approved** row (`kind: "kid"` in `GET /api/shelves`, `?shelf=kid` on
+`/api/books`, `/opds/kid`), and each kid only sees approved books within their own limit, so a
+family pick never lifts anyone's limit.
+
+| Method | Path | File | Notes |
+| --- | --- | --- | --- |
+| GET | `/api/books/:id/approvals` | `routes/families.ts` | Parent/admin: `{ family: { id, name, approved }, kids: [{ id, displayName, approved, canSee }] }` for their own family |
+| GET | `/api/families/:id/approved` | `routes/families.ts` | Books approved for the whole family |
+| PUT/DELETE | `/api/families/:id/approved/:bookId` | `routes/families.ts` | A parent of that family or an admin. PUT answers `{ ok, hiddenFrom: [kid names] }` for kids it's above |
+| PUT/DELETE | `/api/shelves/kids/:kidId/books/:bookId` | `routes/shelves.ts` | One kid (unchanged); `GET /api/shelves/kids/:kidId` now also lists family picks with `familyPick: true` |
