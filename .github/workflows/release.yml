@@ -4,10 +4,10 @@ name: Release
 # such as 0.4.0 (or 0.5.0-rc.1 for a pre-release). Run it from main.
 #
 # It checks that CI passed on main's latest commit, creates the annotated tag v<version> there, and
-# then starts the Docker image and Windows desktop workflows on that tag. The Docker workflow
-# builds and pushes the images and creates the GitHub Release page with notes from docs/changes/,
-# the desktop workflow attaches the installers, and the Android workflow follows the Docker run
-# and attaches the APK.
+# then starts the Docker image, Windows desktop and Android workflows on that tag. The Docker
+# workflow builds and pushes the images and creates the GitHub Release page with notes from
+# docs/changes/; the desktop and Android workflows wait for that page and attach the installers
+# and the APK.
 #
 # Workflows are started explicitly because a tag pushed with the built-in GITHUB_TOKEN does not
 # trigger other workflows. Pushing a v* tag by hand still works the same way as before.
@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write # create the tag
-      actions: write # start the Docker and desktop workflows
+      actions: write # start the Docker, desktop and Android workflows
     env:
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ inputs.version }}
@@ -77,11 +77,12 @@ jobs:
           git tag -a "$TAG" "$GITHUB_SHA" -m "Bookbandit ${TAG#v}"
           git push origin "refs/tags/$TAG"
 
-      - name: Start the Docker image and desktop builds on the tag
+      - name: Start the Docker image, desktop and Android builds on the tag
         run: |
           gh workflow run docker.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
           gh workflow run desktop.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          gh workflow run android.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
           {
-            echo "Tagged **$TAG** at \`${GITHUB_SHA::7}\` and started the Docker image and Windows desktop builds."
+            echo "Tagged **$TAG** at \`${GITHUB_SHA::7}\` and started the Docker image, Windows desktop and Android builds."
             echo "The release page appears once the Docker images are pushed; the APK and installers follow."
           } >> "$GITHUB_STEP_SUMMARY"
