@@ -4,6 +4,7 @@
  * last few minutes, so a book left open overnight doesn't count as reading.
  */
 import type { Api } from "../api/client";
+import { newId } from "../app/uuid";
 
 export const TICK_MS = 15_000;
 export const SEND_EVERY_MS = 60_000;
@@ -25,7 +26,7 @@ const browserEnv: TimerEnv = {
 };
 
 export class ReadingTimer {
-  readonly sessionId = crypto.randomUUID();
+  readonly sessionId = newId();
   private lastActivity: number;
   private lastSend: number;
   private pendingSeconds = 0;

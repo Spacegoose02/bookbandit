@@ -12,6 +12,7 @@ import type {
   Shelf,
 } from "./types";
 import { demoApi } from "./demo";
+import { newId } from "../app/uuid";
 
 export class ApiError extends Error {
   constructor(
@@ -146,7 +147,7 @@ export const httpApi: Api = {
   putProgressBatch: (updates) => request("/api/progress/batch", { method: "POST", body: json({ updates }) }),
   bookmarks: (bookId) =>
     request<{ items: Bookmark[] }>(`/api/books/${encodeURIComponent(bookId)}/bookmarks`).then((r) => r.items),
-  addBookmark: (b) => request("/api/bookmarks", { method: "POST", body: json({ id: crypto.randomUUID(), ...b }) }),
+  addBookmark: (b) => request("/api/bookmarks", { method: "POST", body: json({ id: newId(), ...b }) }),
   deleteBookmark: (id) => request(`/api/bookmarks/${encodeURIComponent(id)}`, { method: "DELETE" }),
   readingHeartbeat: async (beat, opts) => {
     await request("/api/reading/heartbeat", { method: "POST", body: json(beat), keepalive: opts?.keepalive });

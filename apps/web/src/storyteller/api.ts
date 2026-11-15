@@ -13,6 +13,7 @@ import {
 } from "@bookbandit/shared";
 import { api, ApiError, isDemo, request } from "../api/client";
 import type { BookSummary } from "../api/types";
+import { newId } from "../app/uuid";
 
 export interface Story {
   id: string;
@@ -226,7 +227,7 @@ const demoStorytellerApi: StorytellerApi = {
       const resuming = latest && latest.bookId === bookId && !latest.completed && (t.secondsLeft ?? 1) > 0;
       if (!resuming) throw new GoodnightError(t);
     }
-    const session: DemoSession = { id: crypto.randomUUID(), bookId, mode, night: t.night, startedAt: now, lastBeatAt: now, endedAt: null, completed: false, listenedMs: 0 };
+    const session: DemoSession = { id: newId(), bookId, mode, night: t.night, startedAt: now, lastBeatAt: now, endedAt: null, completed: false, listenedMs: 0 };
     store(DEMO_SESSIONS, [...all, session]);
     return { session: { id: session.id, bookId, mode, startedAt: now }, tonight: demoTonight(now), beatIntervalMs: DEMO_BEAT_MS };
   },
