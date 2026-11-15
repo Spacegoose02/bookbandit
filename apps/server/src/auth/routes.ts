@@ -14,7 +14,7 @@ import {
   PIN_LENGTH,
 } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
-import { households, userIdentities, users } from "../db/schema.js";
+import { families, households, userIdentities, users } from "../db/schema.js";
 import { clientIp, httpError, isSecureRequest } from "./plugin.js";
 import { hashSecret, pictureSecret, verifySecret } from "./secrets.js";
 import { sessionCookie, type SessionPayload, type SessionSigner } from "./sessions.js";
@@ -130,9 +130,11 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
     const created = db.transaction((tx) => {
       if (tx.select({ n: sql<number>`count(*)` }).from(users).get()!.n > 0) return null;
       const [home] = tx.insert(households).values({ name: body.householdName }).returning().all();
+      // The admin's own family, named like the household; more families can be added later.
+      const [family] = tx.insert(families).values({ householdId: home!.id, name: body.householdName }).returning().all();
       const [admin] = tx
         .insert(users)
-        .values({ householdId: home!.id, displayName: body.displayName, role: "admin", secretHash })
+        .values({ householdId: home!.id, familyId: family!.id, displayName: body.displayName, role: "admin", secretHash })
         .returning()
         .all();
       if (body.email) tx.insert(userIdentities).values({ userId: admin!.id, provider: "tinyauth", subject: body.email }).run();
@@ -159,7 +161,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
       const home = householdContext(req);
       if (!home) throw httpError(401, "Sign in with your username");
       const candidate = db.select().from(users).where(eq(users.id, body.userId!)).get();
-      u = candidate?.householdId === home ? candidate : undefined;
+      u = candidate?.householdId === home && inPickerFamily(req, candidate) ? candidate : undefined;
     }
     const ip = clientIp(req, opts.trustedProxies);
     const key = `login:${body.username ?? body.userId}:${ip}`;
@@ -197,9 +199,19 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
       .where(and(eq(users.householdId, home), eq(users.disabled, false)))
       .orderBy(users.displayName)
       .all();
-    const visible = req.device?.userId ? rows.filter((r) => r.id === req.device!.userId) : rows;
+    const visible = req.device?.userId ? rows.filter((r) => r.id === req.device!.userId) : rows.filter((r) => inPickerFamily(req, r));
     return { profiles: visible.map((u) => profileCard(db, u)) };
   });
+
+  /**
+   * Families keep to their own picker: a family's tablet lists only that family, and a signed-in
+   * grown-up (not an admin) only their own. A household-wide tablet or an admin sees everyone.
+   */
+  function inPickerFamily(req: FastifyRequest, u: UserRow): boolean {
+    if (req.device) return !req.device.familyId || u.familyId === req.device.familyId;
+    if (!req.reader || req.reader.role === "admin") return true;
+    return u.id === req.reader.userId || (!!req.reader.familyId && u.familyId === req.reader.familyId);
+  }
 
   /** Kid sign-in with a PIN or a picture sequence, from the profile picker. */
   app.post("/api/auth/kid-sign-in", async (req, reply) => {
@@ -217,7 +229,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
     let secret: string | null = null;
     if (method === "pin" && isValidPin(body.pin!)) secret = body.pin!;
     if (method === "picture" && isValidPictureSequence(body.pictures!)) secret = pictureSecret(body.pictures!);
-    const usable = !!u && u.kidSignInMethod === method && !!secret;
+    const usable = !!u && u.kidSignInMethod === method && !!secret && inPickerFamily(req, u);
     const ok = await verifySecret(secret ?? "-", usable ? u!.secretHash : null);
     if (!ok || !u) {
       lockout.fail(key);

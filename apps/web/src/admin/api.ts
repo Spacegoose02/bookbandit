@@ -168,6 +168,8 @@ export interface UserView {
   identities: { id: string; provider: "tinyauth" | "local"; subject: string }[];
   parentIds: string[];
   kidIds: string[];
+  /** Their family; null while they wait for an admin to place them. */
+  familyId: string | null;
   createdAt: number;
 }
 
@@ -176,6 +178,26 @@ export interface ProfileCard {
   displayName: string;
   avatar: string | null;
   role: Role;
+  familyId: string | null;
+}
+
+/** A family on this server: its own parents, grown-ups and kids (server/src/routes/families.ts). */
+export interface Family {
+  id: string;
+  name: string;
+  createdAt: number;
+  parents: number;
+  kids: number;
+  members: ProfileCard[];
+}
+
+export interface FamiliesView {
+  /** Admins: every family. Everyone else: just their own (or none). */
+  families: Family[];
+  /** Admins: people in no family yet, e.g. new single sign-on accounts. */
+  unassigned: ProfileCard[];
+  /** The viewer's own family. */
+  mine: string | null;
 }
 
 export interface NewPerson {
@@ -190,6 +212,8 @@ export interface NewPerson {
   username?: string;
   password?: string;
   parentIds?: string[];
+  /** Admins pick the family; parents always add to their own. */
+  familyId?: string | null;
 }
 
 export interface PersonPatch {
@@ -199,6 +223,8 @@ export interface PersonPatch {
   kidSignInMethod?: KidSignInMethod;
   disabled?: boolean;
   role?: Role;
+  /** Admins only: move someone to a family (or out of every family). */
+  familyId?: string | null;
 }
 
 export type SecretInput = { pin: string } | { pictures: SignInPicture[] } | { password: string };
@@ -207,6 +233,8 @@ export interface Device {
   id: string;
   name: string;
   userId: string | null;
+  /** Whose tablet it is: "Who's reading?" lists only that family. Null: everyone. */
+  familyId: string | null;
   lastSeenAt: number | null;
   revokedAt: number | null;
   createdAt: number;
@@ -297,6 +325,7 @@ export interface KidCard {
   maxRating: ContentRating;
   kidSignInMethod: KidSignInMethod | null;
   disabled: boolean;
+  familyId: string | null;
 }
 
 export interface KidStats {
@@ -403,9 +432,15 @@ export interface AdminApi {
   /** Admin: give a sign-in email to someone else (e.g. merge an account SSO made into a real profile). */
   moveEmail(id: string, identityId: string, toUserId: string): Promise<{ from: UserView; to: UserView }>;
 
+  families(): Promise<FamiliesView>;
+  createFamily(name: string): Promise<Family>;
+  renameFamily(id: string, name: string): Promise<Family>;
+  deleteFamily(id: string): Promise<void>;
+
   devices(): Promise<Device[]>;
-  startPairing(name: string, userId: string | null): Promise<Pairing>;
-  updateDevice(id: string, patch: { name?: string; userId?: string | null }): Promise<Device>;
+  /** familyId: admins only (undefined = their own family, null = every family). */
+  startPairing(name: string, userId: string | null, familyId?: string | null): Promise<Pairing>;
+  updateDevice(id: string, patch: { name?: string; userId?: string | null; familyId?: string | null }): Promise<Device>;
   revokeDevice(id: string): Promise<Device>;
 
   absSettings(): Promise<AbsSettings>;
@@ -421,7 +456,7 @@ export interface AdminApi {
   forgetSso(): Promise<SsoSettings>;
   testSso(issuer: string): Promise<{ ok: boolean; issuer?: string; error?: string }>;
 
-  familyKids(): Promise<(KidCard & { stats: KidStats })[]>;
+  familyKids(): Promise<{ kids: (KidCard & { stats: KidStats })[]; families: { id: string; name: string }[] }>;
   familyKid(id: string): Promise<KidDetail>;
   familyChat(kidId: string, conversationId: string): Promise<ChatMessage[]>;
   readingStats(userId: string, days?: number): Promise<ReadingStats>;
@@ -482,8 +517,14 @@ export const httpAdminApi: AdminApi = {
   moveEmail: (id, identityId, toUserId) =>
     request(`/api/users/${enc(id)}/identities/${enc(identityId)}/move`, { method: "POST", body: json({ toUserId }) }),
 
+  families: () => request("/api/families"),
+  createFamily: (name) => request("/api/families", { method: "POST", body: json({ name }) }),
+  renameFamily: (id, name) => request(`/api/families/${enc(id)}`, { method: "PATCH", body: json({ name }) }),
+  deleteFamily: (id) => request(`/api/families/${enc(id)}`, { method: "DELETE" }).then(() => undefined),
+
   devices: () => request<{ devices: Device[] }>("/api/devices").then((r) => r.devices),
-  startPairing: (name, userId) => request("/api/devices/pairings", { method: "POST", body: json({ name, userId }) }),
+  startPairing: (name, userId, familyId) =>
+    request("/api/devices/pairings", { method: "POST", body: json({ name, userId, ...(familyId !== undefined ? { familyId } : {}) }) }),
   updateDevice: (id, patch) => request(`/api/devices/${enc(id)}`, { method: "PATCH", body: json(patch) }),
   revokeDevice: (id) => request(`/api/devices/${enc(id)}`, { method: "DELETE" }),
 
@@ -500,7 +541,7 @@ export const httpAdminApi: AdminApi = {
   forgetSso: () => request("/api/admin/settings/sso", { method: "DELETE" }),
   testSso: (issuer) => request("/api/admin/settings/sso/test", { method: "POST", body: json({ issuer }) }),
 
-  familyKids: () => request<{ kids: (KidCard & { stats: KidStats })[] }>("/api/family/kids").then((r) => r.kids),
+  familyKids: () => request("/api/family/kids"),
   familyKid: (id) => request(`/api/family/kids/${enc(id)}`),
   familyChat: (kidId, conversationId) =>
     request<{ messages: ChatMessage[] }>(`/api/family/kids/${enc(kidId)}/chats/${enc(conversationId)}`).then((r) => r.messages),

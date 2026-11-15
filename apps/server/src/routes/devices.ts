@@ -14,9 +14,9 @@ import type { FastifyInstance } from "fastify";
 import { and, eq, isNull, like, lt, not } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { devices, users } from "../db/schema.js";
+import { devices, families, users } from "../db/schema.js";
 import { clientIp, DEVICE_TOKEN_PREFIX, httpError, isSecureRequest, requireReader } from "../auth/plugin.js";
-import { canManage, loadManagedUser } from "../auth/permissions.js";
+import { canManage, loadManagedUser, sameFamily } from "../auth/permissions.js";
 import { normalizePairingCode, pairingCode, randomToken, sha256 } from "../auth/secrets.js";
 import { Lockout, TooManyAttemptsError } from "../auth/rate-limit.js";
 import { useAuthErrors } from "../auth/errors.js";
@@ -28,9 +28,12 @@ export const PAIRING_TTL_MS = 10 * 60_000;
 const PENDING = "pair:";
 
 const name = z.string().trim().min(1).max(60);
-const StartBody = z.object({ name, userId: z.string().uuid().nullable().optional() }).strict();
+/** familyId: admins only; parents always pair for their own family. */
+const StartBody = z.object({ name, userId: z.string().uuid().nullable().optional(), familyId: z.string().uuid().nullable().optional() }).strict();
 const ClaimBody = z.object({ code: z.string().min(4).max(32), name: name.optional() }).strict();
-const PatchBody = z.object({ name: name.optional(), userId: z.string().uuid().nullable().optional() }).strict();
+const PatchBody = z
+  .object({ name: name.optional(), userId: z.string().uuid().nullable().optional(), familyId: z.string().uuid().nullable().optional() })
+  .strict();
 
 type DeviceRow = typeof devices.$inferSelect;
 
@@ -39,6 +42,7 @@ function deviceView(d: DeviceRow) {
     id: d.id,
     name: d.name,
     userId: d.userId,
+    familyId: d.familyId,
     lastSeenAt: d.lastSeenAt,
     revokedAt: d.revokedAt,
     createdAt: d.createdAt,
@@ -63,12 +67,34 @@ export async function deviceRoutes(
     loadManagedUser(db, reader, userId);
   }
 
-  /** Parents see household devices that are shared, theirs, or locked to their kids. Admins see all. */
+  /**
+   * Parents see their own family's shared tablets, and devices locked to them or their kids.
+   * Admins see every device in the household.
+   */
   function visibleTo(reader: Reader, d: DeviceRow): boolean {
     if (d.householdId !== reader.householdId) return false;
-    if (reader.role === "admin" || !d.userId || d.userId === reader.userId) return true;
+    if (reader.role === "admin" || d.userId === reader.userId) return true;
+    if (!d.userId) return sameFamily(reader, d);
     const owner = db.select().from(users).where(eq(users.id, d.userId)).get();
     return !!owner && canManage(db, reader, owner);
+  }
+
+  /**
+   * The family a device belongs to: the person it's locked to decides; otherwise an admin may pick
+   * one (or none, for a household-wide tablet); a parent always pairs for their own family.
+   */
+  function deviceFamily(reader: Reader, userId: string | null | undefined, requested: string | null | undefined): string | null {
+    if (userId) return db.select({ f: users.familyId }).from(users).where(eq(users.id, userId)).get()?.f ?? null;
+    if (reader.role === "admin") {
+      if (requested === undefined) return reader.familyId;
+      if (requested === null) return null;
+      const f = db.select().from(families).where(eq(families.id, requested)).get();
+      if (!f || f.householdId !== reader.householdId) throw httpError(400, "No such family");
+      return f.id;
+    }
+    if (requested !== undefined && requested !== reader.familyId) throw httpError(403, "Only an admin can pair a tablet for another family");
+    if (!reader.familyId) throw httpError(403, "Ask the admin to put you in a family first");
+    return reader.familyId;
   }
 
   function loadDevice(reader: Reader, id: string): DeviceRow {
@@ -91,6 +117,7 @@ export async function deviceRoutes(
     requireManagerRole(reader);
     const body = StartBody.parse(req.body);
     checkLockTarget(reader, body.userId);
+    const familyId = deviceFamily(reader, body.userId, body.familyId);
     sweepExpired();
 
     const code = pairingCode();
@@ -99,6 +126,7 @@ export async function deviceRoutes(
       .insert(devices)
       .values({
         householdId: reader.householdId,
+        familyId,
         userId: body.userId ?? null,
         name: body.name,
         tokenHash: PENDING + sha256(code),
@@ -178,6 +206,11 @@ export async function deviceRoutes(
     const patch: Partial<typeof devices.$inferInsert> = {};
     if (body.name !== undefined) patch.name = body.name;
     if (body.userId !== undefined) patch.userId = body.userId;
+    if (body.userId !== undefined || body.familyId !== undefined) {
+      const userId = body.userId !== undefined ? body.userId : d.userId;
+      if (body.familyId !== undefined && reader.role !== "admin") throw httpError(403, "Only an admin can move a tablet to another family");
+      patch.familyId = deviceFamily(reader, userId, body.familyId !== undefined ? body.familyId : d.familyId);
+    }
     if (Object.keys(patch).length) db.update(devices).set(patch).where(eq(devices.id, d.id)).run();
     return deviceView(db.select().from(devices).where(eq(devices.id, d.id)).get()!);
   });

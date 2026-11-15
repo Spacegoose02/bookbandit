@@ -102,7 +102,7 @@ function fromSession(token: string, opts: AuthOptions): { reader: Reader; device
     if (idleTooLong(d, opts.deviceIdleMs)) return null;
     touchDevice(opts.db, d);
     if (d.userId && d.userId !== u.id) return null;
-    device = { id: d.id, householdId: d.householdId, userId: d.userId, name: d.name };
+    device = { id: d.id, householdId: d.householdId, familyId: d.familyId, userId: d.userId, name: d.name };
   }
   return { reader: toReader(u), device };
 }
@@ -129,7 +129,7 @@ export function deviceFromToken(token: string, db: Db, idleMs?: number): DeviceC
     return null;
   }
   touchDevice(db, d, now);
-  return { id: d.id, householdId: d.householdId, userId: d.userId, name: d.name };
+  return { id: d.id, householdId: d.householdId, familyId: d.familyId, userId: d.userId, name: d.name };
 }
 
 function fromProxyHeader(req: FastifyRequest, opts: AuthOptions): Reader | null {

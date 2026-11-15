@@ -13,9 +13,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { canManageKids } from "@bookbandit/shared";
 import { requireAdmin, requireReader } from "../../auth/plugin.js";
+import { isFamilyParentOf } from "../../auth/permissions.js";
 import type { Reader } from "../../auth/reader.js";
 import { assertCanSee, ContentLockedError } from "../../content/lock.js";
-import { bookFiles, books, parentLinks, users } from "../../db/schema.js";
+import { bookFiles, books, users } from "../../db/schema.js";
 import { kindleAddresses } from "../schema.js";
 import { httpError, type IntegrationsContext } from "../context.js";
 import { getSmtpSettings, publicSmtpSettings, saveSmtpSettings, SmtpSettingsInput } from "../settings.js";
@@ -60,14 +61,7 @@ export async function kindleRoutes(app: FastifyInstance, ctx: IntegrationsContex
     if (!target || target.householdId !== actor.householdId) throw httpError(404, "Not found");
     if (actor.role === "admin") return;
     if (target.role === "kid") {
-      const linked =
-        canManageKids(actor.role) &&
-        db
-          .select()
-          .from(parentLinks)
-          .where(and(eq(parentLinks.parentId, actor.userId), eq(parentLinks.kidId, targetUserId)))
-          .get();
-      if (!linked) throw httpError(403, "Only a parent can change a kid's Kindle address");
+      if (!isFamilyParentOf(actor, target)) throw httpError(403, "Only a parent can change a kid's Kindle address");
       return;
     }
     if (actor.userId !== targetUserId) throw httpError(403, "You can only change your own Kindle address");

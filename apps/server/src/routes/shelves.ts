@@ -9,8 +9,9 @@ import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { canManageKids } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
-import { books, kidShelf, parentLinks, readingProgress, users } from "../db/schema.js";
+import { books, kidShelf, readingProgress, users } from "../db/schema.js";
 import { requireReader } from "../auth/plugin.js";
+import { isFamilyParentOf } from "../auth/permissions.js";
 import type { Reader } from "../auth/reader.js";
 import { assertCanSee, ContentLockedError, visibleBooksWhere } from "../content/lock.js";
 import { loadVisibleBook, parseOr400, toProgressRecord } from "./progress.js";
@@ -80,13 +81,7 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     if (!kid || kid.role !== "kid" || kid.householdId !== viewer.householdId) throw new ContentLockedError();
 
     const isSelf = kid.id === viewer.userId;
-    const isLinkedParent =
-      viewer.role === "parent" &&
-      db
-        .select({ kidId: parentLinks.kidId })
-        .from(parentLinks)
-        .where(and(eq(parentLinks.parentId, viewer.userId), eq(parentLinks.kidId, kid.id)))
-        .get() !== undefined;
+    const isLinkedParent = isFamilyParentOf(viewer, kid);
     const isAdmin = viewer.role === "admin";
 
     if (manage) {
@@ -99,6 +94,7 @@ export async function shelfRoutes(app: FastifyInstance, opts: { db: Db }) {
     return {
       userId: kid.id,
       householdId: kid.householdId,
+      familyId: kid.familyId,
       role: kid.role,
       displayName: kid.displayName,
       birthYear: kid.birthYear,

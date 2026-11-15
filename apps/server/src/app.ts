@@ -9,6 +9,7 @@ import { loadSessionSecret, SessionSigner } from "./auth/sessions.js";
 import { SSO_LINK_PATH, SSO_START_PATH, ssoRoutes, type SsoOptions } from "./auth/oidc.js";
 import { resolveSso, ssoSettingsRoutes } from "./auth/sso-settings.js";
 import { userRoutes } from "./routes/users.js";
+import { familiesRoutes } from "./routes/families.js";
 import { deviceRoutes } from "./routes/devices.js";
 import { healthRoutes } from "./routes/health.js";
 import { bookRoutes } from "./routes/books.js";
@@ -94,6 +95,7 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(ssoRoutes, { db, sessions, trustedProxies, getSso, ...deps.sso });
   await app.register(ssoSettingsRoutes, { db, box, env: config, trustedProxies, fetchImpl: deps.sso?.fetchImpl });
   await app.register(userRoutes, { db });
+  await app.register(familiesRoutes, { db });
   await app.register(deviceRoutes, { db, trustedProxies });
   await app.register(healthRoutes);
   // Before any plugin that registers job handlers (library, requests).

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { buildApp } from "../src/app.js";
 import { openDb, type Db } from "../src/db/client.js";
 import { loadConfig } from "../src/config.js";
-import { books, households, parentLinks, userIdentities, users } from "../src/db/schema.js";
+import { books, families, households, parentLinks, userIdentities, users } from "../src/db/schema.js";
 
 let app: FastifyInstance;
 let db: Db;
@@ -16,11 +16,15 @@ const kidBirthYear = new Date().getUTCFullYear() - 8; // 7 by our conservative a
 beforeEach(async () => {
   ({ db, close } = openDb(":memory:"));
   const [home] = db.insert(households).values({ name: "Home" }).returning().all();
+  const homeFamily = db.insert(families).values({ householdId: home!.id, name: "Home" }).returning().get().id;
+  const cousins = db.insert(families).values({ householdId: home!.id, name: "Cousins" }).returning().get().id;
   const person = (displayName: string, role: "admin" | "parent" | "adult" | "kid", email: string) => {
     const [u] = db
       .insert(users)
       .values({
         householdId: home!.id,
+        // Leo is a cousin: same server, another family.
+        familyId: displayName === "Leo" ? cousins : homeFamily,
         displayName,
         role,
         ...(role === "kid" ? { birthYear: kidBirthYear, kidSignInMethod: "google" as const } : {}),

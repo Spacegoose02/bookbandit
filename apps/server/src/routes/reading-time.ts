@@ -12,8 +12,9 @@ import type { FastifyInstance } from "fastify";
 import { and, desc, eq, gte, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { books, parentLinks, readingSessions, users } from "../db/schema.js";
+import { books, readingSessions, users } from "../db/schema.js";
 import { httpError, requireReader } from "../auth/plugin.js";
+import { isFamilyParentOf } from "../auth/permissions.js";
 import type { Reader } from "../auth/reader.js";
 import { ContentLockedError, visibleBooksWhere } from "../content/lock.js";
 import { loadVisibleBook, parseOr400 } from "./progress.js";
@@ -89,17 +90,12 @@ export async function readingTimeRoutes(app: FastifyInstance, opts: { db: Db; no
     if (!u || u.householdId !== viewer.householdId) throw new ContentLockedError();
     const isSelf = u.id === viewer.userId;
     const isAdmin = viewer.role === "admin";
-    const isLinkedParent =
-      viewer.role === "parent" &&
-      !!db
-        .select({ kidId: parentLinks.kidId })
-        .from(parentLinks)
-        .where(and(eq(parentLinks.parentId, viewer.userId), eq(parentLinks.kidId, u.id)))
-        .get();
+    const isLinkedParent = isFamilyParentOf(viewer, u);
     if (!isSelf && !isAdmin && !isLinkedParent) throw new ContentLockedError();
     return {
       userId: u.id,
       householdId: u.householdId,
+      familyId: u.familyId,
       role: u.role,
       displayName: u.displayName,
       birthYear: u.birthYear,

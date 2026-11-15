@@ -18,12 +18,27 @@ export function isLinkedParent(db: Db, parentId: string, kidId: string): boolean
     .get();
 }
 
-/** Admin: anyone in the household. Parent: kids they are linked to. Nobody else manages anyone. */
-export function canManage(db: Db, actor: Reader, target: UserRow): boolean {
+/** True when both are in the same family (people with no family are in none). */
+export function sameFamily(a: { familyId: string | null }, b: { familyId: string | null }): boolean {
+  return a.familyId != null && a.familyId === b.familyId;
+}
+
+/**
+ * A parent of this kid: a "parent" in the kid's own family. Parents manage every kid in their
+ * family, not only the ones they're linked to, and never kids in another family.
+ */
+export function isFamilyParentOf(
+  actor: { role: Reader["role"]; familyId: string | null; householdId: string },
+  kid: { role: Reader["role"]; familyId: string | null; householdId: string },
+): boolean {
+  return actor.role === "parent" && kid.role === "kid" && actor.householdId === kid.householdId && sameFamily(actor, kid);
+}
+
+/** Admin: anyone in the household. Parent: the kids in their own family. Nobody else manages anyone. */
+export function canManage(_db: Db, actor: Reader, target: UserRow): boolean {
   if (actor.householdId !== target.householdId) return false;
   if (actor.role === "admin") return true;
-  if (actor.role === "parent" && target.role === "kid") return isLinkedParent(db, actor.userId, target.id);
-  return false;
+  return isFamilyParentOf(actor, target);
 }
 
 /** Load a user the actor may see. Others 404 so ids from other households reveal nothing. */

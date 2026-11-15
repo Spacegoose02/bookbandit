@@ -184,9 +184,16 @@ const user = (u: Partial<UserView> & Pick<UserView, "id" | "displayName" | "role
   identities: [],
   parentIds: [],
   kidIds: [],
+  familyId: "f-home",
   createdAt: now - 40 * D,
   ...u,
 });
+
+/** Two families on one server, plus a new single sign-on account waiting for one. */
+let families: { id: string; name: string; createdAt: number }[] = [
+  { id: "f-home", name: "The Bandits", createdAt: now - 40 * D },
+  { id: "f-jay", name: "Uncle Jay's family", createdAt: now - 6 * D },
+];
 
 let people: UserView[] = [
   user({ id: "u-adult", displayName: "Sam", role: "admin", avatar: "🦝", identities: [{ id: "x1", provider: "tinyauth", subject: "sam@example.com" }], kidIds: ["u-kid", "u-kid2"] }),
@@ -194,13 +201,37 @@ let people: UserView[] = [
   user({ id: "u-gran", displayName: "Grandma Rose", role: "adult", avatar: "🧶", signIn: "password", identities: [{ id: "x3", provider: "local", subject: "rose" }] }),
   user({ id: "u-kid", displayName: "Mia", role: "kid", avatar: "🦖", theme: "dinosaur", birthYear: 2018, kidSignInMethod: "picture", signIn: "picture", parentIds: ["u-adult", "u-alex"] }),
   user({ id: "u-kid2", displayName: "Theo", role: "kid", avatar: "🚀", theme: "storm", birthYear: 2014, kidSignInMethod: "pin", signIn: "pin", parentIds: ["u-adult", "u-alex"] }),
+  user({ id: "u-jay", displayName: "Jay", role: "parent", avatar: "🐢", familyId: "f-jay", identities: [{ id: "x4", provider: "tinyauth", subject: "jay@example.com" }], kidIds: ["u-ruby"] }),
+  user({ id: "u-ruby", displayName: "Ruby", role: "kid", avatar: "🦄", theme: "unicorn", birthYear: 2017, kidSignInMethod: "picture", signIn: "picture", familyId: "f-jay", parentIds: ["u-jay"] }),
+  user({ id: "u-casey", displayName: "Casey", role: "adult", avatar: null, familyId: null, identities: [{ id: "x5", provider: "tinyauth", subject: "casey@example.com" }], createdAt: now - 2 * H }),
 ];
 
+/** ?demo=parent shows a family parent's view: their own family only, like the server does. */
+const asParent = () => {
+  try {
+    return sessionStorage.getItem("bb-demo-user") === "parent";
+  } catch {
+    return false;
+  }
+};
+
+const profile = ({ id, displayName, avatar, role, familyId }: UserView) => ({ id, displayName, avatar, role, familyId });
+function familyView(f: (typeof families)[number]) {
+  const members = people.filter((p) => p.familyId === f.id && !p.disabled);
+  return {
+    ...f,
+    parents: members.filter((p) => p.role === "parent" || p.role === "admin").length,
+    kids: members.filter((p) => p.role === "kid").length,
+    members: members.map(profile),
+  };
+}
+
 let devices: Device[] = [
-  { id: "d1", name: "Living room tablet", userId: null, lastSeenAt: now - 20 * 60_000, revokedAt: null, createdAt: now - 30 * D },
-  { id: "d2", name: "Mia's Fire tablet", userId: "u-kid", lastSeenAt: now - 14 * H, revokedAt: null, createdAt: now - 12 * D },
-  { id: "d3", name: "Kobo Clara", userId: "u-adult", lastSeenAt: now - 3 * D, revokedAt: null, createdAt: now - 20 * D },
-  { id: "d4", name: "Old phone", userId: null, lastSeenAt: now - 60 * D, revokedAt: now - 45 * D, createdAt: now - 90 * D },
+  { id: "d1", name: "Living room tablet", userId: null, familyId: "f-home", lastSeenAt: now - 20 * 60_000, revokedAt: null, createdAt: now - 30 * D },
+  { id: "d2", name: "Mia's Fire tablet", userId: "u-kid", familyId: "f-home", lastSeenAt: now - 14 * H, revokedAt: null, createdAt: now - 12 * D },
+  { id: "d3", name: "Kobo Clara", userId: "u-adult", familyId: "f-home", lastSeenAt: now - 3 * D, revokedAt: null, createdAt: now - 20 * D },
+  { id: "d5", name: "Jay's kitchen tablet", userId: null, familyId: "f-jay", lastSeenAt: now - 5 * H, revokedAt: null, createdAt: now - 5 * D },
+  { id: "d4", name: "Old phone", userId: null, familyId: "f-home", lastSeenAt: now - 60 * D, revokedAt: now - 45 * D, createdAt: now - 90 * D },
 ];
 
 let abs: Awaited<ReturnType<AdminApi["absSettings"]>> = {
@@ -231,7 +262,7 @@ let metadata: MetadataSettings = { online: true, hasHardcoverToken: false, hasGo
 function card(u: UserView): KidCard {
   const age = u.birthYear ? 2026 - u.birthYear : null;
   const maxRating: ContentRating = age == null ? "kids" : age >= 13 ? "teen" : age >= 9 ? "middle_grade" : "kids";
-  return { id: u.id, displayName: u.displayName, avatar: u.avatar, birthYear: u.birthYear, age, maxRating, kidSignInMethod: u.kidSignInMethod, disabled: u.disabled };
+  return { id: u.id, displayName: u.displayName, avatar: u.avatar, birthYear: u.birthYear, age, maxRating, kidSignInMethod: u.kidSignInMethod, disabled: u.disabled, familyId: u.familyId };
 }
 
 const kidDetails: Record<string, Omit<KidDetail, "kid">> = {
@@ -383,11 +414,37 @@ export const demoAdminApi: AdminApi = {
   },
   coverUrl: (b) => b.coverPath,
 
-  people: () =>
+  people: () => {
+    const mine = asParent() ? people.filter((p) => p.familyId === "f-home") : people;
+    return delay({
+      users: asParent() ? mine.filter((p) => p.role === "kid" || p.id === "u-adult") : mine,
+      household: mine.filter((p) => !p.disabled).map(profile),
+    });
+  },
+
+  families: () =>
     delay({
-      users: people,
-      household: people.filter((p) => !p.disabled).map(({ id, displayName, avatar, role }) => ({ id, displayName, avatar, role })),
+      families: [...families]
+        .filter((f) => !asParent() || f.id === "f-home")
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(familyView),
+      unassigned: asParent() ? [] : people.filter((p) => !p.familyId && !p.disabled).map(profile),
+      mine: "f-home",
     }),
+  async createFamily(name) {
+    const f = { id: newId(), name, createdAt: Date.now() };
+    families = [...families, f];
+    return delay(familyView(f));
+  },
+  async renameFamily(id, name) {
+    families = families.map((f) => (f.id === id ? { ...f, name } : f));
+    return delay(familyView(families.find((f) => f.id === id) ?? notFound()));
+  },
+  async deleteFamily(id) {
+    if (people.some((p) => p.familyId === id)) throw Object.assign(new Error("Move everyone to another family first"), { status: 409 });
+    families = families.filter((f) => f.id !== id);
+    await delay(null);
+  },
   async addPerson(p) {
     const u = user({
       id: newId(),
@@ -397,7 +454,8 @@ export const demoAdminApi: AdminApi = {
       avatar: p.avatar ?? null,
       kidSignInMethod: p.role === "kid" ? (p.kidSignInMethod ?? "picture") : null,
       signIn: p.role === "kid" ? (p.pin ? "pin" : p.pictures ? "picture" : "none") : p.email ? "google" : p.password ? "password" : "none",
-      parentIds: p.role === "kid" ? [...new Set(["u-adult", ...(p.parentIds ?? [])])] : [],
+      parentIds: p.role === "kid" ? [...new Set([...(p.familyId && p.familyId !== "f-home" ? [] : ["u-adult"]), ...(p.parentIds ?? [])])] : [],
+      familyId: p.familyId === undefined ? "f-home" : p.familyId,
       createdAt: Date.now(),
     });
     people = [...people, u];
@@ -447,10 +505,11 @@ export const demoAdminApi: AdminApi = {
     return delay(people.find((p) => p.id === kidId)!);
   },
 
-  devices: () => delay(devices),
-  async startPairing(name, userId) {
+  devices: () => delay(asParent() ? devices.filter((d) => d.familyId === "f-home") : devices),
+  async startPairing(name, userId, familyId) {
     const code = "KQ7M-4XRT";
-    devices = [...devices, { id: newId(), name, userId, lastSeenAt: null, revokedAt: null, createdAt: Date.now() }];
+    const fam = userId ? (people.find((p) => p.id === userId)?.familyId ?? null) : familyId === undefined ? "f-home" : familyId;
+    devices = [...devices, { id: newId(), name, userId, familyId: fam, lastSeenAt: null, revokedAt: null, createdAt: Date.now() }];
     return delay({ pairingId: "p1", code, expiresAt: Date.now() + 10 * 60_000, qr: `bookbandit://pair?server=${encodeURIComponent(location.origin)}&code=${code}` });
   },
   async updateDevice(id, patch) {
@@ -518,11 +577,15 @@ export const demoAdminApi: AdminApi = {
   testSso: (issuer) => delay(issuer ? { ok: true, issuer } : { ok: false, error: "Enter the issuer URL first." }),
 
   familyKids: () =>
-    delay(
-      people
-        .filter((p) => p.role === "kid")
+    delay({
+      kids: people
+        .filter((p) => p.role === "kid" && (!asParent() || p.familyId === "f-home"))
         .map((k) => ({ ...card(k), stats: kidDetails[k.id]?.stats ?? emptyStats() })),
-    ),
+      families: [...families]
+        .filter((f) => !asParent() || f.id === "f-home")
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(({ id, name }) => ({ id, name })),
+    }),
   async familyKid(id) {
     const k = people.find((p) => p.id === id && p.role === "kid") ?? notFound();
     const d = kidDetails[id] ?? { stats: emptyStats(), reading: [], requests: [], chats: [] };

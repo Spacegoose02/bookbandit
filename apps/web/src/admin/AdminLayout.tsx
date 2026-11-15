@@ -14,7 +14,7 @@ export function AdminLayout({ area }: { area: "admin" | "family" }) {
   if (!allowed)
     return (
       <BarnabyEmpty title={area === "admin" ? "Admins only" : "For parents"}>
-        <p>{area === "admin" ? "Only a family admin can open these settings." : "Only a parent or admin can see the family dashboard."}</p>
+        <p>{area === "admin" ? "Only the server admin can open these settings. Your family's kids and tablets are under Family." : "Only a parent or admin can see the family dashboard."}</p>
       </BarnabyEmpty>
     );
 

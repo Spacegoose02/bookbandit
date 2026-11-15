@@ -9,7 +9,7 @@ import {
   type SignInPicture,
 } from "@bookbandit/shared";
 import { useSession } from "../app/session";
-import { adminApi, type Device, type Pairing, type ProfileCard, type UserView } from "./api";
+import { adminApi, type Device, type FamiliesView, type Pairing, type ProfileCard, type UserView } from "./api";
 import { Card, ErrorNote, timeAgo, useAction, useLoad } from "./ui";
 
 export const PICTURE_EMOJI: Record<SignInPicture, string> = {
@@ -35,51 +35,305 @@ const ROLE_LABEL: Record<Role, string> = { admin: "Admin", parent: "Parent", adu
 
 const thisYear = new Date().getFullYear();
 
-/** People and paired devices. Admins manage everyone; parents manage their own kids. */
+/**
+ * People and paired devices. Admins manage every family and everyone; parents manage their own
+ * family's kids (the server enforces both, see server/src/routes/families.ts).
+ */
 export function PeoplePage() {
   const { me } = useSession();
   const people = useLoad(() => adminApi.people());
+  const fams = useLoad(() => adminApi.families());
   const isAdmin = me?.role === "admin";
   const users = people.data?.users ?? [];
   const household = people.data?.household ?? [];
+  const families = fams.data?.families ?? [];
+  const myFamily = fams.data?.mine ?? null;
   const kids = users.filter((u) => u.role === "kid");
   const grownUps = users.filter((u) => u.role !== "kid");
   const parentsToPick = household.filter((p) => p.role === "parent" || p.role === "admin");
+  const familyName = (id: string | null) => families.find((f) => f.id === id)?.name ?? null;
   const update = (u: UserView) => people.setData((d) => (d ? { ...d, users: d.users.map((x) => (x.id === u.id ? u : x)) } : d));
-  const add = (u: UserView) => people.setData((d) => (d ? { users: [...d.users, u], household: [...d.household, u] } : d));
+  const add = (u: UserView) => {
+    people.setData((d) => (d ? { users: [...d.users, u], household: [...d.household, u] } : d));
+    fams.reload();
+  };
+  /** After someone moves family, parent links may have changed too: reload both lists. */
+  const moved = () => {
+    people.reload();
+    fams.reload();
+  };
+  const grouped = isAdmin && families.length > 1;
+  const kidGroups = grouped
+    ? [
+        ...families.map((f) => ({ id: f.id, name: f.name as string | null, kids: kids.filter((k) => k.familyId === f.id) })),
+        { id: "none", name: "Not in a family yet", kids: kids.filter((k) => !families.some((f) => f.id === k.familyId)) },
+      ].filter((g) => g.kids.length > 0)
+    : [{ id: "all", name: null as string | null, kids }];
 
   return (
     <>
       <h1 className="bb-h1">People &amp; devices</h1>
-      <ErrorNote error={people.error} />
+      <ErrorNote error={people.error ?? fams.error} />
+
+      {fams.data && <FamiliesCard view={fams.data} isAdmin={isAdmin} onChange={moved} />}
 
       <Card title="Kids" className="bb-people-kids">
         {kids.length === 0 && people.data ? <p className="bb-muted">No kids yet. Add one below.</p> : null}
-        <ul className="bb-people">
-          {kids.map((k) => (
-            <KidRow key={k.id} kid={k} parents={parentsToPick} onChange={update} />
-          ))}
-        </ul>
-        {people.data && <AddKid parents={parentsToPick.filter((p) => p.id !== me?.id)} onAdded={add} />}
+        {kidGroups.map((g) => (
+          <div key={g.id} className="bb-family-group">
+            {g.name && <h3 className="bb-family-group-title">{g.name}</h3>}
+            <ul className="bb-people">
+              {g.kids.map((k) => (
+                <KidRow
+                  key={k.id}
+                  kid={k}
+                  parents={parentsToPick.filter((p) => p.familyId === k.familyId)}
+                  families={isAdmin ? families : []}
+                  onChange={update}
+                  onMoved={moved}
+                />
+              ))}
+            </ul>
+          </div>
+        ))}
+        {people.data && fams.data && (isAdmin || myFamily) && (
+          <AddKid parents={parentsToPick} me={me?.id ?? null} myFamily={myFamily} families={isAdmin ? families : []} onAdded={add} />
+        )}
+        {people.data && fams.data && !isAdmin && !myFamily && (
+          <p className="bb-muted">You're not in a family yet. Ask the admin to put you in one, then you can add your kids.</p>
+        )}
       </Card>
 
       {isAdmin && (
         <Card title="Grown-ups">
           <ul className="bb-people">
             {grownUps.map((u) => (
-              <GrownUpRow key={u.id} user={u} isMe={u.id === me?.id} others={grownUps.filter((o) => o.id !== u.id)} onChange={update} />
+              <GrownUpRow
+                key={u.id}
+                user={u}
+                isMe={u.id === me?.id}
+                others={grownUps.filter((o) => o.id !== u.id)}
+                families={families}
+                familyName={familyName(u.familyId)}
+                onChange={update}
+                onMoved={moved}
+              />
             ))}
           </ul>
-          <AddGrownUp onAdded={add} />
+          <AddGrownUp families={families} myFamily={myFamily} onAdded={add} />
         </Card>
       )}
 
-      <DevicesCard people={household} />
+      <DevicesCard people={household} families={isAdmin ? families : []} />
     </>
   );
 }
 
-function KidRow({ kid, parents, onChange }: { kid: UserView; parents: ProfileCard[]; onChange: (u: UserView) => void }) {
+/**
+ * Families on this server. Admins add, rename and remove families and place people who are
+ * waiting (e.g. a new single sign-on account); a parent sees and renames their own family.
+ */
+function FamiliesCard({ view, isAdmin, onChange }: { view: FamiliesView; isAdmin: boolean; onChange: () => void }) {
+  const action = useAction();
+  const [newName, setNewName] = useState("");
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [place, setPlace] = useState<Record<string, { familyId: string; role: Role }>>({});
+  const mine = view.families.find((f) => f.id === view.mine);
+
+  if (!isAdmin && !mine)
+    return (
+      <Card title="Your family">
+        <p className="bb-muted">You're not in a family yet. The admin puts new people in a family under People.</p>
+      </Card>
+    );
+
+  const rename = (id: string) =>
+    action.run(async () => {
+      await adminApi.renameFamily(id, name.trim());
+      setRenaming(null);
+      onChange();
+    });
+
+  return (
+    <Card title={isAdmin ? "Families" : "Your family"} className="bb-families">
+      <p className="bb-muted bb-small">
+        {isAdmin
+          ? "Each family has its own parents and kids. Parents look after their own family's kids, limits, requests and tablets; only an admin can change the server, the library and other families."
+          : "You look after your family's kids, their limits, requests and tablets. Server settings and other families stay with the admin."}
+      </p>
+      <ul className="bb-people">
+        {(isAdmin ? view.families : [mine!]).map((f) => (
+          <li key={f.id} className="bb-person">
+            <div className="bb-person-head">
+              <span className="bb-person-avatar" aria-hidden>
+                🏠
+              </span>
+              <div className="bb-person-main">
+                {renaming === f.id ? (
+                  <form
+                    className="bb-inline-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void rename(f.id);
+                    }}
+                  >
+                    <input className="bb-input" aria-label="Family name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} autoFocus />
+                    <button className="bb-btn bb-btn-primary" disabled={!name.trim() || action.busy}>
+                      Save
+                    </button>
+                    <button type="button" className="bb-btn bb-btn-ghost" onClick={() => setRenaming(null)}>
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <strong>{f.name}</strong> {f.id === view.mine && <span className="bb-tag">Yours</span>}
+                    <div className="bb-muted bb-small">
+                      {f.parents} {f.parents === 1 ? "parent" : "parents"} · {f.kids} {f.kids === 1 ? "kid" : "kids"}
+                      {f.members.length ? ` · ${f.members.map((m) => m.displayName).join(", ")}` : ""}
+                    </div>
+                  </>
+                )}
+              </div>
+              {renaming !== f.id && (
+                <button
+                  className="bb-btn bb-btn-ghost"
+                  onClick={() => {
+                    setName(f.name);
+                    setRenaming(f.id);
+                  }}
+                >
+                  Rename
+                </button>
+              )}
+              {isAdmin && f.members.length === 0 && (
+                <button className="bb-btn bb-btn-ghost" disabled={action.busy} onClick={() => action.run(async () => (await adminApi.deleteFamily(f.id), onChange()))}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {isAdmin && view.unassigned.length > 0 && (
+        <div className="bb-waiting">
+          <h3>Waiting for a family</h3>
+          <p className="bb-muted bb-small">New single sign-on accounts land here. They can read, but can't manage anyone until you place them.</p>
+          <ul className="bb-people">
+            {view.unassigned.map((p) => {
+              const choice = place[p.id] ?? { familyId: view.families[0]?.id ?? "", role: p.role === "kid" ? "kid" : "parent" };
+              const set = (c: Partial<typeof choice>) => setPlace((s) => ({ ...s, [p.id]: { ...choice, ...c } }));
+              return (
+                <li key={p.id} className="bb-person">
+                  <div className="bb-person-head">
+                    <span className="bb-person-avatar" aria-hidden>
+                      {p.avatar ?? "🙂"}
+                    </span>
+                    <div className="bb-person-main">
+                      <strong>{p.displayName}</strong>
+                      <div className="bb-muted bb-small">{ROLE_LABEL[p.role]}</div>
+                    </div>
+                    <select className="bb-input" aria-label={`Family for ${p.displayName}`} value={choice.familyId} onChange={(e) => set({ familyId: e.target.value })}>
+                      {view.families.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                    {p.role !== "kid" && p.role !== "admin" && (
+                      <select className="bb-input" aria-label={`Role for ${p.displayName}`} value={choice.role} onChange={(e) => set({ role: e.target.value as Role })}>
+                        <option value="parent">Parent</option>
+                        <option value="adult">Grown-up</option>
+                      </select>
+                    )}
+                    <button
+                      className="bb-btn bb-btn-primary"
+                      disabled={!choice.familyId || action.busy}
+                      onClick={() =>
+                        action.run(async () => {
+                          await adminApi.updatePerson(p.id, { familyId: choice.familyId, ...(p.role !== "kid" && p.role !== "admin" ? { role: choice.role } : {}) });
+                          onChange();
+                        })
+                      }
+                    >
+                      Put in family
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {isAdmin && (
+        <form
+          className="bb-inline-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void action.run(async () => {
+              await adminApi.createFamily(newName.trim());
+              setNewName("");
+              onChange();
+            });
+          }}
+        >
+          <input className="bb-input" placeholder="New family, e.g. Uncle Jay's family" aria-label="New family name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={60} />
+          <button className="bb-btn" disabled={!newName.trim() || action.busy}>
+            + Add a family
+          </button>
+        </form>
+      )}
+      <ErrorNote error={action.error} />
+    </Card>
+  );
+}
+
+/** Admin-only: which family someone is in. Moving drops parent links that would cross families. */
+function FamilySelect({ user, families, onMoved }: { user: UserView; families: FamiliesView["families"]; onMoved: () => void }) {
+  const action = useAction();
+  if (families.length === 0) return null;
+  return (
+    <>
+      <select
+        className="bb-input"
+        aria-label={`${user.displayName}'s family`}
+        value={user.familyId ?? ""}
+        disabled={action.busy}
+        onChange={(e) =>
+          action.run(async () => {
+            await adminApi.updatePerson(user.id, { familyId: e.target.value || null });
+            onMoved();
+          })
+        }
+      >
+        <option value="">No family</option>
+        {families.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.name}
+          </option>
+        ))}
+      </select>
+      <ErrorNote error={action.error} />
+    </>
+  );
+}
+
+function KidRow({
+  kid,
+  parents,
+  families,
+  onChange,
+  onMoved,
+}: {
+  kid: UserView;
+  parents: ProfileCard[];
+  families: FamiliesView["families"];
+  onChange: (u: UserView) => void;
+  onMoved: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const age = kid.birthYear ? thisYear - kid.birthYear : null;
   const max = maxAllowedRating({ birthYear: kid.birthYear, isKid: true, explicitOptIn: false });
@@ -102,12 +356,24 @@ function KidRow({ kid, parents, onChange }: { kid: UserView; parents: ProfileCar
           {open ? "Close" : "Edit"}
         </button>
       </div>
-      {open && <KidEditor kid={kid} parents={parents} onChange={onChange} />}
+      {open && <KidEditor kid={kid} parents={parents} families={families} onChange={onChange} onMoved={onMoved} />}
     </li>
   );
 }
 
-function KidEditor({ kid, parents, onChange }: { kid: UserView; parents: ProfileCard[]; onChange: (u: UserView) => void }) {
+function KidEditor({
+  kid,
+  parents,
+  families,
+  onChange,
+  onMoved,
+}: {
+  kid: UserView;
+  parents: ProfileCard[];
+  families: FamiliesView["families"];
+  onChange: (u: UserView) => void;
+  onMoved: () => void;
+}) {
   const [name, setName] = useState(kid.displayName);
   const [avatar, setAvatar] = useState(kid.avatar);
   const [birthYear, setBirthYear] = useState(kid.birthYear?.toString() ?? "");
@@ -210,8 +476,17 @@ function KidEditor({ kid, parents, onChange }: { kid: UserView; parents: Profile
             );
           })}
         </div>
-        <p className="bb-muted bb-small">A kid always keeps at least one parent. Parents can see the kid on the family dashboard.</p>
+        <p className="bb-muted bb-small">
+          A kid always keeps at least one parent from their family. Every parent in the family can look after them on the family dashboard.
+        </p>
       </fieldset>
+      {families.length > 0 && (
+        <fieldset className="bb-field">
+          <legend>Family</legend>
+          <FamilySelect user={kid} families={families} onMoved={onMoved} />
+          <p className="bb-muted bb-small">Link a parent from the new family first; parents from the old family are unlinked.</p>
+        </fieldset>
+      )}
       <ErrorNote error={action.error} />
       {saved && <p className="bb-ok">{saved}</p>}
     </div>
@@ -308,8 +583,23 @@ function SignInPicker(props: {
   );
 }
 
-function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: UserView) => void }) {
+function AddKid({
+  parents: allParents,
+  me,
+  myFamily,
+  families,
+  onAdded,
+}: {
+  parents: ProfileCard[];
+  me: string | null;
+  myFamily: string | null;
+  families: FamiliesView["families"];
+  onAdded: (u: UserView) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [familyId, setFamilyId] = useState<string>(myFamily ?? families[0]?.id ?? "");
+  const inMyFamily = familyId === myFamily;
+  const parents = allParents.filter((p) => p.familyId === familyId && p.id !== me);
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<string | null>("🦖");
   const [birthYear, setBirthYear] = useState("");
@@ -317,7 +607,7 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
   const [pin, setPin] = useState("");
   const [pictures, setPictures] = useState<SignInPicture[]>([]);
   const [email, setEmail] = useState("");
-  const [coParents, setCoParents] = useState<string[]>(parents.map((p) => p.id));
+  const [coParents, setCoParents] = useState<string[]>(allParents.filter((p) => p.familyId === familyId && p.id !== me).map((p) => p.id));
   const action = useAction();
 
   if (!open)
@@ -330,6 +620,7 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
   const ready =
     name.trim() &&
     birthYear &&
+    (inMyFamily || coParents.some((id) => parents.some((p) => p.id === id))) &&
     (method === "pin" ? isValidPin(pin) : method === "picture" ? pictures.length >= 3 : /.+@.+/.test(email));
 
   const submit = (e: FormEvent) => {
@@ -342,7 +633,8 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
         avatar,
         kidSignInMethod: method,
         ...(method === "pin" ? { pin } : method === "picture" ? { pictures } : { email: email.trim() }),
-        parentIds: coParents,
+        parentIds: coParents.filter((id) => parents.some((p) => p.id === id)),
+        ...(families.length ? { familyId } : {}),
       });
       onAdded(u);
       setOpen(false);
@@ -357,6 +649,25 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
   return (
     <form className="bb-person-editor bb-add-form" onSubmit={submit}>
       <h3>Add a kid</h3>
+      {families.length > 1 && (
+        <label className="bb-field">
+          Family
+          <select
+            className="bb-input"
+            value={familyId}
+            onChange={(e) => {
+              setFamilyId(e.target.value);
+              setCoParents(allParents.filter((p) => p.familyId === e.target.value && p.id !== me).map((p) => p.id));
+            }}
+          >
+            {families.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="bb-form-row">
         <label className="bb-field">
           Name
@@ -389,7 +700,7 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
       </fieldset>
       {parents.length > 0 && (
         <fieldset className="bb-field">
-          <legend>Other parents</legend>
+          <legend>{inMyFamily ? "Other parents" : "Parents"}</legend>
           <div className="bb-chips">
             {parents.map((p) => {
               const on = coParents.includes(p.id);
@@ -406,7 +717,7 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
               );
             })}
           </div>
-          <p className="bb-muted bb-small">You're always linked as a parent.</p>
+          <p className="bb-muted bb-small">{inMyFamily ? "You're always linked as a parent." : "Pick at least one parent from that family."}</p>
         </fieldset>
       )}
       <ErrorNote error={action.error} />
@@ -426,12 +737,18 @@ function GrownUpRow({
   user,
   isMe,
   others,
+  families,
+  familyName,
   onChange,
+  onMoved,
 }: {
   user: UserView;
   isMe: boolean;
   others: UserView[];
+  families: FamiliesView["families"];
+  familyName: string | null;
   onChange: (u: UserView) => void;
+  onMoved: () => void;
 }) {
   const action = useAction();
   const [password, setPassword] = useState("");
@@ -447,8 +764,11 @@ function GrownUpRow({
         <div className="bb-person-main">
           <strong>{user.displayName}</strong> {isMe && <span className="bb-tag">You</span>}
           {user.disabled ? <span className="bb-tag">Disabled</span> : null}
-          <div className="bb-muted bb-small">{logins || "No sign-in linked"}</div>
+          <div className="bb-muted bb-small">
+            {familyName ?? "Waiting for a family"} · {logins || "No sign-in linked"}
+          </div>
         </div>
+        <FamilySelect user={user} families={families} onMoved={onMoved} />
         <select
           className="bb-input"
           aria-label={`${user.displayName}'s role`}
@@ -586,8 +906,17 @@ function SignInEmails({ user, others, onChange }: { user: UserView; others: User
   );
 }
 
-function AddGrownUp({ onAdded }: { onAdded: (u: UserView) => void }) {
+function AddGrownUp({
+  families,
+  myFamily,
+  onAdded,
+}: {
+  families: FamiliesView["families"];
+  myFamily: string | null;
+  onAdded: (u: UserView) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [familyId, setFamilyId] = useState(myFamily ?? "");
   const [name, setName] = useState("");
   const [role, setRole] = useState<Role>("parent");
   const [how, setHow] = useState<"google" | "password">("google");
@@ -611,6 +940,7 @@ function AddGrownUp({ onAdded }: { onAdded: (u: UserView) => void }) {
             await adminApi.addPerson({
               displayName: name.trim(),
               role,
+              familyId: familyId || null,
               ...(how === "google" ? { email: email.trim() } : { username: username.trim(), password }),
             }),
           );
@@ -630,6 +960,17 @@ function AddGrownUp({ onAdded }: { onAdded: (u: UserView) => void }) {
             <option value="parent">Parent (manages kids)</option>
             <option value="adult">Grown-up (just reads)</option>
             <option value="admin">Admin (everything)</option>
+          </select>
+        </label>
+        <label className="bb-field">
+          Family
+          <select className="bb-input" value={familyId} onChange={(e) => setFamilyId(e.target.value)}>
+            {families.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+            <option value="">No family yet</option>
           </select>
         </label>
       </div>
@@ -671,11 +1012,14 @@ function AddGrownUp({ onAdded }: { onAdded: (u: UserView) => void }) {
   );
 }
 
-function DevicesCard({ people }: { people: ProfileCard[] }) {
+function DevicesCard({ people, families }: { people: ProfileCard[]; families: FamiliesView["families"] }) {
   const list = useLoad(() => adminApi.devices());
   const [pairing, setPairing] = useState<(Pairing & { name: string }) | null>(null);
   const [name, setName] = useState("");
   const [lockTo, setLockTo] = useState("");
+  /** Admins: whose tablet a new shared device is ("" = their own family, "*" = every family). */
+  const [forFamily, setForFamily] = useState("");
+  const familyOf = (d: Device) => (families.length ? (d.familyId ? (families.find((f) => f.id === d.familyId)?.name ?? null) : "every family") : null);
   const action = useAction();
   const devices = list.data ?? [];
   const active = devices.filter((d) => !d.revokedAt);
@@ -687,8 +1031,8 @@ function DevicesCard({ people }: { people: ProfileCard[] }) {
     <Card title="Paired devices" className="bb-devices">
       <span id="devices" />
       <p className="bb-muted bb-small">
-        Tablets and e-readers signed in with a device code. Lock a device to one kid so it always opens their books. Revoking a
-        device signs it out at once.
+        Tablets and e-readers signed in with a device code. A family's tablet only shows that family on "Who's reading?". Lock a
+        device to one kid so it always opens their books. Revoking a device signs it out at once.
       </p>
       <ErrorNote error={list.error ?? action.error} />
       <ul className="bb-device-list">
@@ -701,6 +1045,7 @@ function DevicesCard({ people }: { people: ProfileCard[] }) {
               <strong>{d.name}</strong>
               <div className="bb-muted bb-small">
                 {d.lastSeenAt ? `Last used ${timeAgo(d.lastSeenAt)}` : "Waiting to be paired"} · {who(d.userId) ? `locked to ${who(d.userId)}` : "shared"}
+                {familyOf(d) ? ` · ${familyOf(d)}` : ""}
               </div>
             </div>
             <select
@@ -762,7 +1107,8 @@ function DevicesCard({ people }: { people: ProfileCard[] }) {
           onSubmit={(e) => {
             e.preventDefault();
             void action.run(async () => {
-              const p = await adminApi.startPairing(name.trim(), lockTo || null);
+              const fam = lockTo || !families.length || !forFamily ? undefined : forFamily === "*" ? null : forFamily;
+              const p = await adminApi.startPairing(name.trim(), lockTo || null, fam);
               setPairing({ ...p, name: name.trim() });
               setName("");
             });
@@ -777,6 +1123,17 @@ function DevicesCard({ people }: { people: ProfileCard[] }) {
               </option>
             ))}
           </select>
+          {families.length > 1 && !lockTo && (
+            <select className="bb-input" value={forFamily} onChange={(e) => setForFamily(e.target.value)} aria-label="Whose tablet">
+              <option value="">Your family's</option>
+              {families.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+              <option value="*">Every family's</option>
+            </select>
+          )}
           <button className="bb-btn bb-btn-primary" disabled={!name.trim() || action.busy}>
             Pair a device
           </button>

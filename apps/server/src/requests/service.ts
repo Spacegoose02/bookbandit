@@ -2,7 +2,7 @@
  * Book requests: who may approve what, the rating guess, and how a request's status follows
  * its download job.
  *
- *   kid asks ──▶ pending ──(linked parent or admin approves)──▶ approved ──▶ downloading ──▶ done
+ *   kid asks ──▶ pending ──(family parent or admin approves)──▶ approved ──▶ downloading ──▶ done
  *     │                 └──(declined)──▶ declined                                  └──▶ failed
  *     └─ rating known and above the kid's limit ──▶ declined at once
  *
@@ -12,8 +12,9 @@
 import { and, desc, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { maxAllowedRating, canSee, RATING_LABELS, type ContentRating } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
-import { bookRequests, books, jobs, parentLinks, users } from "../db/schema.js";
+import { bookRequests, books, jobs, users } from "../db/schema.js";
 import type { Reader } from "../auth/reader.js";
+import { isFamilyParentOf } from "../auth/permissions.js";
 import { assertCanSee, ContentLockedError } from "../content/lock.js";
 import { sortTitle } from "../metadata/text.js";
 
@@ -23,35 +24,27 @@ export type RequestStatus = RequestRow["status"];
 /** Requests a person may have open (pending or approved) at once. */
 export const MAX_OPEN_REQUESTS = 20;
 
-export function isLinkedParent(db: Db, parentId: string, kidId: string): boolean {
-  return !!db
-    .select({ k: parentLinks.kidId })
-    .from(parentLinks)
-    .where(and(eq(parentLinks.parentId, parentId), eq(parentLinks.kidId, kidId)))
-    .get();
-}
-
 interface Requester {
   id: string;
-  role: string;
+  role: Reader["role"];
   householdId: string;
+  familyId: string | null;
   displayName: string;
 }
 
 export function requesterOf(db: Db, r: RequestRow): Requester | undefined {
   return db
-    .select({ id: users.id, role: users.role, householdId: users.householdId, displayName: users.displayName })
+    .select({ id: users.id, role: users.role, householdId: users.householdId, familyId: users.familyId, displayName: users.displayName })
     .from(users)
     .where(eq(users.id, r.requestedBy))
     .get();
 }
 
-/** Admin: anyone's in the household. Parent: their linked kids'. */
-export function canApprove(db: Db, actor: Reader, requester: Requester): boolean {
+/** Admin: anyone's in the household. Parent: the kids' in their own family. */
+export function canApprove(_db: Db, actor: Reader, requester: Requester): boolean {
   if (requester.householdId !== actor.householdId) return false;
   if (actor.role === "admin") return true;
-  if (actor.role === "parent" && requester.role === "kid") return isLinkedParent(db, actor.userId, requester.id);
-  return false;
+  return isFamilyParentOf(actor, requester);
 }
 
 /** The request if the actor may see it (their own, or one they can approve); otherwise 404. */
@@ -87,9 +80,8 @@ export function initialStatus(
 /** Requests the actor can approve: SQL over book_requests joined to users. */
 export function approvableWhere(db: Db, actor: Reader): SQL | undefined {
   if (actor.role === "admin") return eq(users.householdId, actor.householdId);
-  if (actor.role === "parent") {
-    const kids = db.select({ id: parentLinks.kidId }).from(parentLinks).where(eq(parentLinks.parentId, actor.userId)).all().map((k) => k.id);
-    return kids.length ? and(eq(users.householdId, actor.householdId), inArray(bookRequests.requestedBy, kids)) : sql`0`;
+  if (actor.role === "parent" && actor.familyId) {
+    return and(eq(users.householdId, actor.householdId), eq(users.familyId, actor.familyId), eq(users.role, "kid"));
   }
   return sql`0`;
 }
@@ -142,7 +134,7 @@ export function requestViews(db: Db, viewer: Reader, rows: RequestRow[]) {
   const userIds = [...new Set(rows.flatMap((r) => [r.requestedBy, r.decidedBy].filter((x): x is string => !!x)))];
   const people = new Map(
     db
-      .select({ id: users.id, displayName: users.displayName, role: users.role, householdId: users.householdId, avatar: users.avatar })
+      .select({ id: users.id, displayName: users.displayName, role: users.role, householdId: users.householdId, familyId: users.familyId, avatar: users.avatar })
       .from(users)
       .where(inArray(users.id, userIds))
       .all()

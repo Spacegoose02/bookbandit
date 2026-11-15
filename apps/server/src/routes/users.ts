@@ -16,9 +16,9 @@ import {
   type Role,
 } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
-import { parentLinks, userIdentities, users } from "../db/schema.js";
+import { families, parentLinks, userIdentities, users } from "../db/schema.js";
 import { httpError, requireAdmin, requireReader } from "../auth/plugin.js";
-import { canManage, loadManagedUser, loadVisibleUser, type UserRow } from "../auth/permissions.js";
+import { canManage, loadManagedUser, loadVisibleUser, sameFamily, type UserRow } from "../auth/permissions.js";
 import { hashSecret, pictureSecret, verifySecret } from "../auth/secrets.js";
 import { profileCard, userView } from "../auth/view.js";
 import { useAuthErrors } from "../auth/errors.js";
@@ -56,6 +56,8 @@ const CreateBody = z
     email: email.optional(),
     /** Kids: parents to link. The parent creating the kid is always linked. */
     parentIds: z.array(z.string().uuid()).max(10).optional(),
+    /** Admins: which family. Parents always add to their own family. */
+    familyId: z.string().uuid().nullable().optional(),
   })
   .strict();
 
@@ -77,6 +79,8 @@ const PatchUser = z
     kidSignInMethod: z.enum(KID_SIGN_IN_METHODS).optional(),
     disabled: z.boolean().optional(),
     role: z.enum(ROLES).optional(),
+    /** Admins only: move someone into a family, or out of every family (null). */
+    familyId: z.string().uuid().nullable().optional(),
   })
   .strict();
 
@@ -123,13 +127,34 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
     if (taken) throw httpError(409, provider === "local" ? "That username is taken" : "That email is already linked");
   }
 
-  /** Parents to link to a kid: must be parents/admins in the same household. */
-  function checkParents(actor: Reader, ids: string[]): void {
+  /** Parents to link to a kid: parents/admins in the household, and in the kid's family. */
+  function checkParents(actor: Reader, ids: string[], familyId: string | null): void {
     if (ids.length === 0) return;
     const rows = db.select().from(users).where(inArray(users.id, ids)).all();
-    if (rows.length !== new Set(ids).size || rows.some((r) => r.householdId !== actor.householdId || !canBeParent(r.role))) {
-      throw httpError(400, "Parents must be grown-ups in your family with the parent or admin role");
+    if (
+      rows.length !== new Set(ids).size ||
+      rows.some((r) => r.householdId !== actor.householdId || !canBeParent(r.role) || r.familyId !== familyId)
+    ) {
+      throw httpError(400, "Parents must be grown-ups in the kid's family with the parent or admin role");
     }
+  }
+
+  /** A family in the actor's household, or a 400. */
+  function checkFamily(actor: Reader, familyId: string): string {
+    const f = db.select().from(families).where(eq(families.id, familyId)).get();
+    if (!f || f.householdId !== actor.householdId) throw httpError(400, "No such family");
+    return f.id;
+  }
+
+  /** Which family a new person joins: admins choose (default: their own), parents add to theirs. */
+  function newPersonFamily(actor: Reader, requested: string | null | undefined): string | null {
+    if (actor.role === "admin") {
+      if (requested === undefined) return actor.familyId;
+      return requested === null ? null : checkFamily(actor, requested);
+    }
+    if (!actor.familyId) throw httpError(403, "Ask the admin to put you in a family first");
+    if (requested !== undefined && requested !== actor.familyId) throw httpError(403, "Parents add people to their own family");
+    return actor.familyId;
   }
 
   // ---- me -----------------------------------------------------------------
@@ -178,10 +203,11 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
     const reader = requireReader(req);
     const all = db.select().from(users).where(eq(users.householdId, reader.householdId)).orderBy(users.displayName).all();
     const mine = all.filter((u) => u.id === reader.userId || canManage(db, reader, u));
+    // Grown-ups see who else is in their family (to add a co-parent); admins see everyone; kids only themselves.
+    const others = reader.isKid ? [] : all.filter((u) => !u.disabled && (reader.role === "admin" || u.id === reader.userId || sameFamily(reader, u)));
     return {
       users: mine.map((u) => userView(db, u)),
-      // Grown-ups see who else is in the family (to add a co-parent); kids only see themselves.
-      household: reader.isKid ? [] : all.filter((u) => !u.disabled).map((u) => profileCard(db, u)),
+      household: others.map((u) => profileCard(db, u)),
     };
   });
 
@@ -193,6 +219,7 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
     } else if (reader.role !== "admin") {
       throw httpError(403, "Only an admin can add grown-ups");
     }
+    const familyId = newPersonFamily(reader, body.familyId);
 
     let secretHash: string | null = null;
     let kidSignInMethod: UserRow["kidSignInMethod"] = null;
@@ -207,8 +234,10 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
       if (kidSignInMethod === "google" && !body.email) throw httpError(400, "Google sign-in needs the kid's email");
       if (body.pin) secretHash = await hashSecret(body.pin);
       if (body.pictures) secretHash = await hashSecret(pictureSecret(body.pictures));
-      parentIds.add(reader.userId);
-      checkParents(reader, [...parentIds]);
+      // The person adding the kid becomes a parent if they're in the kid's family.
+      if (reader.familyId === familyId) parentIds.add(reader.userId);
+      if (parentIds.size === 0) throw httpError(400, "Pick a parent from the kid's family");
+      checkParents(reader, [...parentIds], familyId);
     } else {
       if (body.kidSignInMethod || body.pin || body.pictures) throw httpError(400, "PINs and pictures are for kids");
       if (body.parentIds?.length) throw httpError(400, "Only kids have parents here");
@@ -223,6 +252,7 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
         .insert(users)
         .values({
           householdId: reader.householdId,
+          familyId,
           displayName: body.displayName,
           role: body.role,
           birthYear: body.birthYear ?? null,
@@ -259,6 +289,11 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
     if (body.avatar !== undefined) patch.avatar = body.avatar;
     if (body.theme !== undefined) patch.theme = body.theme;
     if (body.birthYear !== undefined) patch.birthYear = body.birthYear;
+
+    if (body.familyId !== undefined && body.familyId !== target.familyId) {
+      if (reader.role !== "admin") throw httpError(403, "Only an admin can move people between families");
+      patch.familyId = body.familyId === null ? null : checkFamily(reader, body.familyId);
+    }
 
     const role = body.role ?? target.role;
     if (body.role !== undefined && body.role !== target.role) {
@@ -298,9 +333,49 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
       patch.disabled = body.disabled;
     }
 
-    if (Object.keys(patch).length) db.update(users).set(patch).where(eq(users.id, target.id)).run();
+    if (patch.familyId !== undefined) {
+      db.transaction((tx) => {
+        moveFamily(tx, target, patch.familyId ?? null);
+        tx.update(users).set(patch).where(eq(users.id, target.id)).run();
+      });
+    } else if (Object.keys(patch).length) {
+      db.update(users).set(patch).where(eq(users.id, target.id)).run();
+    }
     return userView(db, getUser(target.id)!);
   });
+
+  /**
+   * Moving someone to another family drops their parent links that would cross families: a kid
+   * keeps only parents in the new family, a grown-up stops being a parent of the old family's kids.
+   * Refused when that would leave a kid with no parent at all.
+   */
+  function moveFamily(tx: Parameters<Parameters<Db["transaction"]>[0]>[0], target: UserRow, familyId: string | null): void {
+    const crossing = (otherFamily: string | null) => familyId === null || otherFamily !== familyId;
+    if (target.role === "kid") {
+      const links = tx
+        .select({ parentId: parentLinks.parentId, familyId: users.familyId })
+        .from(parentLinks)
+        .innerJoin(users, eq(users.id, parentLinks.parentId))
+        .where(eq(parentLinks.kidId, target.id))
+        .all();
+      const drop = links.filter((l) => crossing(l.familyId));
+      if (links.length > 0 && drop.length === links.length) throw httpError(400, "Put one of their parents in that family first, then move the kid");
+      for (const l of drop) tx.delete(parentLinks).where(and(eq(parentLinks.kidId, target.id), eq(parentLinks.parentId, l.parentId))).run();
+      return;
+    }
+    const kids = tx
+      .select({ kidId: parentLinks.kidId, familyId: users.familyId })
+      .from(parentLinks)
+      .innerJoin(users, eq(users.id, parentLinks.kidId))
+      .where(eq(parentLinks.parentId, target.id))
+      .all()
+      .filter((k) => crossing(k.familyId));
+    for (const k of kids) {
+      const n = tx.select({ n: sql<number>`count(*)` }).from(parentLinks).where(eq(parentLinks.kidId, k.kidId)).get()!.n;
+      if (n <= 1) throw httpError(400, "Their kids need another parent first, or move the kids with them");
+      tx.delete(parentLinks).where(and(eq(parentLinks.kidId, k.kidId), eq(parentLinks.parentId, target.id))).run();
+    }
+  }
 
   /** Set a kid's PIN or pictures, or reset a grown-up's password (admin). */
   app.put<{ Params: { id: string } }>("/api/users/:id/secret", async (req) => {
@@ -385,7 +460,7 @@ export async function userRoutes(app: FastifyInstance, opts: { db: Db }) {
     const { parentId } = ParentBody.parse(req.body);
     const kid = loadManagedUser(db, reader, req.params.id);
     if (kid.role !== "kid") throw httpError(400, "Only kids have parents here");
-    checkParents(reader, [parentId]);
+    checkParents(reader, [parentId], kid.familyId);
     db.insert(parentLinks).values({ parentId, kidId: kid.id }).onConflictDoNothing().run();
     reply.status(201);
     return userView(db, kid);
