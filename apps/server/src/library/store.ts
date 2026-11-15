@@ -3,12 +3,51 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { authors, bookAuthors, books, bookSeries, bookTags, bookFiles, series, tags } from "../db/schema.js";
 import type { BookMetadata } from "../metadata/types.js";
+import type { BookLockField } from "@bookbandit/shared";
 import { applySubjects } from "../discover/category-store.js";
 import { authorSortName, collapse, matchKey, sortTitle } from "../metadata/text.js";
 import { bookVolume, differentBooks, volumeIn } from "../metadata/volume.js";
 
 /** Anything Drizzle can run queries on: the db itself or a transaction. */
 type Tx = Pick<Db, "select" | "insert" | "update" | "delete">;
+
+/** The fields an admin locked on a book (see BOOK_LOCK_FIELDS). */
+export function lockedFields(tx: Pick<Db, "select">, bookId: string): Set<BookLockField> {
+  const row = tx.select({ locked: books.lockedFields }).from(books).where(eq(books.id, bookId)).get();
+  return new Set(Array.isArray(row?.locked) ? row.locked : []);
+}
+
+/** Adds fields to a book's locks (an admin edited them). */
+export function lockFields(tx: Tx, bookIds: string[], fields: BookLockField[]): void {
+  if (!fields.length || !bookIds.length) return;
+  for (const r of tx.select({ id: books.id, locked: books.lockedFields }).from(books).where(inArray(books.id, bookIds)).all()) {
+    const next = [...new Set([...(r.locked ?? []), ...fields])];
+    if (next.length !== (r.locked ?? []).length) tx.update(books).set({ lockedFields: next }).where(eq(books.id, r.id)).run();
+  }
+}
+
+/** Book columns behind each lockable field, for dropping locked ones from a metadata update. */
+const LOCK_COLUMNS: Partial<Record<BookLockField, (keyof typeof books.$inferInsert)[]>> = {
+  title: ["title"],
+  sortTitle: ["sortTitle"],
+  originalTitle: ["originalTitle"],
+  subtitle: ["subtitle"],
+  publishedYear: ["publishedYear"],
+  publisher: ["publisher"],
+  isbn13: ["isbn13"],
+  language: ["language"],
+  pageCount: ["pageCount"],
+  description: ["description"],
+  rating: ["rating", "ratingSource"],
+  cover: ["coverPath"],
+};
+
+/** `fields` without the columns of locked fields. */
+export function withoutLocked<T extends Partial<typeof books.$inferInsert>>(fields: T, locked: Set<BookLockField>): T {
+  const out = { ...fields };
+  for (const f of locked) for (const col of LOCK_COLUMNS[f] ?? []) delete out[col];
+  return out;
+}
 
 export function ensureAuthorIds(tx: Tx, names: string[]): string[] {
   const ids: string[] = [];

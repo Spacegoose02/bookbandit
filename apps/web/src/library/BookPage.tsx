@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { kindleReadUrl, RATING_LABELS } from "@bookbandit/shared";
 import { api, ApiError } from "../api/client";
@@ -13,6 +13,7 @@ import { SendToKindleButton } from "../kindle/SendToKindleButton";
 import { ElsewhereLinks } from "../imports/ElsewhereLinks";
 import { MoreLikeThis } from "../ai/MoreLikeThis";
 import { useSession } from "../app/session";
+import { useBookEditor, useBookEdited } from "../admin/BookEditHost";
 import { ApproveForKids } from "../family/approved"; // families: parent approved
 
 export function BookPage() {
@@ -20,11 +21,17 @@ export function BookPage() {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const categories = useBookCategories(book ? id : null);
   const { me } = useSession();
+  const edit = useBookEditor();
+  const [version, setVersion] = useState(0);
+  const categories = useBookCategories(book ? id : null, version);
+  useBookEdited(
+    useCallback(() => setVersion((v) => v + 1), []),
+    id,
+  );
 
   useEffect(() => {
-    setBook(null);
+    if (!version) setBook(null);
     setMissing(false);
     api
       .book(id)
@@ -34,7 +41,7 @@ export function BookPage() {
         if ((e instanceof ApiError && e.notFound) || (e as { notFound?: boolean }).notFound) setMissing(true);
         else setError(e instanceof Error ? e.message : String(e));
       });
-  }, [id]);
+  }, [id, version]);
 
   if (missing)
     return (
@@ -102,6 +109,11 @@ export function BookPage() {
           <ListenButton book={book} />
           <SendToKindleButton book={book} />
           <ElsewhereLinks bookId={book.id} hasFiles={readable.length > 0} />
+          {edit && (
+            <button className="bb-btn bb-btn-big" onClick={() => edit(book.id)}>
+              ✎ Edit
+            </button>
+          )}
         </div>
         {book.kindleOnly && (
           <p className="bb-muted bb-small">This book lives in your Kindle library, so it opens in Amazon's Kindle reader.</p>

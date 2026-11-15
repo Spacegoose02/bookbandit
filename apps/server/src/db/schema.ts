@@ -17,7 +17,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { CONTENT_RATINGS, KID_SIGN_IN_METHODS, ROLES } from "@bookbandit/shared";
+import { CONTENT_RATINGS, KID_SIGN_IN_METHODS, ROLES, type BookLockField } from "@bookbandit/shared";
 
 const id = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
 const ms = (name: string) => integer(name, { mode: "number" });
@@ -162,6 +162,8 @@ export const books = sqliteTable(
     id: id(),
     title: text("title").notNull(),
     sortTitle: text("sort_title").notNull(),
+    /** The title it was first published under, when different (translations, renamed editions). */
+    originalTitle: text("original_title"),
     subtitle: text("subtitle"),
     description: text("description"),
     language: text("language"),
@@ -185,6 +187,11 @@ export const books = sqliteTable(
     hardcoverId: text("hardcover_id"),
     openLibraryId: text("open_library_id"),
     googleBooksId: text("google_books_id"),
+    /**
+     * Fields an admin locked (BOOK_LOCK_FIELDS): metadata refresh, rescans, Calibre imports and the
+     * auto-categorizer leave them alone. Editing a field in the book editor locks it.
+     */
+    lockedFields: text("locked_fields", { mode: "json" }).$type<BookLockField[]>().notNull().default(sql`'[]'`),
     addedAt: createdAt(),
     updatedAt: ms("updated_at"),
   },

@@ -2,10 +2,11 @@
  * Sample data for the admin and family pages in demo mode (`?demo`), so they can be developed
  * and screenshotted without a server. Kept in memory; a reload starts over.
  */
-import type { ContentRating } from "@bookbandit/shared";
+import type { BookLockField, ContentRating } from "@bookbandit/shared";
 import type {
   AdminApi,
   AdminBook,
+  EditableBook,
   ChatMessage,
   Device,
   InboxItem,
@@ -20,6 +21,7 @@ import type {
   UserView,
 } from "./api";
 import { newId } from "../app/uuid";
+import { demoBookRecord, editDemoBook } from "../api/demo";
 
 const now = Date.UTC(2026, 10, 14, 2, 0);
 const H = 3_600_000;
@@ -314,6 +316,75 @@ const chats: Record<string, ChatMessage[]> = {
   ],
 };
 
+/** Book-editor fields the reader demo doesn't keep, per book. */
+const demoEdits = new Map<string, Partial<EditableBook> & { categories?: string[] }>();
+
+const DEMO_CATEGORY_NAMES = [
+  "Adventure", "Biography & Memoir", "Children's Books", "Classics", "Comics & Graphic Novels", "Cooking & Food", "Fantasy",
+  "Fiction", "Historical Fiction", "History", "Humor", "Literary Fiction", "Mystery & Crime", "Nonfiction", "Poetry",
+  "Romance", "Science & Nature", "Science Fiction", "Self-Help", "Thriller & Suspense", "Travel", "Young Adult",
+];
+
+function demoCategories(title: string): string[] {
+  if (/soup|cook/i.test(title)) return ["Cooking & Food", "Nonfiction"];
+  if (/dinosaur|fox|duck|moon/i.test(title)) return ["Children's Books", "Fiction"];
+  if (/robot|pixel/i.test(title)) return ["Science Fiction", "Young Adult"];
+  return ["Literary Fiction"];
+}
+
+/** Fills the editor-only fields of an inbox item. */
+function editable(b: Omit<EditableBook, "sortTitle" | "originalTitle" | "pageCount" | "kindleOnly" | "hardcoverId" | "openLibraryId" | "googleBooksId" | "lockedFields" | "tags" | "series" | "updatedAt">): EditableBook {
+  return {
+    ...b,
+    sortTitle: b.title.replace(/^(the|a|an) /i, "").toLowerCase(),
+    originalTitle: null,
+    pageCount: null,
+    kindleOnly: false,
+    hardcoverId: null,
+    openLibraryId: null,
+    googleBooksId: null,
+    lockedFields: [],
+    tags: [],
+    series: [],
+    updatedAt: null,
+  };
+}
+
+function adminApiBook(id: string): Promise<EditableBook> {
+  const b = demoBookRecord(id);
+  if (!b) notFound();
+  const e = demoEdits.get(id) ?? {};
+  const categories = e.categories ?? demoCategories(b.title);
+  return delay({
+    id: b.id,
+    title: b.title,
+    sortTitle: e.sortTitle ?? b.title.replace(/^(the|a|an) /i, "").toLowerCase(),
+    originalTitle: e.originalTitle ?? null,
+    subtitle: b.subtitle ?? null,
+    authors: (b.authors ?? []).map((a) => a.name),
+    description: b.description ?? null,
+    publisher: b.publisher ?? null,
+    language: b.language ?? null,
+    publishedYear: b.publishedYear ?? null,
+    isbn13: e.isbn13 ?? "9780000000002",
+    coverPath: b.coverPath ?? null,
+    pageCount: b.pageCount ?? null,
+    rating: b.rating ?? null,
+    ratingSource: b.rating ? "metadata" : null,
+    approved: true,
+    kindleOnly: !!b.kindleOnly,
+    hardcoverId: e.hardcoverId ?? null,
+    openLibraryId: e.openLibraryId ?? "OL123W",
+    googleBooksId: e.googleBooksId ?? null,
+    lockedFields: e.lockedFields ?? [],
+    tags: [...categories.map((name) => ({ name, kind: "genre" })), { name: "Small towns", kind: "subject" }],
+    series: (b.series ?? []).map((s) => ({ id: s.id, name: s.name, position: s.position ?? null })),
+    files: (b.files ?? []).map((f) => ({ id: f.id, relPath: `Demo/${b.title}.${f.format}`, format: f.format, sizeBytes: f.sizeBytes })),
+    addedAt: b.added,
+    updatedAt: null,
+  } as EditableBook);
+}
+
 function notFound(): never {
   throw Object.assign(new Error("Not found"), { status: 404 });
 }
@@ -402,10 +473,32 @@ export const demoAdminApi: AdminApi = {
   },
   async editBook(id, patch) {
     const i = inbox.find((b) => b.id === id);
-    if (!i) notFound();
-    Object.assign(i, patch, patch.rating !== undefined ? { ratingSource: patch.rating ? "admin" : null } : {});
-    return delay({ ...i, publisher: null, language: null, approved: false });
+    if (i) {
+      const { authors, title, subtitle, description, publishedYear, isbn13, rating } = patch;
+      Object.assign(
+        i,
+        Object.fromEntries(Object.entries({ authors, title, subtitle, description, publishedYear, isbn13, rating }).filter(([, v]) => v !== undefined)),
+        rating !== undefined ? { ratingSource: rating ? "admin" : null } : {},
+      );
+      return delay(editable({ ...i, publisher: null, language: null, approved: false }));
+    }
+    const { locks, categories, sortTitle, originalTitle, isbn13, hardcoverId, openLibraryId, googleBooksId, ...rest } = patch;
+    const b = editDemoBook(id, rest);
+    if (!b) notFound();
+    const prev = demoEdits.get(id) ?? {};
+    const edited = (Object.keys(patch) as (keyof typeof patch)[]).filter((k) => k !== "locks") as BookLockField[];
+    demoEdits.set(id, {
+      ...prev,
+      ...Object.fromEntries(Object.entries({ categories, sortTitle, originalTitle, isbn13, hardcoverId, openLibraryId, googleBooksId }).filter(([, v]) => v !== undefined)),
+      lockedFields: locks ?? [...new Set([...(prev.lockedFields ?? []), ...edited])],
+    });
+    return adminApiBook(id);
   },
+  book: (id) => {
+    const i = inbox.find((b) => b.id === id);
+    return i ? delay(editable({ ...i, publisher: null, language: null, approved: false })) : adminApiBook(id);
+  },
+  categoryNames: () => delay(DEMO_CATEGORY_NAMES),
   async mergeBook(id) {
     inbox = inbox.filter((b) => b.id !== id);
   },

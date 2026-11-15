@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   authors,
   bookAuthors,
@@ -494,6 +494,53 @@ describe("tidying categories from before curation", () => {
       "subject:Juvenile Fiction",
     ]);
     expect(of(ids.kindle!)).toEqual(["genre:History", "section:Cookbooks", "subject:History"]);
+  });
+
+  it("moves novels that were guessed into Nonfiction (taxonomy v2)", () => {
+    // A library upgraded to v1: novels whose saved subjects match no genre sit in "Nonfiction".
+    f.db
+      .insert(settings)
+      .values({ key: "categories.taxonomy", value: 1, updatedAt: 0 })
+      .onConflictDoUpdate({ target: settings.key, set: { value: 1 } })
+      .run();
+    const made = f.db
+      .insert(tags)
+      .values([
+        { name: "Nonfiction", kind: "genre" },
+        { name: "Small towns", kind: "subject" },
+        { name: "Juvenile Nonfiction", kind: "subject" },
+      ])
+      .onConflictDoNothing()
+      .returning()
+      .all();
+    const tag = (name: string) => made.find((t) => t.name === name)!.id;
+    f.db.delete(bookTags).where(inArray(bookTags.bookId, [ids.thriller!, ids.hippo!, ids.kindle!])).run();
+    f.db
+      .insert(bookTags)
+      .values([
+        // A novel with an unhelpful subject, a novel with none, and a real nonfiction book.
+        { bookId: ids.thriller!, tagId: tag("Nonfiction") },
+        { bookId: ids.thriller!, tagId: tag("Small towns") },
+        { bookId: ids.kindle!, tagId: tag("Nonfiction") },
+        { bookId: ids.hippo!, tagId: tag("Nonfiction") },
+        { bookId: ids.hippo!, tagId: tag("Juvenile Nonfiction") },
+      ])
+      .run();
+
+    expect(upgradeCategories(f.db)).toMatchObject({ refiled: 2 });
+    expect(upgradeCategories(f.db)).toBeNull();
+    const genres = (bookId: string) =>
+      f.db
+        .select({ name: tags.name })
+        .from(bookTags)
+        .innerJoin(tags, eq(tags.id, bookTags.tagId))
+        .where(and(eq(bookTags.bookId, bookId), eq(tags.kind, "genre")))
+        .all()
+        .map((t) => t.name)
+        .sort();
+    expect(genres(ids.thriller!)).toEqual(["Fiction"]);
+    expect(genres(ids.kindle!)).toEqual(["Fiction"]);
+    expect(genres(ids.hippo!)).toEqual(["Children's Books", "Nonfiction"]);
   });
 });
 

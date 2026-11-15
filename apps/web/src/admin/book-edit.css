@@ -1,0 +1,303 @@
+/* Book editor dialog (admin/BookEditDialog.tsx) and the edit / select buttons on book cards. */
+
+.bb-edit-dialog {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  color: var(--bb-text);
+}
+.bb-edit-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.bb-edit-dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+.bb-edit-loading {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bb-edit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px 6px;
+}
+.bb-edit-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-edit-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--bb-border);
+  overflow-x: auto;
+}
+.bb-edit-tab {
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--bb-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bb-edit-tab.is-active {
+  color: var(--bb-accent);
+  border-bottom-color: var(--bb-accent);
+}
+.bb-edit-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex: 1;
+}
+.bb-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+.bb-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.bb-edit-field.is-wide {
+  grid-column: 1 / -1;
+}
+.bb-edit-field .bb-input {
+  width: 100%;
+}
+.bb-edit-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--bb-muted);
+  font-weight: 600;
+}
+.bb-edit-lock {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--bb-muted);
+  opacity: 0.55;
+  cursor: pointer;
+}
+.bb-edit-lock:hover {
+  opacity: 1;
+  background: var(--bb-surface-2);
+}
+.bb-edit-lock.is-locked {
+  color: var(--bb-accent);
+  opacity: 1;
+}
+.bb-lock-icon {
+  vertical-align: -2px;
+}
+.bb-edit-textarea {
+  min-height: 120px;
+  padding: 10px 12px;
+  resize: vertical;
+  line-height: 1.45;
+}
+.bb-edit-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bb-edit-seg {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 8px;
+}
+.bb-edit-seg-btn {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--bb-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bb-edit-seg-btn.is-active {
+  background: var(--bb-accent);
+  color: var(--bb-accent-text);
+}
+.bb-edit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bb-edit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 12px;
+  border-radius: 999px;
+  background: var(--bb-surface-2);
+  font-weight: 600;
+}
+.bb-edit-chip button {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--bb-muted);
+  cursor: pointer;
+}
+.bb-edit-chip button:hover {
+  background: var(--bb-border);
+  color: var(--bb-text);
+}
+.bb-edit-add {
+  display: flex;
+  gap: 8px;
+  max-width: 420px;
+}
+.bb-edit-add .bb-input {
+  flex: 1;
+}
+.bb-edit-artwork {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.bb-edit-cover img,
+.bb-edit-cover .bb-cover {
+  width: 180px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.bb-edit-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--bb-border);
+}
+.bb-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .bb-edit-grid,
+  .bb-edit-artwork {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Book cards: round edit button (bottom left, on hover) and a select circle (top left). */
+.bb-card-wrap {
+  position: relative;
+  min-width: 0;
+  /* Covers are 2:3, so 150cqw is the cover's height: the edit button sits on the cover. */
+  container-type: inline-size;
+}
+.bb-card-tool {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.bb-card-edit {
+  left: 8px;
+  top: calc(150cqw - 44px);
+  background: var(--bb-accent);
+  color: var(--bb-accent-text);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+.bb-card-wrap:hover .bb-card-edit,
+.bb-card-wrap:focus-within .bb-card-edit {
+  opacity: 1;
+  transform: none;
+}
+@media (hover: none) {
+  .bb-card-edit {
+    opacity: 0.9;
+    transform: none;
+  }
+}
+.bb-card-select {
+  top: 8px;
+  left: 8px;
+  width: 30px;
+  height: 30px;
+  background: rgb(0 0 0 / 0.35);
+  border: 2px solid #fff;
+  color: transparent;
+}
+.bb-card-select[aria-checked="true"] {
+  background: var(--bb-accent);
+  border-color: var(--bb-accent);
+  color: var(--bb-accent-text);
+}
+.bb-card-wrap.is-selected .bb-card-cover {
+  outline: 3px solid var(--bb-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Category page: bulk actions for selected books. */
+.bb-select-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius);
+  background: var(--bb-surface);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+}
+.bb-select-bar .bb-input {
+  min-width: 180px;
+}
+.bb-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}

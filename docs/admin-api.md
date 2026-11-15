@@ -27,7 +27,8 @@ through `visibleBooksWhere` for the parent (rule 1).
 | GET | `/api/admin/overview` | `routes/admin-library.ts` | Counts: `inbox, unrated, books, people{grownUps,kids}, devices, pendingRequests` |
 | GET | `/api/admin/review/unrated?limit&offset&scope=approved\|all` | `routes/admin-library.ts` | Approved books with no rating (Kindle-only entries left out) |
 | GET | `/api/admin/books/:id` | `routes/admin-library.ts` | Any book, with authors, files, tags, series |
-| PATCH | `/api/admin/books/:id` | `routes/admin-library.ts` | `title, subtitle, description, publisher, language, publishedYear, isbn13, authors[], rating`; `""` or `null` clears a field |
+| PATCH | `/api/admin/books/:id` | `routes/admin-library.ts` | `title, sortTitle, originalTitle, subtitle, description, publisher, language, publishedYear, isbn13, pageCount, authors[], rating, series: { name, position } \| null, categories[]` (every genre, "Fiction"/"Nonfiction" included; replaces the list), `hardcoverId, openLibraryId, googleBooksId`; `""` or `null` clears a field. Every field sent is locked (`lockedFields`) unless `locks[]` is given, which replaces the lock set. Locked fields are left alone by metadata refresh, Calibre import and the auto-categorizer |
+| GET | `/api/admin/category-names` | `routes/admin-library.ts` | `{ names }`: the curated categories plus any an admin made, for the book editor |
 | POST | `/api/admin/books/:id/merge` | `routes/admin-library.ts` | `{ intoId }`. Moves files, tags, shelves, collections, bookmarks and progress (newest wins) to the target, fills its empty fields, deletes the source. File paths are unchanged, so a rescan keeps the merge |
 | GET/PUT | `/api/admin/settings/metadata` | `routes/admin-settings.ts` | `{ online, hardcoverToken?, googleApiKey? }`; omit a key to keep it, `null` clears it. Keys sealed with the integrations SecretBox, never returned. Env vars apply until saved |
 | GET | `/api/family/kids` | `routes/admin-family.ts` | Parent: every kid in their own family. Admin: every kid, plus `families[]` to group them. Each with `stats` and `familyId` |
@@ -56,7 +57,7 @@ an admin places them.
 | POST | `/api/users` `{ familyId? }` | `routes/users.ts` | Admin picks the family (default: their own); a parent always adds to their own |
 | POST | `/api/devices/pairings` `{ familyId? }` | `routes/devices.ts` | A family's tablet shows only that family on "Who's reading?"; admin may pick any family or `null` for everyone |
 
-Migration `0016_families` puts everyone already on the server, and every paired tablet, into one
+Migration `0017_families` puts everyone already on the server, and every paired tablet, into one
 family named after the household, so nothing changes until a second family is added.
 
 ## Parent approved

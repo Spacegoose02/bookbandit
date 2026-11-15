@@ -7,3 +7,4 @@ export * from "./storyteller.js";
 export * from "./discover.js";
 export * from "./rewards.js";
 export * from "./ai-pricing.js";
+export * from "./book-locks.js";

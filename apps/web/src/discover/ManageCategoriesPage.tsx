@@ -68,7 +68,7 @@ export function ManageCategoriesPage() {
             onClick={() =>
               run(async () => {
                 const r = await discoverApi.rebuildCategories();
-                setNote(`Re-filed ${r.books} books (${r.linked} new links).`);
+                setNote(`Re-filed ${r.books} books (${r.linked} new links${r.refiled ? `, ${r.refiled} moved out of a wrong Fiction/Nonfiction guess` : ""}).`);
               })
             }
           >

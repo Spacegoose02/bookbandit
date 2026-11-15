@@ -4,7 +4,7 @@
  * Server side: library/routes.ts, routes/admin-*.ts, routes/users.ts, routes/devices.ts,
  * integrations/*. Endpoint list: docs/admin-api.md.
  */
-import type { ContentRating, KidSignInMethod, ProfileSignIn, Role, SignInPicture } from "@bookbandit/shared";
+import type { BookLockField, ContentRating, KidSignInMethod, ProfileSignIn, Role, SignInPicture } from "@bookbandit/shared";
 import { isDemo, request } from "../api/client";
 import { demoAdminApi } from "./demo";
 
@@ -136,15 +136,42 @@ export interface AdminBook {
 /** A row on "Needs a rating". */
 export type UnratedBook = AdminBook & { barnaby: { rating: BarnabyRating | null } };
 
+/** A book as the book editor sees it: every editable field, its tags and series, and its locks. */
+export interface EditableBook extends AdminBook {
+  sortTitle: string;
+  originalTitle: string | null;
+  pageCount: number | null;
+  kindleOnly: boolean;
+  hardcoverId: string | null;
+  openLibraryId: string | null;
+  googleBooksId: string | null;
+  lockedFields: BookLockField[];
+  tags: { name: string; kind: string }[];
+  series: { id: string; name: string; position: number | null }[];
+  updatedAt: number | null;
+}
+
 export interface BookPatch {
   title?: string;
+  sortTitle?: string;
+  originalTitle?: string | null;
   subtitle?: string | null;
   description?: string | null;
   publisher?: string | null;
+  language?: string | null;
   publishedYear?: number | null;
   isbn13?: string | null;
+  pageCount?: number | null;
   authors?: string[];
   rating?: ContentRating | null;
+  series?: { name: string; position: number | null } | null;
+  /** Every category the book is in ("Fiction" / "Nonfiction" included); replaces the old list. */
+  categories?: string[];
+  hardcoverId?: string | null;
+  openLibraryId?: string | null;
+  googleBooksId?: string | null;
+  /** The full set of locked fields. Left out, every field in the patch gets locked. */
+  locks?: BookLockField[];
 }
 
 export interface PageOf<T> {
@@ -415,7 +442,11 @@ export interface AdminApi {
   /** Ask Barnaby to rate and tidy these books now (the rating helper and metadata cleanup). */
   askBarnaby(bookIds: string[]): Promise<{ rating: boolean; metadata: boolean; error?: string }>;
   setRating(id: string, rating: ContentRating | null): Promise<void>;
-  editBook(id: string, patch: BookPatch): Promise<AdminBook>;
+  editBook(id: string, patch: BookPatch): Promise<EditableBook>;
+  /** One book with everything the book editor shows. */
+  book(id: string): Promise<EditableBook>;
+  /** Category names to pick from in the book editor. */
+  categoryNames(): Promise<string[]>;
   mergeBook(id: string, intoId: string): Promise<void>;
   refreshMetadata(id: string): Promise<void>;
   coverUrl(b: { id: string; coverPath: string | null }): string | null;
@@ -498,6 +529,8 @@ export const httpAdminApi: AdminApi = {
     await request(`/api/admin/books/${enc(id)}/rating`, { method: "PUT", body: json({ rating }) });
   },
   editBook: (id, patch) => request(`/api/admin/books/${enc(id)}`, { method: "PATCH", body: json(patch) }),
+  book: (id) => request(`/api/admin/books/${enc(id)}`),
+  categoryNames: async () => (await request<{ names: string[] }>("/api/admin/category-names")).names,
   mergeBook: async (id, intoId) => {
     await request(`/api/admin/books/${enc(id)}/merge`, { method: "POST", body: json({ intoId }) });
   },
