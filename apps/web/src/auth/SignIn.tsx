@@ -100,7 +100,7 @@ export function SignIn({ switching = false }: { switching?: boolean }) {
       )}
       <ErrorLine error={ssoError} />
       <PasswordForm />
-      {status.sso && <SsoButton sso={status.sso} />}
+      {status.sso && status.sso.showOnSignIn !== false && <SsoButton sso={status.sso} />}
       {status.google && <GoogleButton url={status.google.url} />}
       <div className="bb-auth-links">
         {profiles && (
@@ -427,7 +427,7 @@ function WhoIsReading({
             >
               Continue with Google
             </button>}
-            {status.sso && <SsoButton sso={status.sso} />}
+            {status.sso && status.sso.showOnSignIn !== false && <SsoButton sso={status.sso} />}
             {status.google && <GoogleButton url={status.google.url} />}
           </>
         )}

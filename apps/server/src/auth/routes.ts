@@ -32,8 +32,8 @@ export interface AuthRouteOptions {
   lockout?: Lockout;
   /** Where the web app's "Sign in with Google" button points (Tinyauth login page). */
   googleSignInUrl?: string;
-  /** Set when single sign-on (OIDC) is on: the button text and where it starts. */
-  sso?: { label: string; url: string; linkUrl: string };
+  /** Single sign-on (OIDC) as it is right now: button text, where it starts, whether to show it. Null = off. */
+  ssoStatus?: () => { label: string; url: string; linkUrl: string; showOnSignIn: boolean } | null;
   /** Header the proxy sets with the signed-in email (to explain an unlinked Google account). */
   emailHeader?: string;
   /** Per account across all addresses, looser, so one bad actor can't lock a grown-up out for long. */
@@ -117,7 +117,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthRouteOptions) {
     user: req.reader ? userView(db, db.select().from(users).where(eq(users.id, req.reader.userId)).get()!) : null,
     device: req.device ? { id: req.device.id, name: req.device.name, lockedTo: req.device.userId } : null,
     google: opts.googleSignInUrl ? { url: opts.googleSignInUrl } : null,
-    sso: opts.sso ?? null,
+    sso: opts.ssoStatus?.() ?? null,
     /** Signed in to Google through the proxy, but no one here has that email yet. */
     unlinkedEmail: req.reader ? null : proxyEmail(req),
     limits: { pin: PIN_LENGTH, pictures: PICTURE_SEQUENCE_LENGTH, passwordMin: PASSWORD_MIN_LENGTH },

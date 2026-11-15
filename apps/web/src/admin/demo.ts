@@ -14,6 +14,7 @@ import type {
   KidDetail,
   KidStats,
   MetadataSettings,
+  SsoSettings,
   ScanStatus,
   UnratedBook,
   UserView,
@@ -210,6 +211,21 @@ let abs: Awaited<ReturnType<AdminApi["absSettings"]>> = {
   hasToken: true,
 };
 let smtp: Awaited<ReturnType<AdminApi["smtpSettings"]>> = { configured: false };
+const ssoOff: SsoSettings = {
+  active: false,
+  label: "",
+  issuer: "",
+  clientId: "",
+  hasClientSecret: false,
+  publicUrl: "",
+  scopes: "",
+  autoCreate: true,
+  showOnSignIn: true,
+  callbackUrl: `${typeof window === "undefined" ? "https://books.example.com" : window.location.origin}/auth/sso/callback`,
+  fromEnv: { label: false, issuer: false, clientId: false, clientSecret: false, publicUrl: false },
+  saved: false,
+};
+let sso: SsoSettings = ssoOff;
 let metadata: MetadataSettings = { online: true, hasHardcoverToken: false, hasGoogleApiKey: true, fromEnv: { hardcoverToken: false, googleApiKey: true }, saved: false };
 
 function card(u: UserView): KidCard {
@@ -479,6 +495,27 @@ export const demoAdminApi: AdminApi = {
     };
     return delay(metadata);
   },
+
+  ssoSettings: () => delay(sso),
+  async saveSso(input) {
+    const { clientSecret, ...rest } = input;
+    const hasClientSecret = clientSecret === null ? false : clientSecret ? true : sso.hasClientSecret;
+    sso = {
+      ...sso,
+      ...rest,
+      issuer: rest.issuer.replace(/\/+$/, ""),
+      hasClientSecret,
+      active: !!(rest.issuer && rest.clientId && hasClientSecret),
+      callbackUrl: `${(rest.publicUrl || ssoOff.callbackUrl.replace(/\/auth\/sso\/callback$/, "")).replace(/\/+$/, "")}/auth/sso/callback`,
+      saved: true,
+    };
+    return delay(sso);
+  },
+  async forgetSso() {
+    sso = ssoOff;
+    return delay(sso);
+  },
+  testSso: (issuer) => delay(issuer ? { ok: true, issuer } : { ok: false, error: "Enter the issuer URL first." }),
 
   familyKids: () =>
     delay(

@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { adminApi, type MetadataSettings, type SmtpSettings } from "./api";
 import { Card, ErrorNote, useAction, useLoad } from "./ui";
 import { FamilyAppsCards } from "../family-apps/FamilyAppsCards";
+import { SsoCard } from "./SsoCard";
 
-/** Audiobookshelf, Send to Kindle email, online metadata lookup, and the family apps. Secrets are write-only. */
+/** Single sign-on, Audiobookshelf, Send to Kindle email, online metadata lookup, and the family apps. Secrets are write-only. */
 export function ConnectionsPage() {
   return (
     <>
@@ -14,6 +15,7 @@ export function ConnectionsPage() {
         the saved one.
       </p>
       <div className="bb-settings-grid">
+        <SsoCard />
         <AbsCard />
         <SmtpCard />
         <MetadataCard />

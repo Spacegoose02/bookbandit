@@ -26,8 +26,8 @@ One container serves the API and the web app on port 8080. Calibre's `ebook-conv
 | `TRUSTED_PROXIES` | empty | IPs/CIDRs of your reverse proxy. Auth headers from anywhere else are ignored. |
 | `AUTH_HEADER_EMAIL` | `remote-email` | Header the proxy (Tinyauth) sets with the signed-in email. |
 | `GOOGLE_SIGN_IN_URL` | empty | Your Tinyauth login page. When set, the sign-in screen shows a "Sign in with Google" button. Username/password sign-in works without it. |
-| `PUBLIC_URL` | empty | Bookbandit's address as people reach it, e.g. `https://books.example.com`. Needed for single sign-on. |
-| `SSO_ISSUER` | empty | Single sign-on: your Tinyauth (or other OpenID Connect) address, e.g. `https://auth.example.com`. See [Single sign-on](#single-sign-on-with-tinyauth). |
+| `PUBLIC_URL` | empty | Bookbandit's address as people reach it, e.g. `https://books.example.com`. Used for the single sign-on callback; empty uses the address in the browser. |
+| `SSO_ISSUER` | empty | Single sign-on (usually set in Admin → Connections instead): your Tinyauth (or other OpenID Connect) address, e.g. `https://auth.example.com`. See [Single sign-on](#single-sign-on-with-tinyauth). |
 | `SSO_CLIENT_ID` / `SSO_CLIENT_SECRET` | empty | The client you add in Tinyauth for Bookbandit. |
 | `SSO_LABEL` | `Tinyauth` | Button text: "Sign in with …". |
 | `SSO_AUTO_CREATE` | `true` | A new email gets its own grown-up account (the "adult" role). `false` lets in only emails linked under People. |
@@ -47,35 +47,35 @@ Starting the container with `--user` skips the switch and runs as that user dire
 
 ## Single sign-on with Tinyauth
 
-This puts a **Sign in with Tinyauth** button on the sign-in page. It's set with environment
-variables on the two containers; nothing to turn on inside Bookbandit.
+This puts a **Sign in with Tinyauth** button on the sign-in page.
 
-1. In Tinyauth, add a client for Bookbandit:
-
-   ```
-   TINYAUTH_OIDC_CLIENTS_bookbandit_CLIENTID=bookbandit
-   TINYAUTH_OIDC_CLIENTS_bookbandit_CLIENTSECRET=<long random string>
-   TINYAUTH_OIDC_CLIENTS_bookbandit_TRUSTEDREDIRECTURIS=https://<your-bookbandit-site>/auth/sso/callback
-   TINYAUTH_OIDC_CLIENTS_bookbandit_NAME=Bookbandit
-   TINYAUTH_OIDC_CLIENTS_bookbandit_TRUSTED=true
-   ```
-
-2. On the Bookbandit container (Unraid template or docker-compose), set:
+1. In Tinyauth, create a client for Bookbandit:
 
    ```
-   PUBLIC_URL=https://<your-bookbandit-site>
-   SSO_ISSUER=https://<your-tinyauth-address>
-   SSO_CLIENT_ID=bookbandit
-   SSO_CLIENT_SECRET=<the same secret>
-   SSO_LABEL=Tinyauth          # optional, the button text
+   docker exec -it tinyauth tinyauth oidc create bookbandit
    ```
 
-3. Restart both containers.
+   It prints a client ID and secret (save them; Tinyauth can't show the secret again) and the env
+   vars to add to Tinyauth. Add one more so Tinyauth accepts Bookbandit's callback:
+
+   ```
+   TINYAUTH_OIDC_CLIENTS_BOOKBANDIT_TRUSTEDREDIRECTURIS=https://<your-bookbandit-site>/auth/sso/callback
+   ```
+
+   Restart Tinyauth.
+
+2. In Bookbandit, open **Admin → Connections → Single sign-on** and fill in the issuer URL (your
+   Tinyauth address), client ID and client secret. The card shows the exact callback URL to copy, and
+   **Test** checks that the issuer answers. Save, and the button shows up right away: no restart.
+
+   Prefer env vars? Set `SSO_ISSUER`, `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET` (plus optional
+   `PUBLIC_URL`, `SSO_LABEL`, `SSO_AUTO_CREATE`) on the container instead. Anything saved in the
+   admin card wins; fields left empty there fall back to the env vars.
 
 Who signs in as whom: the email Tinyauth reports is matched to someone's **sign-in emails** (Admin →
 People → Sign-in emails, which the admin can add to any grown-up, their own profile included). An
 email nobody uses yet gets a new grown-up account with the "adult" role, so Tinyauth's approved-email
-list decides who gets in; set `SSO_AUTO_CREATE=false` to let in only linked emails. If someone who
+list decides who gets in; untick **Create an account for anyone who signs in** (or set `SSO_AUTO_CREATE=false`) to let in only linked emails. **Show on the sign-in page** hides the button without turning off linking from Settings. If someone who
 already had a profile signed in before their email was linked, open the new account's sign-in
 emails on People and use **Move to…** to put the email on their real profile. The leftover account
 is turned off (delete it from People if it's empty). Only admins can link or move emails for other people.

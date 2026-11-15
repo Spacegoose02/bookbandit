@@ -927,3 +927,33 @@ a.bb-tile:hover {
   gap: 10px;
   padding: 4px 0;
 }
+
+/* --- single sign-on ------------------------------------------------------ */
+
+.bb-copy-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.bb-copy-row .bb-input,
+.bb-copy-value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bb-copy-value {
+  padding: 10px 12px;
+  border: 1px solid var(--bb-border);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+.bb-mono,
+.bb-copy-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.bb-field-note {
+  margin: -4px 0 12px 28px;
+}
+.bb-field code {
+  overflow-wrap: anywhere;
+}

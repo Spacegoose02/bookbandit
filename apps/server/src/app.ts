@@ -6,7 +6,8 @@ import { authPlugin } from "./auth/plugin.js";
 import { parseTrustedProxies } from "./auth/trusted-proxy.js";
 import { authRoutes } from "./auth/routes.js";
 import { loadSessionSecret, SessionSigner } from "./auth/sessions.js";
-import { SSO_LINK_PATH, SSO_START_PATH, ssoConfigFrom, ssoRoutes, type SsoOptions } from "./auth/oidc.js";
+import { SSO_LINK_PATH, SSO_START_PATH, ssoRoutes, type SsoOptions } from "./auth/oidc.js";
+import { resolveSso, ssoSettingsRoutes } from "./auth/sso-settings.js";
 import { userRoutes } from "./routes/users.js";
 import { deviceRoutes } from "./routes/devices.js";
 import { healthRoutes } from "./routes/health.js";
@@ -66,10 +67,10 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
 
   const trustedProxies = parseTrustedProxies(config.TRUSTED_PROXIES);
   const sessions = new SessionSigner(loadSessionSecret(db, config.SESSION_SECRET));
-  const sso = ssoConfigFrom(config);
-  if (!sso && (config.SSO_ISSUER || config.SSO_CLIENT_ID || config.SSO_CLIENT_SECRET)) {
-    app.log.warn("Single sign-on is off: set all of PUBLIC_URL, SSO_ISSUER, SSO_CLIENT_ID and SSO_CLIENT_SECRET");
-  }
+  // Same key file as the integrations' SecretBox (CONFIG_DIR/secret.key), created on first use.
+  const box = lazyBox(() => deps.integrations?.secretKey ?? loadOrCreateKey(config.CONFIG_DIR));
+  // Single sign-on: Admin → Connections settings over env vars, read per request (no restart).
+  const getSso = () => resolveSso(db, box, config);
 
   await app.register(securityHeaders, { trustedProxies, csp: config.CONTENT_SECURITY_POLICY });
   await app.register(authPlugin, {
@@ -85,9 +86,13 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     trustedProxies,
     googleSignInUrl: config.GOOGLE_SIGN_IN_URL,
     emailHeader: config.AUTH_HEADER_EMAIL,
-    sso: sso ? { label: sso.label, url: SSO_START_PATH, linkUrl: SSO_LINK_PATH } : undefined,
+    ssoStatus: () => {
+      const sso = getSso();
+      return sso ? { label: sso.label, url: SSO_START_PATH, linkUrl: SSO_LINK_PATH, showOnSignIn: sso.showOnSignIn } : null;
+    },
   });
-  if (sso) await app.register(ssoRoutes, { db, sessions, trustedProxies, sso, ...deps.sso });
+  await app.register(ssoRoutes, { db, sessions, trustedProxies, getSso, ...deps.sso });
+  await app.register(ssoSettingsRoutes, { db, box, env: config, trustedProxies, fetchImpl: deps.sso?.fetchImpl });
   await app.register(userRoutes, { db });
   await app.register(deviceRoutes, { db, trustedProxies });
   await app.register(healthRoutes);
@@ -99,8 +104,6 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
   await app.register(progressRoutes, { db });
   await app.register(bookmarkRoutes, { db });
   await app.register(shelfRoutes, { db });
-  // Same key file as the integrations' SecretBox (CONFIG_DIR/secret.key), created on first use.
-  const box = lazyBox(() => deps.integrations?.secretKey ?? loadOrCreateKey(config.CONFIG_DIR));
   await app.register(libraryRoutes, { db, config, resolveLookup: () => resolveLookup(db, box, config) });
   await app.register(homeShelfRoutes, { db });
   await app.register(readingTimeRoutes, { db });
