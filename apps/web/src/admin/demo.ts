@@ -400,6 +400,30 @@ export const demoAdminApi: AdminApi = {
     people = people.map((p) => (p.id === kidId ? { ...p, parentIds: [...new Set([...p.parentIds, parentId])] } : p));
     return delay(people.find((p) => p.id === kidId)!);
   },
+  async linkEmail(id, email) {
+    const subject = email.trim().toLowerCase();
+    if (people.some((p) => p.identities.some((i) => i.provider === "tinyauth" && i.subject === subject)))
+      throw Object.assign(new Error("Someone already uses that email"), { status: 409 });
+    const identity = { id: `demo-${subject}`, provider: "tinyauth" as const, subject };
+    people = people.map((p) => (p.id === id ? { ...p, identities: [...p.identities, identity] } : p));
+    return delay(people.find((p) => p.id === id) ?? notFound());
+  },
+  async removeIdentity(id, identityId) {
+    people = people.map((p) => (p.id === id ? { ...p, identities: p.identities.filter((i) => i.id !== identityId) } : p));
+    return delay(people.find((p) => p.id === id) ?? notFound());
+  },
+  async moveEmail(id, identityId, toUserId) {
+    const identity = people.find((p) => p.id === id)?.identities.find((i) => i.id === identityId) ?? notFound();
+    people = people.map((p) =>
+      p.id === id
+        ? { ...p, identities: p.identities.filter((i) => i.id !== identityId) }
+        : p.id === toUserId
+          ? { ...p, identities: [...p.identities, identity] }
+          : p,
+    );
+    people = people.map((p) => (p.id === id && p.identities.length === 0 ? { ...p, disabled: true } : p));
+    return delay({ from: people.find((p) => p.id === id)!, to: people.find((p) => p.id === toUserId)! });
+  },
   async unlinkParent(kidId, parentId) {
     const kid = people.find((p) => p.id === kidId)!;
     if (kid.parentIds.length <= 1) throw Object.assign(new Error("A kid always needs at least one parent"), { status: 400 });

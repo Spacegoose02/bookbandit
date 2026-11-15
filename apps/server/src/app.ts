@@ -6,6 +6,7 @@ import { authPlugin } from "./auth/plugin.js";
 import { parseTrustedProxies } from "./auth/trusted-proxy.js";
 import { authRoutes } from "./auth/routes.js";
 import { loadSessionSecret, SessionSigner } from "./auth/sessions.js";
+import { SSO_START_PATH, ssoConfigFrom, ssoRoutes, type SsoOptions } from "./auth/oidc.js";
 import { userRoutes } from "./routes/users.js";
 import { deviceRoutes } from "./routes/devices.js";
 import { healthRoutes } from "./routes/health.js";
@@ -53,6 +54,7 @@ export interface AppDeps {
   learning?: Pick<LearningOptions, "fetchImpl" | "now">;
   rewards?: { now?: () => number };
   imports?: Pick<ImportsOptions, "fetchImpl">;
+  sso?: Pick<SsoOptions, "fetchImpl" | "now">;
   /** ABS calls go through integrations.fetchImpl too. */
   audio?: Pick<AudioOptions, "pullTimeoutMs">;
   librarian?: Pick<LibrarianOptions, "convert" | "tools" | "fetchImpl">;
@@ -64,6 +66,10 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
 
   const trustedProxies = parseTrustedProxies(config.TRUSTED_PROXIES);
   const sessions = new SessionSigner(loadSessionSecret(db, config.SESSION_SECRET));
+  const sso = ssoConfigFrom(config);
+  if (!sso && (config.SSO_ISSUER || config.SSO_CLIENT_ID || config.SSO_CLIENT_SECRET)) {
+    app.log.warn("Single sign-on is off: set all of PUBLIC_URL, SSO_ISSUER, SSO_CLIENT_ID and SSO_CLIENT_SECRET");
+  }
 
   await app.register(securityHeaders, { trustedProxies, csp: config.CONTENT_SECURITY_POLICY });
   await app.register(authPlugin, {
@@ -79,7 +85,9 @@ export async function buildApp(config: Config, db: Db, deps: AppDeps = {}): Prom
     trustedProxies,
     googleSignInUrl: config.GOOGLE_SIGN_IN_URL,
     emailHeader: config.AUTH_HEADER_EMAIL,
+    sso: sso ? { label: sso.label, url: SSO_START_PATH } : undefined,
   });
+  if (sso) await app.register(ssoRoutes, { db, sessions, trustedProxies, sso, ...deps.sso });
   await app.register(userRoutes, { db });
   await app.register(deviceRoutes, { db, trustedProxies });
   await app.register(healthRoutes);

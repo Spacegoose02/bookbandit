@@ -12,6 +12,13 @@ services:
       # IP/CIDR of your reverse proxy running Tinyauth. Auth headers from anywhere else are ignored.
       TRUSTED_PROXIES: "172.18.0.0/16"
       AUTH_HEADER_EMAIL: "remote-email"
+      # Optional: "Sign in with Tinyauth" (single sign-on). Add a client in Tinyauth with the
+      # redirect URI https://books.example.com/auth/sso/callback, then fill these in.
+      # PUBLIC_URL: "https://books.example.com"
+      # SSO_ISSUER: "https://auth.example.com"
+      # SSO_CLIENT_ID: "bookbandit"
+      # SSO_CLIENT_SECRET: "<same secret as in Tinyauth>"
+      # SSO_LABEL: "Tinyauth"
     volumes:
       - ./config:/config
       - /mnt/user/media/books:/books

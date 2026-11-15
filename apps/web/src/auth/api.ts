@@ -8,6 +8,8 @@ export interface AuthStatus {
   device: { id: string; name: string; lockedTo: string | null } | null;
   /** Set when the server knows the Tinyauth login page. */
   google: { url: string } | null;
+  /** Set when single sign-on (OIDC, e.g. Tinyauth) is turned on with SSO_* env vars. */
+  sso?: { label: string; url: string } | null;
   /** Signed in to Google through the proxy, but nobody here has that email yet. */
   unlinkedEmail: string | null;
   limits: {

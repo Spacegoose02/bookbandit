@@ -67,7 +67,7 @@ export function PeoplePage() {
         <Card title="Grown-ups">
           <ul className="bb-people">
             {grownUps.map((u) => (
-              <GrownUpRow key={u.id} user={u} isMe={u.id === me?.id} onChange={update} />
+              <GrownUpRow key={u.id} user={u} isMe={u.id === me?.id} others={grownUps.filter((o) => o.id !== u.id)} onChange={update} />
             ))}
           </ul>
           <AddGrownUp onAdded={add} />
@@ -422,10 +422,21 @@ function AddKid({ parents, onAdded }: { parents: ProfileCard[]; onAdded: (u: Use
   );
 }
 
-function GrownUpRow({ user, isMe, onChange }: { user: UserView; isMe: boolean; onChange: (u: UserView) => void }) {
+function GrownUpRow({
+  user,
+  isMe,
+  others,
+  onChange,
+}: {
+  user: UserView;
+  isMe: boolean;
+  others: UserView[];
+  onChange: (u: UserView) => void;
+}) {
   const action = useAction();
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [showEmails, setShowEmails] = useState(false);
   const logins = user.identities.map((i) => (i.provider === "tinyauth" ? i.subject : `username ${i.subject}`)).join(", ");
   return (
     <li className={`bb-person${user.disabled ? " is-disabled" : ""}`}>
@@ -460,12 +471,16 @@ function GrownUpRow({ user, isMe, onChange }: { user: UserView; isMe: boolean; o
             {user.disabled ? "Enable" : "Disable"}
           </button>
         )}
+        <button className="bb-btn bb-btn-ghost" aria-expanded={showEmails} onClick={() => setShowEmails((s) => !s)}>
+          Sign-in emails
+        </button>
         {user.identities.some((i) => i.provider === "local") && (
           <button className="bb-btn bb-btn-ghost" onClick={() => setShowPw((s) => !s)}>
             Reset password
           </button>
         )}
       </div>
+      {showEmails && <SignInEmails user={user} others={others} onChange={onChange} />}
       {showPw && (
         <form
           className="bb-inline-form"
@@ -486,6 +501,88 @@ function GrownUpRow({ user, isMe, onChange }: { user: UserView; isMe: boolean; o
       )}
       <ErrorNote error={action.error} />
     </li>
+  );
+}
+
+/** Emails that sign this person in with single sign-on (Tinyauth / Google). */
+function SignInEmails({ user, others, onChange }: { user: UserView; others: UserView[]; onChange: (u: UserView) => void }) {
+  const action = useAction();
+  const [email, setEmail] = useState("");
+  const emails = user.identities.filter((i) => i.provider === "tinyauth");
+  return (
+    <div className="bb-inline-form bb-signin-emails">
+      <p className="bb-muted bb-small">
+        Signing in with Tinyauth (or Google through Tinyauth) with one of these emails opens {user.displayName}'s library.
+        If single sign-on made a separate account for someone who already has a profile, use Move to… there to merge
+        the email into the right profile; the leftover account is turned off.
+      </p>
+      {emails.length > 0 && (
+        <ul className="bb-chip-list">
+          {emails.map((i) => (
+            <li key={i.id} className="bb-chip">
+              {i.subject}
+              {others.length > 0 && (
+                <select
+                  className="bb-input bb-input-small"
+                  aria-label={`Move ${i.subject} to someone else`}
+                  value=""
+                  disabled={action.busy}
+                  onChange={(e) => {
+                    const to = e.target.value;
+                    if (!to) return;
+                    void action.run(async () => {
+                      const r = await adminApi.moveEmail(user.id, i.id, to);
+                      onChange(r.from);
+                      onChange(r.to);
+                    });
+                  }}
+                >
+                  <option value="">Move to…</option>
+                  {others.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.displayName}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                className="bb-link-btn"
+                aria-label={`Remove ${i.subject}`}
+                disabled={action.busy}
+                onClick={() => action.run(async () => onChange(await adminApi.removeIdentity(user.id, i.id)))}
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form
+        className="bb-form-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void action.run(async () => {
+            onChange(await adminApi.linkEmail(user.id, email));
+            setEmail("");
+          });
+        }}
+      >
+        <input
+          className="bb-input"
+          type="email"
+          aria-label={`Add an email for ${user.displayName}`}
+          placeholder="name@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button className="bb-btn" disabled={!/.+@.+/.test(email) || action.busy}>
+          Link email
+        </button>
+      </form>
+      <ErrorNote error={action.error} />
+    </div>
   );
 }
 

@@ -1,7 +1,8 @@
 /**
  * Everything someone sees before they're signed in:
  * - first run: create the family and the first admin
- * - a normal browser: username + password, a Google button when Tinyauth is set up,
+ * - a normal browser: username + password, a "Sign in with Tinyauth" button when single sign-on
+ *   is set up, a Google button when Tinyauth forward auth is set up,
  *   and "Set up this tablet" to pair with a code
  * - a paired family tablet (or "Switch reader"): the "Who's reading?" picker, where kids
  *   tap their picture and sign in with a PIN or a picture sequence
@@ -11,6 +12,24 @@ import { SIGN_IN_PICTURES, type SignInPicture } from "@bookbandit/shared";
 import { ApiError } from "../api/client";
 import { BarnabyEmpty, BarnabyLogo } from "../brand/Barnaby";
 import { authApi, enterApp, PICTURE_EMOJI, type AuthStatus, type Profile } from "./api";
+
+/** What went wrong on the way back from single sign-on (`/?sso_error=…`). */
+const SSO_ERRORS: Record<string, string> = {
+  unlinked: "That account isn't linked to anyone in BookBandit yet. Ask the person who set up BookBandit to add your email on the People page.",
+  setup: "BookBandit isn't set up yet. Open it once to create the family and its first admin.",
+  disabled: "This profile is turned off. Ask the person who set up BookBandit.",
+  device: "This tablet belongs to someone else, so it can't sign you in.",
+  expired: "That sign-in took too long or was started somewhere else. Try again.",
+  denied: "Sign-in was cancelled.",
+  no_email: "Your sign-in didn't share a verified email, so BookBandit can't tell who you are.",
+  provider: "BookBandit couldn't reach the sign-in server. Try again in a minute.",
+  token: "Something went wrong finishing the sign-in. Try again, and ask the admin to check the server log if it keeps happening.",
+};
+
+function ssoErrorFromUrl(): string | null {
+  const code = new URLSearchParams(window.location.search).get("sso_error");
+  return code ? (SSO_ERRORS[code] ?? SSO_ERRORS.token!) : null;
+}
 
 function messageOf(e: unknown): string {
   if (e instanceof ApiError) {
@@ -25,7 +44,15 @@ export function SignIn({ switching = false }: { switching?: boolean }) {
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"auto" | "password" | "pair">("auto");
+  const [mode, setMode] = useState<"auto" | "password" | "pair">(() => (ssoErrorFromUrl() ? "password" : "auto"));
+  const [ssoError] = useState(ssoErrorFromUrl);
+
+  useEffect(() => {
+    if (!ssoError) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("sso_error");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, [ssoError]);
 
   useEffect(() => {
     authApi
@@ -69,7 +96,9 @@ export function SignIn({ switching = false }: { switching?: boolean }) {
           Ask the person who set up BookBandit to add it to your profile.
         </p>
       )}
+      <ErrorLine error={ssoError} />
       <PasswordForm />
+      {status.sso && <SsoButton sso={status.sso} />}
       {status.google && <GoogleButton url={status.google.url} />}
       <div className="bb-auth-links">
         {profiles && (
@@ -108,6 +137,23 @@ function ErrorLine({ error }: { error: string | null }) {
       {error}
     </p>
   ) : null;
+}
+
+function SsoButton({ sso }: { sso: { label: string; url: string } }) {
+  return (
+    <>
+      <div className="bb-auth-or">
+        <span>or</span>
+      </div>
+      <a className="bb-btn bb-btn-big bb-auth-google bb-auth-sso" href={sso.url}>
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="10" width="16" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+        Sign in with {sso.label}
+      </a>
+    </>
+  );
 }
 
 function GoogleButton({ url }: { url: string }) {
@@ -203,7 +249,7 @@ function SetupScreen({ status }: { status: AuthStatus }) {
         </div>
         <label className="bb-field">
           <span>
-            Google email <span className="bb-muted">(optional, for Google sign-in through Tinyauth)</span>
+            Sign-in email <span className="bb-muted">(optional, for single sign-on with Tinyauth or Google)</span>
           </span>
           <input className="bb-input" type="email" value={form.email} onChange={set("email")} placeholder="you@gmail.com" autoComplete="email" />
         </label>
@@ -370,15 +416,16 @@ function WhoIsReading({
         {picked.signIn === "password" && <PasswordForm profile={picked} />}
         {picked.signIn === "google" && (
           <>
-            <p className="bb-auth-note">{picked.displayName} signs in with Google.</p>
+            <p className="bb-auth-note">{picked.displayName} signs in with {status.sso?.label ?? "Google"}.</p>
             {/* On a browser already signed in to Google through Tinyauth, ending the profile session is enough. */}
-            <button
+            {(!status.sso || status.google) && <button
               type="button"
               className="bb-btn bb-btn-primary bb-btn-big bb-auth-submit"
               onClick={() => void authApi.signOut().finally(() => enterApp())}
             >
               Continue with Google
-            </button>
+            </button>}
+            {status.sso && <SsoButton sso={status.sso} />}
             {status.google && <GoogleButton url={status.google.url} />}
           </>
         )}
