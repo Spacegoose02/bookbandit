@@ -21,7 +21,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { userIdentities, users } from "../db/schema.js";
-import { isSecureRequest } from "./plugin.js";
+import { httpError, isSecureRequest } from "./plugin.js";
+import { userView } from "./view.js";
 import { cookie, readCookie, sessionCookie, type SessionSigner } from "./sessions.js";
 
 export interface SsoConfig {
@@ -47,11 +48,12 @@ export interface SsoOptions {
 
 export const SSO_START_PATH = "/api/auth/sso/start";
 export const SSO_CALLBACK_PATH = "/auth/sso/callback";
+export const SSO_LINK_PATH = `${SSO_START_PATH}?link=1`;
 const FLOW_COOKIE = "bb_sso";
 const FLOW_TTL_MS = 10 * 60_000;
 const CLOCK_SKEW_S = 120;
 
-export type SsoErrorCode = "expired" | "denied" | "provider" | "token" | "no_email" | "unlinked" | "disabled" | "device" | "setup";
+export type SsoErrorCode = "expired" | "denied" | "provider" | "token" | "no_email" | "unlinked" | "disabled" | "device" | "setup" | "taken" | "link_signin";
 
 interface Discovery {
   issuer: string;
@@ -67,6 +69,8 @@ interface Flow {
   nonce: string;
   verifier: string;
   exp: number;
+  /** Set when linking: the signed-in person who asked, who gets the email instead of a sign-in. */
+  link?: string;
 }
 
 /** Reads SSO settings from the environment. Returns null (SSO off) unless all four required values are set. */
@@ -173,20 +177,31 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
 
   const secure = (req: FastifyRequest) => isSecureRequest(req, opts.trustedProxies);
 
-  function fail(reply: FastifyReply, req: FastifyRequest, code: SsoErrorCode, detail?: unknown) {
+  function fail(reply: FastifyReply, req: FastifyRequest, code: SsoErrorCode, detail?: unknown, linking = false) {
     if (detail) req.log.warn({ err: detail }, `Single sign-on failed: ${code}`);
     reply.header("set-cookie", cookie(FLOW_COOKIE, "", 0, secure(req)));
-    return reply.redirect(`/?sso_error=${code}`, 303);
+    return reply.redirect(`${linking ? "/settings" : "/"}?sso_error=${code}`, 303);
   }
 
-  app.get(SSO_START_PATH, async (req, reply) => {
+  /** Grown-ups (admins included) may link their own sign-ins; kids never change their own (rule 2). */
+  const canLinkSelf = (req: FastifyRequest) => !!req.reader && req.reader.role !== "kid";
+
+  app.get<{ Querystring: { link?: string } }>(SSO_START_PATH, async (req, reply) => {
+    const linking = req.query.link === "1";
+    if (linking && !canLinkSelf(req)) return fail(reply, req, "link_signin", undefined, true);
     let d: Discovery;
     try {
       d = await discover();
     } catch (e) {
-      return fail(reply, req, "provider", e);
+      return fail(reply, req, "provider", e, linking);
     }
-    const flow: Flow = { state: random(), nonce: random(), verifier: random(), exp: now() + FLOW_TTL_MS };
+    const flow: Flow = {
+      state: random(),
+      nonce: random(),
+      verifier: random(),
+      exp: now() + FLOW_TTL_MS,
+      ...(linking ? { link: req.reader!.userId } : {}),
+    };
     const url = new URL(d.authorization_endpoint);
     url.search = new URLSearchParams({
       response_type: "code",
@@ -206,8 +221,9 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
     const q = req.query;
     const raw = readCookie(req.headers.cookie, FLOW_COOKIE);
     const flow = raw ? sessions.unseal<Flow>(raw) : null;
-    if (q.error) return fail(reply, req, "denied", `${q.error}: ${q.error_description ?? ""}`);
-    if (!flow || flow.exp < now() || !q.state || q.state !== flow.state || !q.code) return fail(reply, req, "expired");
+    const linking = !!flow?.link;
+    if (q.error) return fail(reply, req, "denied", `${q.error}: ${q.error_description ?? ""}`, linking);
+    if (!flow || flow.exp < now() || !q.state || q.state !== flow.state || !q.code) return fail(reply, req, "expired", undefined, linking);
 
     let email: string | undefined;
     let name: string | undefined;
@@ -238,7 +254,7 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
         const info = await getJson<Record<string, unknown>>(d.userinfo_endpoint, { headers: { authorization: `Bearer ${tokens.access_token}` } });
         if (info.sub === claims.sub) profile = info;
       }
-      if (profile.email_verified === false) return fail(reply, req, "no_email");
+      if (profile.email_verified === false) return fail(reply, req, "no_email", undefined, linking);
       email = typeof profile.email === "string" ? profile.email.trim().toLowerCase() : undefined;
       for (const k of ["name", "preferred_username", "given_name"]) {
         if (typeof profile[k] === "string" && (profile[k] as string).trim()) {
@@ -247,9 +263,36 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
         }
       }
     } catch (e) {
-      return fail(reply, req, "token", e);
+      return fail(reply, req, "token", e, linking);
     }
-    if (!email) return fail(reply, req, "no_email");
+    if (!email) return fail(reply, req, "no_email", undefined, linking);
+
+    if (flow.link) {
+      // Still the same person who pressed "Link" (their session cookie came back with them).
+      if (!canLinkSelf(req) || req.reader!.userId !== flow.link) return fail(reply, req, "link_signin", undefined, true);
+      const owner = db
+        .select({ userId: userIdentities.userId })
+        .from(userIdentities)
+        .where(and(eq(userIdentities.provider, "tinyauth"), eq(userIdentities.subject, email)))
+        .get();
+      if (owner && owner.userId !== flow.link) {
+        // The email already opens another account. If that's just the account single sign-on made
+        // on its own (an "adult" with this email as its only sign-in), merge it into this one:
+        // the email moves here and the leftover account is turned off, like People → Move to….
+        const other = db.select().from(users).where(eq(users.id, owner.userId)).get()!;
+        const otherLogins = db.select().from(userIdentities).where(eq(userIdentities.userId, other.id)).all();
+        const throwaway = other.role === "adult" && !other.secretHash && otherLogins.length === 1 && other.householdId === req.reader!.householdId;
+        if (!throwaway) return fail(reply, req, "taken", `${email} belongs to another account`, true);
+        db.transaction((tx) => {
+          tx.update(userIdentities).set({ userId: flow.link! }).where(eq(userIdentities.id, otherLogins[0]!.id)).run();
+          tx.update(users).set({ disabled: true }).where(eq(users.id, other.id)).run();
+        });
+        req.log.info({ from: other.id, to: flow.link }, "Single sign-on email merged into an existing account");
+      }
+      if (!owner) db.insert(userIdentities).values({ userId: flow.link, provider: "tinyauth", subject: email }).run();
+      reply.header("set-cookie", cookie(FLOW_COOKIE, "", 0, secure(req)));
+      return reply.redirect("/settings?sso_linked=1", 303);
+    }
 
     const row = db
       .select({ user: users })
@@ -271,5 +314,20 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
     const { token, expiresAt } = sessions.issue({ u: u.id, h: u.householdId, d: req.device?.id ?? null, m: "sso" });
     reply.header("set-cookie", [cookie(FLOW_COOKIE, "", 0, secure(req)), sessionCookie(token, expiresAt - now(), secure(req))]);
     return reply.redirect("/", 303);
+  });
+
+  /** Unlink one of your own single sign-on emails, keeping at least one way to sign in. */
+  app.delete<{ Params: { id: string } }>("/api/auth/sso/identities/:id", async (req) => {
+    if (!req.reader) throw httpError(401, "Sign in required");
+    if (!canLinkSelf(req)) throw httpError(403, "Ask a grown-up to change how you sign in");
+    const me = db.select().from(users).where(eq(users.id, req.reader.userId)).get()!;
+    const mine = db.select().from(userIdentities).where(eq(userIdentities.userId, me.id)).all();
+    const target = mine.find((i) => i.id === req.params.id && i.provider === "tinyauth");
+    if (!target) throw httpError(404, "Not found");
+    const rest = mine.filter((i) => i.id !== target.id);
+    const canStillSignIn = rest.some((i) => i.provider === "tinyauth") || (rest.some((i) => i.provider === "local") && !!me.secretHash);
+    if (!canStillSignIn) throw httpError(400, "That's your only way to sign in. Set a password or link another email first.");
+    db.delete(userIdentities).where(eq(userIdentities.id, target.id)).run();
+    return userView(db, me);
   });
 }

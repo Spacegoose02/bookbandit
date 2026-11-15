@@ -6,7 +6,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Role } from "@bookbandit/shared";
 import { ApiError, isDemo, request } from "../api/client";
 import { useSession } from "../app/session";
-import { authApi, enterApp } from "./api";
+import { authApi, enterApp, type AuthStatus } from "./api";
+import { SSO_ERRORS } from "./SignIn";
 
 interface FamilyMember {
   id: string;
@@ -79,6 +80,83 @@ function NameForm({
   );
 }
 
+type Identity = NonNullable<AuthStatus["user"]>["identities"][number];
+
+/** Read once: what came back from a "Link Tinyauth" round trip (`?sso_linked=1` or `?sso_error=…`). */
+function linkResultFromUrl(): { ok: boolean; text: string } | null {
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("sso_linked")) return { ok: true, text: "Linked. You can sign in with Tinyauth now." };
+  const code = q.get("sso_error");
+  return code ? { ok: false, text: SSO_ERRORS[code] ?? SSO_ERRORS.token! } : null;
+}
+
+/** Your own Tinyauth sign-ins: link one through the provider, or unlink one. */
+function SingleSignOn() {
+  const [status, setStatus] = useState<AuthStatus | null>(null);
+  const [ids, setIds] = useState<Identity[]>([]);
+  const [result, setResult] = useState(linkResultFromUrl);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (isDemo) return;
+    authApi
+      .status()
+      .then((s) => {
+        setStatus(s);
+        setIds(s.user?.identities ?? []);
+      })
+      .catch(() => setStatus(null));
+    if (new URLSearchParams(window.location.search).has("sso_linked") || new URLSearchParams(window.location.search).has("sso_error")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  const sso = status?.sso;
+  if (!sso?.linkUrl) return null;
+  const emails = ids.filter((i) => i.provider === "tinyauth");
+
+  async function unlink(i: Identity) {
+    setBusy(true);
+    try {
+      const u = await authApi.unlinkSso(i.id);
+      setIds(u.identities);
+      setResult({ ok: true, text: `Unlinked ${i.subject}.` });
+    } catch (e) {
+      setResult({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="bb-account-sso">
+      <h2 className="bb-account-sub">Sign in with {sso.label}</h2>
+      {result && (
+        <p className={result.ok ? "bb-muted" : "bb-auth-error"} role={result.ok ? "status" : "alert"}>
+          {result.text}
+        </p>
+      )}
+      {emails.length > 0 ? (
+        <ul className="bb-account-sso-list">
+          {emails.map((i) => (
+            <li key={i.id}>
+              <span>{i.subject}</span>
+              <button type="button" className="bb-btn" disabled={busy} onClick={() => void unlink(i)}>
+                Unlink
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="bb-muted">Link your {sso.label} account to sign in to this profile with it.</p>
+      )}
+      <a className="bb-btn bb-btn-primary" href={sso.linkUrl}>
+        {emails.length ? `Link another ${sso.label} account` : `Link ${sso.label} account`}
+      </a>
+    </div>
+  );
+}
+
 export function AccountPanel() {
   const { me, updateMe } = useSession();
   const [kids, setKids] = useState<FamilyMember[]>([]);
@@ -111,6 +189,7 @@ export function AccountPanel() {
           updateMe({ displayName });
         }}
       />
+      <SingleSignOn />
       {kids.length > 0 && (
         <div className="bb-account-kids">
           <h2 className="bb-account-sub">Kids' names</h2>

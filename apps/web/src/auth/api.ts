@@ -9,7 +9,9 @@ export interface AuthStatus {
   /** Set when the server knows the Tinyauth login page. */
   google: { url: string } | null;
   /** Set when single sign-on (OIDC, e.g. Tinyauth) is turned on with SSO_* env vars. */
-  sso?: { label: string; url: string } | null;
+  sso?: { label: string; url: string; linkUrl?: string } | null;
+  /** The signed-in person, with how they can sign in. */
+  user?: { id: string; identities: { id: string; provider: "tinyauth" | "local"; subject: string }[] } | null;
   /** Signed in to Google through the proxy, but nobody here has that email yet. */
   unlinkedEmail: string | null;
   limits: {
@@ -45,6 +47,11 @@ export const authApi = {
     post("/api/auth/kid-sign-in", body),
   profiles: () => request<{ profiles: Profile[] }>("/api/auth/profiles").then((r) => r.profiles),
   signOut: () => post("/api/auth/sign-out", {}),
+  unlinkSso: (identityId: string) =>
+    request<{ identities: { id: string; provider: "tinyauth" | "local"; subject: string }[] }>(
+      `/api/auth/sso/identities/${encodeURIComponent(identityId)}`,
+      { method: "DELETE" },
+    ),
   claimDevice: (code: string, name?: string) => post("/api/devices/claim", { code, ...(name ? { name } : {}) }),
 };
 

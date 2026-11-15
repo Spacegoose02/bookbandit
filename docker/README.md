@@ -78,7 +78,13 @@ email nobody uses yet gets a new grown-up account with the "adult" role, so Tiny
 list decides who gets in; set `SSO_AUTO_CREATE=false` to let in only linked emails. If someone who
 already had a profile signed in before their email was linked, open the new account's sign-in
 emails on People and use **Move to…** to put the email on their real profile. The leftover account
-is turned off (delete it from People if it's empty). Only admins can link or move emails.
+is turned off (delete it from People if it's empty). Only admins can link or move emails for other people.
+
+Anyone grown-up can also link their own account: **Settings → Your account → Link Tinyauth
+account** sends them through Tinyauth and adds that email to the profile they're signed in to
+(username/password accounts and the admin included). If single sign-on already made a separate
+account for that email, it's merged in and the leftover is turned off. **Unlink** removes one again,
+as long as another way to sign in is left. Kids can't change their own sign-ins.
 
 Single sign-on talks to Tinyauth directly, so it works without forward auth and `TRUSTED_PROXIES`.
 The older forward-auth setup (`TRUSTED_PROXIES` + `AUTH_HEADER_EMAIL`) still works too, and both use
