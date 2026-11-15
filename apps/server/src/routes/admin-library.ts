@@ -10,7 +10,7 @@
 import type { FastifyInstance } from "fastify";
 import { and, asc, desc, eq, inArray, isNull, like, ne, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { CONTENT_RATINGS } from "@bookbandit/shared";
+import { BOOK_LOCK_FIELDS, CONTENT_RATINGS, type BookLockField } from "@bookbandit/shared";
 import type { Db } from "../db/client.js";
 import {
   aiMessages,
@@ -33,6 +33,8 @@ import {
 import { httpError, requireAdmin } from "../auth/plugin.js";
 import { useAuthErrors } from "../auth/errors.js";
 import { setBookAuthors } from "../library/store.js";
+import { ensureTag } from "../discover/category-store.js";
+import { CURATED_NAMES } from "../discover/taxonomy.js";
 import { collapse, sortTitle } from "../metadata/text.js";
 import { moveAudioToBook } from "../audio/files.js";
 import { hasPendingRating, pendingRatings, settleRatings } from "../ai/review.js";
@@ -91,8 +93,41 @@ export const BookPatch = z
       .optional(),
     authors: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
     rating: z.enum(CONTENT_RATINGS).nullable().optional(),
+    sortTitle: z.string().trim().min(1).max(500).optional(),
+    originalTitle: optText(500),
+    pageCount: z.number().int().min(1).max(100_000).nullable().optional(),
+    /** The book's one series and its number; null takes it out of every series. */
+    series: z
+      .object({ name: z.string().trim().min(1).max(200), position: z.number().min(0).max(100_000).nullable().default(null) })
+      .nullable()
+      .optional(),
+    /** Every category (genre) the book is in, "Fiction" / "Nonfiction" included. Replaces the old list. */
+    categories: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
+    hardcoverId: optText(100),
+    openLibraryId: optText(100),
+    googleBooksId: optText(100),
+    /** The full set of locked fields. Left out, every field sent in this patch gets locked. */
+    locks: z.array(z.enum(BOOK_LOCK_FIELDS)).max(BOOK_LOCK_FIELDS.length).optional(),
   })
   .strict();
+
+/** Lock name for each patch key that is a lockable field. */
+const PATCH_LOCKS: Partial<Record<keyof z.infer<typeof BookPatch>, BookLockField>> = {
+  title: "title",
+  sortTitle: "sortTitle",
+  originalTitle: "originalTitle",
+  subtitle: "subtitle",
+  authors: "authors",
+  series: "series",
+  publishedYear: "publishedYear",
+  publisher: "publisher",
+  isbn13: "isbn13",
+  language: "language",
+  pageCount: "pageCount",
+  rating: "rating",
+  description: "description",
+  categories: "categories",
+};
 
 const MergeBody = z.object({ intoId: z.string().min(1).max(64) }).strict();
 
@@ -134,6 +169,8 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
     return {
       id: b.id,
       title: b.title,
+      sortTitle: b.sortTitle,
+      originalTitle: b.originalTitle,
       subtitle: b.subtitle,
       authors: authorsBy.get(b.id) ?? [],
       description: b.description,
@@ -147,6 +184,10 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
       ratingSource: b.ratingSource,
       approved: b.approved,
       kindleOnly: b.kindleOnly,
+      hardcoverId: b.hardcoverId,
+      openLibraryId: b.openLibraryId,
+      googleBooksId: b.googleBooksId,
+      lockedFields: b.lockedFields ?? [],
       files: filesBy.get(b.id) ?? [],
       addedAt: b.addedAt,
       updatedAt: b.updatedAt,
@@ -254,25 +295,58 @@ export async function adminLibraryRoutes(app: FastifyInstance, opts: { db: Db })
     requireAdmin(req);
     const { id } = IdParams.parse(req.params);
     const body = BookPatch.parse(req.body);
-    loadBook(id);
+    const before = loadBook(id);
     const set: Partial<typeof books.$inferInsert> = { updatedAt: Date.now() };
     if (body.title !== undefined) {
       set.title = collapse(body.title);
-      set.sortTitle = sortTitle(set.title);
+      // The sort title follows the title unless it was set (or locked) by hand.
+      if (body.sortTitle === undefined && !(body.locks ?? before.lockedFields ?? []).includes("sortTitle")) set.sortTitle = sortTitle(set.title);
     }
-    for (const k of ["subtitle", "description", "publisher", "language", "publishedYear", "isbn13"] as const) {
+    if (body.sortTitle !== undefined) set.sortTitle = collapse(body.sortTitle);
+    for (const k of ["subtitle", "originalTitle", "description", "publisher", "language", "publishedYear", "isbn13", "pageCount", "hardcoverId", "openLibraryId", "googleBooksId"] as const) {
       if (body[k] !== undefined) (set as Record<string, unknown>)[k] = body[k];
     }
     if (body.rating !== undefined) {
       set.rating = body.rating;
       set.ratingSource = body.rating ? "admin" : null;
     }
+    const edited = (Object.keys(body) as (keyof typeof body)[]).map((k) => PATCH_LOCKS[k]).filter((f): f is BookLockField => !!f);
+    set.lockedFields = body.locks ?? [...new Set([...(before.lockedFields ?? []), ...edited])];
     db.transaction((tx) => {
       tx.update(books).set(set).where(eq(books.id, id)).run();
       if (body.authors) setBookAuthors(tx, id, body.authors);
+      if (body.series !== undefined) {
+        tx.delete(bookSeries).where(eq(bookSeries.bookId, id)).run();
+        if (body.series) {
+          const name = collapse(body.series.name);
+          let row = tx.select({ id: series.id }).from(series).where(sql`lower(${series.name}) = ${name.toLowerCase()}`).get();
+          if (!row) [row] = tx.insert(series).values({ name }).returning({ id: series.id }).all();
+          tx.insert(bookSeries).values({ bookId: id, seriesId: row!.id, position: body.series.position }).run();
+        }
+      }
+      if (body.categories) {
+        const keep = new Set(body.categories.map((n) => ensureTag(tx, collapse(n), "genre")));
+        const current = tx
+          .select({ id: tags.id })
+          .from(bookTags)
+          .innerJoin(tags, eq(tags.id, bookTags.tagId))
+          .where(and(eq(bookTags.bookId, id), eq(tags.kind, "genre")))
+          .all()
+          .map((t) => t.id);
+        const drop = current.filter((t) => !keep.has(t));
+        if (drop.length) tx.delete(bookTags).where(and(eq(bookTags.bookId, id), inArray(bookTags.tagId, drop))).run();
+        for (const tagId of keep) tx.insert(bookTags).values({ bookId: id, tagId }).onConflictDoNothing().run();
+      }
     });
     if (body.rating !== undefined) settleRatings(db, [id], body.rating);
     return oneBook(id);
+  });
+
+  /** Category names for the book editor: the curated list plus any an admin made or renamed. */
+  app.get("/api/admin/category-names", async (req) => {
+    requireAdmin(req);
+    const made = db.select({ name: tags.name }).from(tags).where(eq(tags.kind, "genre")).all().map((t) => t.name);
+    return { names: [...new Set([...CURATED_NAMES, ...made])].sort((a, b) => a.localeCompare(b)) };
   });
 
   /**

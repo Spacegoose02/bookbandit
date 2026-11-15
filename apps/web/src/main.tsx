@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { BarnabyLauncher } from "./ai/BarnabyLauncher";
 import { SessionProvider } from "./app/session";
+import { BookEditHost } from "./admin/BookEditHost";
 import { BedtimeScreen } from "./kid/Bedtime";
 import "./styles.css";
 
@@ -11,7 +12,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <SessionProvider>
-        <App />
+        <BookEditHost>
+          <App />
+        </BookEditHost>
         <BarnabyLauncher />
         <BedtimeScreen />
       </SessionProvider>

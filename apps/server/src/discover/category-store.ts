@@ -7,7 +7,7 @@
  */
 import { and, eq, inArray, like, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { bookTags, settings, tags } from "../db/schema.js";
+import { books, bookTags, settings, tags } from "../db/schema.js";
 import { categoryAliases, categoryPrefs } from "./schema.js";
 import { AUDIENCE_NAMES, classifySubjects, cleanSubjects, FALLBACK_FICTION, FALLBACK_NAMES, FALLBACK_NONFICTION, subjectKey } from "./taxonomy.js";
 
@@ -69,12 +69,27 @@ function fallbackIds(tx: Tx): string[] {
     .map((r) => r.id);
 }
 
+/** Books among `bookIds` whose categories an admin set by hand: the auto-categorizer leaves them be. */
+export function categoriesLocked(tx: Pick<Db, "select">, bookIds: string[]): Set<string> {
+  if (!bookIds.length) return new Set();
+  return new Set(
+    tx
+      .select({ id: books.id, locked: books.lockedFields })
+      .from(books)
+      .where(inArray(books.id, bookIds))
+      .all()
+      .filter((b) => Array.isArray(b.locked) && b.locked.includes("categories"))
+      .map((b) => b.id),
+  );
+}
+
 /**
  * Files a book under the curated categories its subjects point to. A fallback ("Fiction") is only
  * added to a book with no category yet, and is taken off once a real one is found.
  * Returns how many new links were made.
  */
 export function linkCategories(tx: Tx, bookId: string, subjects: readonly string[]): number {
+  if (categoriesLocked(tx, [bookId]).size) return 0;
   const names = classifySubjects(subjects);
   if (!names.length) return 0;
   // An audience ("Children's Books") isn't a genre: a picture book keeps "Fiction" next to it.
@@ -220,9 +235,12 @@ export function refileFallbacks(tx: Tx): number {
     .where(inArray(bookTags.tagId, fallbackIds))
     .all();
   if (!inFallback.length) return 0;
-  const subjects = subjectsByBook(tx, [...new Set(inFallback.map((r) => r.bookId))]);
+  const bookIds = [...new Set(inFallback.map((r) => r.bookId))];
+  const subjects = subjectsByBook(tx, bookIds);
+  const locked = categoriesLocked(tx, bookIds);
   let moved = 0;
   for (const { bookId, tagId } of inFallback) {
+    if (locked.has(bookId)) continue;
     const current = nameOf.get(tagId)!;
     const names = classifySubjects(subjects.get(bookId) ?? []);
     // No saved subjects: nothing says nonfiction, so a guessed "Nonfiction" becomes "Fiction".
