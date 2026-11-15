@@ -15,7 +15,8 @@ import type { Db } from "../db/client.js";
 import { authors, bookAuthors, bookFiles, books, bookSeries, bookTags, jobs, series, settings, tags } from "../db/schema.js";
 import { httpError, requireAdmin } from "../auth/plugin.js";
 import { useAuthErrors } from "../auth/errors.js";
-import { setBookAuthors } from "../library/store.js";
+import { lockFields, setBookAuthors } from "../library/store.js";
+import type { BookLockField } from "@bookbandit/shared";
 import { BOOK_FORMATS } from "../db/schema.js";
 import type { LookupOptions } from "../metadata/lookup.js";
 import { collapse } from "../metadata/text.js";
@@ -208,6 +209,15 @@ export async function librarianRoutes(app: FastifyInstance, opts: LibrarianRoute
           .map((t) => t.id);
         if (tagIds.length) tx.delete(bookTags).where(and(inArray(bookTags.bookId, ids), inArray(bookTags.tagId, tagIds))).run();
       }
+
+      // What an admin set by hand stays set: refreshes and the auto-categorizer leave it alone.
+      const locks: BookLockField[] = [];
+      if (body.rating !== undefined) locks.push("rating");
+      if (body.language !== undefined) locks.push("language");
+      if (body.authors) locks.push("authors");
+      if (body.series !== undefined) locks.push("series");
+      if (body.tagsAdd?.length || body.tagsRemove?.length) locks.push("categories");
+      lockFields(tx, ids, locks);
     });
 
     let queued = 0;
@@ -448,6 +458,7 @@ export async function librarianRoutes(app: FastifyInstance, opts: LibrarianRoute
     }
     const rel = await setBookCover(db, configRoot, book.id, cover);
     if (!rel) throw httpError(422, "That image is too big or not a supported type");
+    lockFields(db, [book.id], ["cover"]);
     return { book: bookOr404(id) };
   });
 

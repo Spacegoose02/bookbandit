@@ -257,3 +257,27 @@ export const demoApi: Api = {
     // Demo mode doesn't track reading time.
   },
 };
+
+// --- Book editor (admin demo) ---------------------------------------------------
+
+/** A demo book's raw record, for the admin book editor. */
+export function demoBookRecord(id: string): DemoBook | undefined {
+  return BOOKS.find((b) => b.id === id);
+}
+
+/** Applies an admin edit to a demo book, so the book page and cards show it. */
+export function editDemoBook(
+  id: string,
+  patch: Partial<Pick<DemoBook, "title" | "subtitle" | "description" | "publisher" | "language" | "publishedYear" | "pageCount" | "rating">> & {
+    authors?: string[];
+    series?: { name: string; position: number | null } | null;
+  },
+): DemoBook | undefined {
+  const b = BOOKS.find((x) => x.id === id);
+  if (!b) return undefined;
+  const { authors, series, ...rest } = patch;
+  Object.assign(b, rest);
+  if (authors) b.authors = authors.map((name) => ({ id: `a-${name}`, name }));
+  if (series !== undefined) b.series = series ? [{ id: `series:${series.name}`, name: series.name, position: series.position }] : [];
+  return b;
+}

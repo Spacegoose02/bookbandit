@@ -6,7 +6,7 @@ import type { BookMetadata } from "../metadata/types.js";
 import { combineMetadata, lookupOnline, type LookupOptions } from "../metadata/lookup.js";
 import { autoRating, shouldReplaceRating, type RatingSignal } from "../metadata/rating.js";
 import { downloadCover, saveCover } from "./covers.js";
-import { addGenreTags, bookFieldsFrom, filePathsForBook, fillGaps, setBookAuthors, setBookSeries } from "./store.js";
+import { addGenreTags, bookFieldsFrom, filePathsForBook, fillGaps, lockedFields, setBookAuthors, setBookSeries, withoutLocked } from "./store.js";
 
 export interface EnrichInput {
   db: Db;
@@ -47,6 +47,7 @@ export async function enrichBook(input: EnrichInput): Promise<EnrichResult> {
   const maturity = matches.find((m) => m.provider === "google")?.maturityRating;
   const rating = autoRating({ relPaths: filePathsForBook(db, bookId), metadata: combined, maturity });
 
+  const locked = lockedFields(db, bookId);
   db.transaction((tx) => {
     const fields = fillGaps(book, bookFieldsFrom(combined));
     // Title/sortTitle came from the file or the owner; never overwrite them from a provider.
@@ -61,16 +62,18 @@ export async function enrichBook(input: EnrichInput): Promise<EnrichResult> {
       fields.rating = rating.rating;
       fields.ratingSource = rating.source;
     }
-    if (Object.keys(fields).length) {
-      tx.update(books).set({ ...fields, updatedAt: Date.now() }).where(eq(books.id, bookId)).run();
+    // An admin's locked fields stay as they are, even when empty.
+    const allowed = withoutLocked(fields, locked);
+    if (Object.keys(allowed).length) {
+      tx.update(books).set({ ...allowed, updatedAt: Date.now() }).where(eq(books.id, bookId)).run();
     }
-    if (!currentAuthors.length && combined.authors?.length) setBookAuthors(tx, bookId, combined.authors);
+    if (!currentAuthors.length && combined.authors?.length && !locked.has("authors")) setBookAuthors(tx, bookId, combined.authors);
     const hasSeries = tx.select().from(bookSeries).where(eq(bookSeries.bookId, bookId)).get();
-    if (!hasSeries && combined.series) setBookSeries(tx, bookId, combined.series, combined.seriesPosition);
+    if (!hasSeries && combined.series && !locked.has("series")) setBookSeries(tx, bookId, combined.series, combined.seriesPosition);
     addGenreTags(tx, bookId, combined.subjects);
   });
 
-  if (!book.coverPath) {
+  if (!book.coverPath && !locked.has("cover")) {
     const fetchFn = input.lookup.fetch ?? fetch;
     for (const url of matches.map((m) => m.coverUrl).filter((u): u is string => !!u)) {
       try {

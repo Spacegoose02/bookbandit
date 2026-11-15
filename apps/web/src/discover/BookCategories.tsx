@@ -6,10 +6,11 @@ import "./discover.css";
 type BookCats = Awaited<ReturnType<typeof discoverApi.bookCategories>>;
 
 /** A book's categories (and whether it's a cookbook), for the book page. */
-export function useBookCategories(bookId: string | null): BookCats | null {
+/** `version`: bump to load again (after the book was edited). */
+export function useBookCategories(bookId: string | null, version = 0): BookCats | null {
   const [cats, setCats] = useState<BookCats | null>(null);
   useEffect(() => {
-    setCats(null);
+    if (!version) setCats(null);
     if (!bookId) return;
     let live = true;
     discoverApi
@@ -19,7 +20,7 @@ export function useBookCategories(bookId: string | null): BookCats | null {
     return () => {
       live = false;
     };
-  }, [bookId]);
+  }, [bookId, version]);
   return cats;
 }
 

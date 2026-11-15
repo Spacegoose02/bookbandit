@@ -308,9 +308,11 @@ function applyOne(
 ): string[] {
   const conflicts: string[] = [];
   const replace = opts.overwrite === "calibre";
+  // Fields an admin locked in the book editor keep their value, whichever side wins.
+  const locked = new Set<string>(current.lockedFields ?? []);
   const set: Partial<typeof books.$inferInsert> = {};
   const field = <K extends keyof typeof books.$inferInsert>(key: K, label: string, value: (typeof books.$inferInsert)[K] | null | undefined) => {
-    if (value == null || value === "") return;
+    if (value == null || value === "" || locked.has(key)) return;
     const cur = current[key as keyof typeof current];
     if (cur == null || cur === "") set[key] = value;
     else if (differs(cur, value)) {
@@ -339,7 +341,7 @@ function applyOne(
   }
 
   // Authors
-  if (b.authors.length) {
+  if (b.authors.length && !locked.has("authors")) {
     const have = authorsOf(tx, current.id);
     if (!have.length) setBookAuthors(tx, current.id, b.authors);
     else if (have.join("|").toLowerCase() !== b.authors.join("|").toLowerCase()) {
@@ -349,7 +351,7 @@ function applyOne(
   }
 
   // Series: Calibre's is the family's curated one; admin-managed series in Bookbandit are kept.
-  if (b.series) {
+  if (b.series && !locked.has("series")) {
     const links = tx
       .select({ seriesId: bookSeries.seriesId, name: series.name, position: bookSeries.position, adminManaged: series.adminManaged })
       .from(bookSeries)
@@ -388,7 +390,7 @@ function applyOne(
   if (b.uuid) setIdentifier(tx, current.id, "calibre", b.uuid);
 
   // Cover: Calibre keeps cover.jpg next to the book files.
-  if (opts.covers && b.hasCover && opts.libraryDir && (!current.coverPath || replace)) {
+  if (opts.covers && b.hasCover && opts.libraryDir && (!current.coverPath || replace) && !locked.has("cover")) {
     const abs = join(opts.libraryDir, b.path, "cover.jpg");
     report.stat("covers");
     const bookId = current.id;

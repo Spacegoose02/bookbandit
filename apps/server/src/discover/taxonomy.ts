@@ -45,7 +45,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
   { name: "Short Stories", any: /short stor|antholog/ },
   { name: "Poetry", any: /poetry|poems|\bpoets?\b|\bverse\b|nursery rhymes/ },
   { name: "Plays & Drama", any: /\bdrama\b|\bplays\b|theater|theatre|shakespeare/ },
-  { name: "Comics & Graphic Novels", any: /comics?\b|graphic novels?|manga|superheroes?|cartoons?/ },
+  { name: "Comics & Graphic Novels", fictionGenre: true, any: /comics?\b|graphic novels?|manga|superheroes?|cartoons?/ },
 
   // Nonfiction
   { name: "Biography & Memoir", any: /biograph|memoir|autobiograph|personal narratives?/ },
@@ -71,10 +71,16 @@ export const CATEGORY_RULES: CategoryRule[] = [
   { name: "Education & Reference", nonfiction: /education|teaching|study aids|reference|dictionar|encyclopedi|language|grammar|test prep|textbooks?|literary criticism|writing|authorship/ },
 ];
 
-/** Where a book with subjects but no rule match goes. */
+/**
+ * Where a book with subjects but no rule match goes. Only subjects that say so ("Nonfiction",
+ * "Juvenile literature", "Handbooks") put a book in Nonfiction; a book nothing places is a novel
+ * far more often than not (subjects like "Women", "Small towns", "Families"), so it goes to Fiction.
+ */
 export const FALLBACK_FICTION = "Fiction";
 export const FALLBACK_NONFICTION = "Nonfiction";
 export const FALLBACK_NAMES = [FALLBACK_FICTION, FALLBACK_NONFICTION];
+/** Who a book is for ("Children's Books"): sits next to a genre or a fallback, never instead of one. */
+export const AUDIENCE_NAMES: string[] = CATEGORY_RULES.filter((r) => r.audience).map((r) => r.name);
 
 /** Every name the rules can produce, for spotting curated categories among old tags. */
 export const CURATED_NAMES: string[] = [...CATEGORY_RULES.map((r) => r.name), ...FALLBACK_NAMES];
@@ -114,7 +120,7 @@ function norm(subject: string): string {
     .trim();
 }
 
-const SAYS_NONFICTION = /non.?fiction|biograph|memoir|autobiograph|personal narratives?|true stor|history and criticism|study and teaching|handbooks|manuals|guidebooks?|cookbooks?/;
+const SAYS_NONFICTION = /non.?fiction|juvenile literature|biograph|memoir|autobiograph|personal narratives?|true stor|history and criticism|study and teaching|handbooks|manuals|guidebooks?|cookbooks?/;
 const SAYS_FICTION = /(^|[^n-])fiction|\bnovels?\b|\bstories\b|fairy tales|picture books?/;
 
 /** Whether the subjects say "fiction", "nonfiction", or nothing either way. */
@@ -172,13 +178,14 @@ export function classifySubjects(subjects: readonly string[], opts: ClassifyOpti
   const rules = new Map(CATEGORY_RULES.map((r) => [r.name, r]));
   const genres = byScore.filter(([n]) => !rules.get(n)!.audience).slice(0, max).map(([n]) => n);
   const audience = byScore.filter(([n]) => rules.get(n)!.audience).slice(0, 1).map(([n]) => n);
-  if (!genres.length) genres.push(isFiction || audience.length ? FALLBACK_FICTION : FALLBACK_NONFICTION);
+  if (!genres.length) genres.push(signal === "nonfiction" ? FALLBACK_NONFICTION : FALLBACK_FICTION);
   return [...audience, ...genres];
 }
 
 /**
  * Raw subjects worth keeping as tags: drops provider noise ("nyt:…", "Accessible book", overly
- * long strings) and near-duplicates, keeping the first spelling.
+ * long strings) and near-duplicates, keeping the first spelling. "Fiction" and "Nonfiction" are
+ * kept: re-filing a book from its saved subjects needs them to tell a novel from a handbook.
  */
 export function cleanSubjects(subjects: readonly string[] | undefined, max = 12): string[] {
   const seen = new Set<string>();
@@ -186,7 +193,7 @@ export function cleanSubjects(subjects: readonly string[] | undefined, max = 12)
   for (const s of subjects ?? []) {
     const name = (s ?? "").replace(/\s+/g, " ").trim();
     if (!name || name.length > 40 || /[:=]/.test(name)) continue;
-    if (/^(fiction|general|nonfiction|non-fiction|accessible book|protected daisy|in library|lending library|overdrive|ebooks?|large type books)$/i.test(name)) continue;
+    if (/^(general|accessible book|protected daisy|in library|lending library|overdrive|ebooks?|large type books)$/i.test(name)) continue;
     const key = subjectKey(name);
     if (!key || seen.has(key)) continue;
     seen.add(key);
