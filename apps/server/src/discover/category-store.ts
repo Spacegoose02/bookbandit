@@ -5,16 +5,17 @@
  * Nothing here removes a book from a category it was in, except the "Fiction" / "Nonfiction"
  * fallback once a real category is found. Merging moves every book link before the old tag goes.
  */
-import { and, eq, inArray, like, sql } from "drizzle-orm";
+import { and, eq, inArray, like, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { bookTags, settings, tags } from "../db/schema.js";
 import { categoryAliases, categoryPrefs } from "./schema.js";
-import { classifySubjects, cleanSubjects, FALLBACK_NAMES, subjectKey } from "./taxonomy.js";
+import { AUDIENCE_NAMES, classifySubjects, cleanSubjects, FALLBACK_FICTION, FALLBACK_NAMES, FALLBACK_NONFICTION, subjectKey } from "./taxonomy.js";
 
 type Tx = Pick<Db, "select" | "insert" | "update" | "delete">;
 type Kind = (typeof tags.$inferSelect)["kind"];
 
-export const TAXONOMY_VERSION = 1;
+/** 1: curated categories. 2: books guessed into "Nonfiction" re-filed (see refileFallbacks). */
+export const TAXONOMY_VERSION = 2;
 const VERSION_KEY = "categories.taxonomy";
 const MIN_BOOKS_KEY = "categories.minBooks";
 export const DEFAULT_MIN_BOOKS = 3;
@@ -76,7 +77,8 @@ function fallbackIds(tx: Tx): string[] {
 export function linkCategories(tx: Tx, bookId: string, subjects: readonly string[]): number {
   const names = classifySubjects(subjects);
   if (!names.length) return 0;
-  const real = names.filter((n) => !FALLBACK_NAMES.includes(n));
+  // An audience ("Children's Books") isn't a genre: a picture book keeps "Fiction" next to it.
+  const real = names.filter((n) => !FALLBACK_NAMES.includes(n) && !AUDIENCE_NAMES.includes(n));
   const fallbacks = fallbackIds(tx);
   let added = 0;
   if (!real.length) {
@@ -84,7 +86,7 @@ export function linkCategories(tx: Tx, bookId: string, subjects: readonly string
       .select({ id: tags.id })
       .from(bookTags)
       .innerJoin(tags, eq(tags.id, bookTags.tagId))
-      .where(and(eq(bookTags.bookId, bookId), eq(tags.kind, "genre")))
+      .where(and(eq(bookTags.bookId, bookId), eq(tags.kind, "genre"), notInArray(tags.name, AUDIENCE_NAMES)))
       .get();
     if (hasCategory) return 0;
   }
@@ -197,9 +199,48 @@ function subjectsByBook(tx: Tx, bookIds?: string[]): Map<string, string[]> {
   return out;
 }
 
+/**
+ * Re-files books that sit only in the "Fiction" / "Nonfiction" fallback. Before taxonomy v2, a book
+ * no rule placed went to Nonfiction unless a subject said "fiction", and "Fiction" itself was never
+ * saved as a subject, so novels re-filed from saved subjects (the v1 upgrade, Rebuild) all landed
+ * there. Each such book is classified again and moved if the answer changed. Returns books moved.
+ */
+export function refileFallbacks(tx: Tx): number {
+  const fallbacks = tx
+    .select({ id: tags.id, name: tags.name })
+    .from(tags)
+    .where(and(eq(tags.kind, "genre"), inArray(tags.name, FALLBACK_NAMES)))
+    .all();
+  if (!fallbacks.length) return 0;
+  const fallbackIds = fallbacks.map((f) => f.id);
+  const nameOf = new Map(fallbacks.map((f) => [f.id, f.name]));
+  const inFallback = tx
+    .select({ bookId: bookTags.bookId, tagId: bookTags.tagId })
+    .from(bookTags)
+    .where(inArray(bookTags.tagId, fallbackIds))
+    .all();
+  if (!inFallback.length) return 0;
+  const subjects = subjectsByBook(tx, [...new Set(inFallback.map((r) => r.bookId))]);
+  let moved = 0;
+  for (const { bookId, tagId } of inFallback) {
+    const current = nameOf.get(tagId)!;
+    const names = classifySubjects(subjects.get(bookId) ?? []);
+    // No saved subjects: nothing says nonfiction, so a guessed "Nonfiction" becomes "Fiction".
+    const wanted = names.length ? names : [current === FALLBACK_NONFICTION ? FALLBACK_FICTION : current];
+    for (const name of wanted) link(tx, bookId, ensureTag(tx, name, "genre"));
+    const real = wanted.some((n) => !FALLBACK_NAMES.includes(n) && !AUDIENCE_NAMES.includes(n));
+    if (real || !wanted.includes(current))
+      tx.delete(bookTags).where(and(eq(bookTags.bookId, bookId), eq(bookTags.tagId, tagId))).run();
+    if (!wanted.includes(current)) moved++;
+  }
+  return moved;
+}
+
 export interface RebuildReport {
   books: number;
   linked: number;
+  /** Books moved out of a wrong "Fiction" / "Nonfiction" guess. */
+  refiled: number;
 }
 
 /** Re-files every book from its subject tags (only adds; admin choices and aliases are respected). */
@@ -208,7 +249,7 @@ export function rebuildCategories(db: Db): RebuildReport {
     const bySubject = subjectsByBook(tx);
     let linked = 0;
     for (const [bookId, subjects] of bySubject) linked += linkCategories(tx, bookId, subjects);
-    return { books: bySubject.size, linked };
+    return { books: bySubject.size, linked, refiled: refileFallbacks(tx) };
   });
 }
 
@@ -219,54 +260,26 @@ export interface UpgradeReport {
   merged: number;
   /** New book → category links. */
   linked: number;
+  /** Books moved out of a wrong "Fiction" / "Nonfiction" guess (v2). */
+  refiled: number;
 }
 
 /**
  * One-time clean-up for libraries scanned before categories were curated: every old `genre` tag
  * becomes a `subject` (near-duplicates merged), then each book is filed under curated categories
- * from its subjects. Book links are moved, never dropped.
+ * from its subjects. Book links are moved, never dropped, except a wrong "Fiction" / "Nonfiction"
+ * guess (v2, refileFallbacks).
  * Runs once (tracked in settings); returns null when there was nothing to do.
  */
 export function upgradeCategories(db: Db, now = Date.now()): UpgradeReport | null {
   const done = db.select({ value: settings.value }).from(settings).where(eq(settings.key, VERSION_KEY)).get()?.value;
   if (typeof done === "number" && done >= TAXONOMY_VERSION) return null;
+  const from = typeof done === "number" ? done : 0;
   const report = db.transaction((tx) => {
-    const r: UpgradeReport = { subjects: 0, merged: 0, linked: 0 };
-    // 1. Every old genre tag was a raw subject: keep it as one. Curated categories are made fresh
-    //    in step 3, so a fiction book with the subject "History" lands in Historical Fiction.
-    const oldGenres = tx.select().from(tags).where(eq(tags.kind, "genre")).all();
-    for (const t of oldGenres) {
-      const clash = tx.select({ id: tags.id }).from(tags).where(and(eq(tags.name, t.name), eq(tags.kind, "subject"))).get();
-      if (clash) mergeTag(tx, t.id, clash.id);
-      else tx.update(tags).set({ kind: "subject" }).where(eq(tags.id, t.id)).run();
-      r.subjects++;
-    }
-
-    // 2. Near-duplicate subjects ("Fantasy fiction"/"fantasy fiction", "Dragon"/"Dragons") become one.
-    const subjects = tx
-      .select({ id: tags.id, name: tags.name, n: sql<number>`(select count(*) from book_tags where tag_id = ${tags.id})` })
-      .from(tags)
-      .where(eq(tags.kind, "subject"))
-      .all();
-    const groups = new Map<string, typeof subjects>();
-    for (const s of subjects) {
-      const key = subjectKey(s.name);
-      groups.set(key, [...(groups.get(key) ?? []), s]);
-    }
-    for (const group of groups.values()) {
-      if (group.length < 2) continue;
-      // Keep the most used spelling, preferring one that starts with a capital.
-      group.sort((a, b) => b.n - a.n || Number(/^[A-Z]/.test(b.name)) - Number(/^[A-Z]/.test(a.name)));
-      for (const dupe of group.slice(1)) {
-        // Same key, so no alias is needed: ensureTag finds the survivor by key.
-        moveLinks(tx, dupe.id, group[0]!.id);
-        tx.delete(tags).where(eq(tags.id, dupe.id)).run();
-        r.merged++;
-      }
-    }
-
-    // 3. File every book under curated categories from its subjects.
-    for (const [bookId, names] of subjectsByBook(tx)) r.linked += linkCategories(tx, bookId, names);
+    const r: UpgradeReport = { subjects: 0, merged: 0, linked: 0, refiled: 0 };
+    if (from < 1) upgradeToCurated(tx, r);
+    // 4. v2: books guessed into "Nonfiction" (or "Fiction") are classified again with the fixed rules.
+    r.refiled = refileFallbacks(tx);
 
     tx.insert(settings)
       .values({ key: VERSION_KEY, value: TAXONOMY_VERSION, updatedAt: now })
@@ -275,4 +288,43 @@ export function upgradeCategories(db: Db, now = Date.now()): UpgradeReport | nul
     return r;
   });
   return report;
+}
+
+/** v1: old per-subject genre tags become subjects, and every book is filed under curated categories. */
+function upgradeToCurated(tx: Tx, r: UpgradeReport): void {
+  // 1. Every old genre tag was a raw subject: keep it as one. Curated categories are made fresh
+  //    in step 3, so a fiction book with the subject "History" lands in Historical Fiction.
+  const oldGenres = tx.select().from(tags).where(eq(tags.kind, "genre")).all();
+  for (const t of oldGenres) {
+    const clash = tx.select({ id: tags.id }).from(tags).where(and(eq(tags.name, t.name), eq(tags.kind, "subject"))).get();
+    if (clash) mergeTag(tx, t.id, clash.id);
+    else tx.update(tags).set({ kind: "subject" }).where(eq(tags.id, t.id)).run();
+    r.subjects++;
+  }
+
+  // 2. Near-duplicate subjects ("Fantasy fiction"/"fantasy fiction", "Dragon"/"Dragons") become one.
+  const subjects = tx
+    .select({ id: tags.id, name: tags.name, n: sql<number>`(select count(*) from book_tags where tag_id = ${tags.id})` })
+    .from(tags)
+    .where(eq(tags.kind, "subject"))
+    .all();
+  const groups = new Map<string, typeof subjects>();
+  for (const s of subjects) {
+    const key = subjectKey(s.name);
+    groups.set(key, [...(groups.get(key) ?? []), s]);
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    // Keep the most used spelling, preferring one that starts with a capital.
+    group.sort((a, b) => b.n - a.n || Number(/^[A-Z]/.test(b.name)) - Number(/^[A-Z]/.test(a.name)));
+    for (const dupe of group.slice(1)) {
+      // Same key, so no alias is needed: ensureTag finds the survivor by key.
+      moveLinks(tx, dupe.id, group[0]!.id);
+      tx.delete(tags).where(eq(tags.id, dupe.id)).run();
+      r.merged++;
+    }
+  }
+
+  // 3. File every book under curated categories from its subjects.
+  for (const [bookId, names] of subjectsByBook(tx)) r.linked += linkCategories(tx, bookId, names);
 }

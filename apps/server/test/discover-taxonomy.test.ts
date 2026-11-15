@@ -49,6 +49,19 @@ describe("category taxonomy", () => {
     expect(classifySubjects([])).toEqual([]);
   });
 
+  it("only puts a book in Nonfiction when its subjects say so", () => {
+    // Novels whose subjects match no genre used to be guessed into Nonfiction.
+    expect(classifySubjects(["Women", "Small towns", "Contemporary"])).toEqual(["Fiction"]);
+    expect(classifySubjects(["Families", "Large type books"])).toEqual(["Fiction"]);
+    // A comic is fiction, so "Dogs" no longer files it under Home & Garden.
+    expect(classifySubjects(["Dogs", "Superheroes"])).toEqual(["Comics & Graphic Novels"]);
+    expect(classifySubjects(["Juvenile Fiction"])).toEqual(["Children's Books", "Fiction"]);
+    // Real nonfiction still gets there.
+    expect(classifySubjects(["Nonfiction", "Ireland"])).toEqual(["Nonfiction"]);
+    expect(classifySubjects(["Juvenile Nonfiction"])).toEqual(["Children's Books", "Nonfiction"]);
+    expect(classifySubjects(["Arctic regions -- Juvenile literature"])).toEqual(["Children's Books", "Nonfiction"]);
+  });
+
   it("reads fiction or nonfiction from the subjects", () => {
     expect(fictionSignal(["Juvenile Nonfiction", "Animals"])).toBe("nonfiction");
     expect(fictionSignal(["Detective and mystery stories"])).toBe("fiction");
@@ -58,9 +71,11 @@ describe("category taxonomy", () => {
   });
 
   it("drops noise and near-duplicates from the subjects it keeps", () => {
-    expect(cleanSubjects(["Fiction", "nyt:hardcover-fiction=2001", "Accessible book", "Dragons", "dragon", "Magic"])).toEqual([
+    expect(cleanSubjects(["General", "nyt:hardcover-fiction=2001", "Accessible book", "Dragons", "dragon", "Magic"])).toEqual([
       "Dragons",
       "Magic",
     ]);
+    // Kept so a book re-filed from its saved subjects still knows it is a novel.
+    expect(cleanSubjects(["Fiction", "Nonfiction"])).toEqual(["Fiction", "Nonfiction"]);
   });
 });

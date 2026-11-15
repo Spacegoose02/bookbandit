@@ -73,7 +73,7 @@ export async function categoryRoutes(app: FastifyInstance, opts: { db: Db }) {
   // Libraries scanned before categories were curated: turn the old per-subject categories into
   // subjects and file every book under the curated list. Once, and without dropping any book link.
   const upgraded = upgradeCategories(db);
-  if (upgraded && (upgraded.subjects || upgraded.linked)) app.log.info({ categories: upgraded }, "categories: tidied old genre tags");
+  if (upgraded && (upgraded.subjects || upgraded.linked || upgraded.refiled)) app.log.info({ categories: upgraded }, "categories: tidied old genre tags");
 
   app.get("/api/categories", async (req) => {
     const reader = requireReader(req);
