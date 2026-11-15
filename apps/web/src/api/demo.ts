@@ -6,6 +6,7 @@
 import { locatorPercent, ratingRank, UNRATED_FALLBACK, type ContentRating, type ProgressUpdate } from "@bookbandit/shared";
 import type { Api } from "./client";
 import type { Bookmark, BookDetail, BookSummary, Me, NewBookmark, Page, ProgressRecord, Shelf } from "./types";
+import { newId } from "../app/uuid";
 
 const ADULT: Me = {
   id: "u-adult",
@@ -244,7 +245,7 @@ export const demoApi: Api = {
   },
   async addBookmark(nb: NewBookmark) {
     const all = store.get<Bookmark[]>(`bb-demo-bookmarks-${who().id}`, []);
-    const b: Bookmark = { ...nb, id: nb.id ?? crypto.randomUUID(), createdAt: Date.now(), deletedAt: null };
+    const b: Bookmark = { ...nb, id: nb.id ?? newId(), createdAt: Date.now(), deletedAt: null };
     store.set(`bb-demo-bookmarks-${who().id}`, [...all, b]);
     return b;
   },

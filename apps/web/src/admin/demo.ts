@@ -18,6 +18,7 @@ import type {
   UnratedBook,
   UserView,
 } from "./api";
+import { newId } from "../app/uuid";
 
 const now = Date.UTC(2026, 10, 14, 2, 0);
 const H = 3_600_000;
@@ -373,7 +374,7 @@ export const demoAdminApi: AdminApi = {
     }),
   async addPerson(p) {
     const u = user({
-      id: crypto.randomUUID(),
+      id: newId(),
       displayName: p.displayName,
       role: p.role,
       birthYear: p.birthYear ?? null,
@@ -409,7 +410,7 @@ export const demoAdminApi: AdminApi = {
   devices: () => delay(devices),
   async startPairing(name, userId) {
     const code = "KQ7M-4XRT";
-    devices = [...devices, { id: crypto.randomUUID(), name, userId, lastSeenAt: null, revokedAt: null, createdAt: Date.now() }];
+    devices = [...devices, { id: newId(), name, userId, lastSeenAt: null, revokedAt: null, createdAt: Date.now() }];
     return delay({ pairingId: "p1", code, expiresAt: Date.now() + 10 * 60_000, qr: `bookbandit://pair?server=${encodeURIComponent(location.origin)}&code=${code}` });
   },
   async updateDevice(id, patch) {

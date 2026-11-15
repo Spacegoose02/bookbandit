@@ -3,6 +3,7 @@
  * screenshots. Kept in memory; a reload starts over.
  */
 import type { HouseholdPerson, ImportJob, ImportReport, ImportRequest, ImportsApi, PastImport, ReportItem } from "./api";
+import { newId } from "../app/uuid";
 
 const delay = <T>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), ms));
 const now = Date.UTC(2026, 10, 14, 4, 0);
@@ -125,9 +126,9 @@ const past: PastImport[] = [
 
 export const demoImportsApi: ImportsApi = {
   people: () => delay({ items: people }),
-  upload: (file) => delay({ uploadId: crypto.randomUUID(), name: file.name, size: file.size }, 300),
+  upload: (file) => delay({ uploadId: newId(), name: file.name, size: file.size }, 300),
   async start(body) {
-    const id = crypto.randomUUID();
+    const id = newId();
     const label = `${body.dryRun ? "Dry run" : "Import"}: ${body.source}`;
     jobs.set(id, { id, source: body.source, dryRun: body.dryRun, label, status: "running", progress: 0.1, error: null, createdAt: Date.now(), finishedAt: null, report: reportFor(body), polls: 0 });
     return delay({ jobId: id });
