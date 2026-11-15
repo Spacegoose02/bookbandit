@@ -9,7 +9,7 @@ export interface AuthStatus {
   /** Set when the server knows the Tinyauth login page. */
   google: { url: string } | null;
   /** Set when single sign-on (OIDC, e.g. Tinyauth) is turned on with SSO_* env vars. */
-  sso?: { label: string; url: string; linkUrl?: string } | null;
+  sso?: { label: string; url: string; linkUrl?: string; showOnSignIn?: boolean } | null;
   /** The signed-in person, with how they can sign in. */
   user?: { id: string; identities: { id: string; provider: "tinyauth" | "local"; subject: string }[] } | null;
   /** Signed in to Google through the proxy, but nobody here has that email yet. */

@@ -27,9 +27,9 @@ const Env = z.object({
   GOOGLE_SIGN_IN_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   SESSION_SECRET: z.string().min(32).optional(),
   /**
-   * Single sign-on (OpenID Connect, e.g. Tinyauth). All four of PUBLIC_URL, SSO_ISSUER,
-   * SSO_CLIENT_ID and SSO_CLIENT_SECRET turn it on; the provider's redirect URI is
-   * PUBLIC_URL + /auth/sso/callback. SSO_LABEL is the button text ("Sign in with <label>").
+   * Single sign-on (OpenID Connect, e.g. Tinyauth). Usually set in Admin → Connections; these env
+   * vars fill in anything left empty there. SSO_ISSUER + SSO_CLIENT_ID + SSO_CLIENT_SECRET turn it
+   * on; the provider's redirect URI is PUBLIC_URL (or the address in use) + /auth/sso/callback.
    * New emails get an "adult" account unless SSO_AUTO_CREATE=false.
    */
   PUBLIC_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),

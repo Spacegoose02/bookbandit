@@ -2,7 +2,7 @@ import { createSign, generateKeyPairSync, type KeyObject } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { family, type Family } from "./helpers.js";
-import { userIdentities, users } from "../src/db/schema.js";
+import { settings, userIdentities, users } from "../src/db/schema.js";
 
 const ISSUER = "https://auth.example.com";
 const SITE = "https://books.example.com";
@@ -119,6 +119,7 @@ describe("single sign-on (OIDC)", () => {
       label: "Tinyauth",
       url: "/api/auth/sso/start",
       linkUrl: "/api/auth/sso/start?link=1",
+      showOnSignIn: true,
     });
 
     const res = await signIn(p);
@@ -341,5 +342,108 @@ describe("linking your own account to Tinyauth", () => {
     const kidId = f.db.select().from(userIdentities).where(eq(userIdentities.subject, "emma@example.com")).get()!.id;
     const kid = await f.app.inject({ method: "DELETE", url: `/api/auth/sso/identities/${kidId}`, headers: f.as("kid") });
     expect(kid.statusCode).toBe(403);
+  });
+});
+
+describe("single sign-on set up in Admin → Connections", () => {
+  const SAVE = {
+    label: "Family login",
+    issuer: `${ISSUER}/`,
+    clientId: "bookbandit",
+    clientSecret: "s3cret",
+    publicUrl: "",
+    scopes: "groups, openid",
+    autoCreate: false,
+    showOnSignIn: false,
+  };
+
+  it("turns on from the browser without a restart, never shows the secret, and is admin-only", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } });
+    expect((await f.app.inject({ method: "GET", url: "/api/auth/status" })).json().sso).toBeNull();
+
+    const denied = await f.app.inject({ method: "PUT", url: "/api/admin/settings/sso", headers: f.as("parent"), payload: SAVE });
+    expect(denied.statusCode).toBe(403);
+    expect((await f.app.inject({ method: "GET", url: "/api/admin/settings/sso", headers: f.as("adult") })).statusCode).toBe(403);
+
+    const saved = await f.app.inject({
+      method: "PUT",
+      url: "/api/admin/settings/sso",
+      headers: { ...f.as("admin"), host: "books.lan:8080" },
+      payload: SAVE,
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.body).not.toContain("s3cret");
+    expect(saved.json()).toMatchObject({
+      active: true,
+      label: "Family login",
+      issuer: ISSUER,
+      hasClientSecret: true,
+      scopes: "groups",
+      autoCreate: false,
+      showOnSignIn: false,
+      callbackUrl: "http://books.lan:8080/auth/sso/callback",
+    });
+    const raw = JSON.stringify(f.db.select().from(settings).where(eq(settings.key, "auth.sso")).get());
+    expect(raw).not.toContain("s3cret"); // sealed at rest
+
+    expect((await f.app.inject({ method: "GET", url: "/api/auth/status" })).json().sso).toMatchObject({
+      label: "Family login",
+      showOnSignIn: false,
+    });
+
+    // Works straight away, asks for the extra scope, and respects "don't create accounts".
+    const start = await f.app.inject({ method: "GET", url: "/api/auth/sso/start", headers: { host: "books.lan:8080" } });
+    const to = new URL(start.headers.location as string);
+    expect(to.searchParams.get("scope")).toBe("openid email profile groups");
+    expect(to.searchParams.get("redirect_uri")).toBe("http://books.lan:8080/auth/sso/callback");
+    p.state.nonce = to.searchParams.get("nonce")!;
+    p.state.email = "stranger@example.com";
+    const flow = cookieOf(start.headers["set-cookie"], "bb_sso")!;
+    const cb = await f.app.inject({
+      method: "GET",
+      url: `/auth/sso/callback?code=abc&state=${to.searchParams.get("state")}`,
+      headers: { cookie: flow, host: "books.lan:8080" },
+    });
+    expect(cb.headers.location).toBe("/?sso_error=unlinked");
+    expect(p.state.tokenCalls.at(-1)!.body.get("redirect_uri")).toBe("http://books.lan:8080/auth/sso/callback");
+
+    // Saving again without a secret keeps the saved one.
+    const again = await f.app.inject({ method: "PUT", url: "/api/admin/settings/sso", headers: f.as("admin"), payload: { ...SAVE, clientSecret: undefined } });
+    expect(again.json().active).toBe(true);
+
+    // Forgetting turns it off again (no env vars here).
+    const gone = await f.app.inject({ method: "DELETE", url: "/api/admin/settings/sso", headers: f.as("admin") });
+    expect(gone.json().active).toBe(false);
+    expect((await f.app.inject({ method: "GET", url: "/api/auth/status" })).json().sso).toBeNull();
+  });
+
+  it("uses env vars for anything left empty, and saved values over them", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } }, ENV);
+    const s = await f.app.inject({
+      method: "PUT",
+      url: "/api/admin/settings/sso",
+      headers: f.as("admin"),
+      payload: { label: "Tinyauth SSO", issuer: "", clientId: "", publicUrl: "", scopes: "", autoCreate: true, showOnSignIn: true },
+    });
+    expect(s.json()).toMatchObject({
+      active: true,
+      label: "Tinyauth SSO",
+      issuer: ISSUER,
+      hasClientSecret: true,
+      callbackUrl: `${SITE}/auth/sso/callback`,
+      fromEnv: { issuer: true, clientId: true, clientSecret: true, publicUrl: true },
+    });
+    expect((await whoAmI(await signIn(p)))?.id).toBe(f.ids.parent);
+  });
+
+  it("checks an issuer before saving", async () => {
+    const p = provider();
+    f = await family({ sso: { fetchImpl: p.fetchImpl } });
+    const ok = await f.app.inject({ method: "POST", url: "/api/admin/settings/sso/test", headers: f.as("admin"), payload: { issuer: ISSUER } });
+    expect(ok.json()).toEqual({ ok: true, issuer: ISSUER });
+    const bad = await f.app.inject({ method: "POST", url: "/api/admin/settings/sso/test", headers: f.as("admin"), payload: { issuer: "https://nope.example.com" } });
+    expect(bad.json().ok).toBe(false);
   });
 });

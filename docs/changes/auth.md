@@ -1,6 +1,7 @@
 # Accounts and sign-in changes (`ws/auth`)
 
-- 2026-11-15: Settings → Your account → Link Tinyauth account: a signed-in grown-up (admin included) links their own account through the single sign-on round trip (`/api/auth/sso/start?link=1`), merging an account SSO made on its own; Unlink keeps at least one way to sign in (`DELETE /api/auth/sso/identities/:id`). (this PR)
+- 2026-11-15: Admin → Connections → Single sign-on: button name, issuer (with Test), client ID, write-only secret, extra scopes, address, "Create an account for anyone who signs in", "Show on the sign-in page", and the callback URL to copy into Tinyauth. Saved settings apply without a restart and win over the `SSO_*` env vars, which fill in empty fields. `PUBLIC_URL` is now optional. (this PR)
+- 2026-11-15: Settings → Your account → Link Tinyauth account: a signed-in grown-up (admin included) links their own account through the single sign-on round trip (`/api/auth/sso/start?link=1`), merging an account SSO made on its own; Unlink keeps at least one way to sign in (`DELETE /api/auth/sso/identities/:id`). (#55)
 - 2026-11-15: Single sign-on with Tinyauth (OpenID Connect): `PUBLIC_URL` + `SSO_ISSUER` + `SSO_CLIENT_ID` + `SSO_CLIENT_SECRET` (+ `SSO_LABEL`, `SSO_AUTO_CREATE`) show a "Sign in with Tinyauth" button; emails match People's sign-in emails, new ones get an adult account. Admins can link, remove and move sign-in emails on People (moving merges an SSO-made account into a real profile). (#54)
 - 2026-11-14: Top bar links to Discover, Series, Categories and Requests; the grown-up menu wraps onto its own row on tablets. (this PR)
 - 2026-11-14: Top bar links to Family (parents and admins) and Admin (admins). (#24)

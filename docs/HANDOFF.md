@@ -41,8 +41,8 @@ URL for kid mode; the demo grown-up is an admin, so `/admin` and `/family` work 
 Sign-in: on an empty database the web app shows "Welcome to BookBandit" and the first person creates
 the admin with a username and password. After that, grown-ups sign in with username/password, or
 with Google through Tinyauth (the email header is trusted only from `TRUSTED_PROXIES`; set
-`GOOGLE_SIGN_IN_URL` to show a Google button), or with single sign-on: set `PUBLIC_URL`,
-`SSO_ISSUER`, `SSO_CLIENT_ID` and `SSO_CLIENT_SECRET` for a "Sign in with Tinyauth" button (steps in
+`GOOGLE_SIGN_IN_URL` to show a Google button), or with single sign-on: set it up under Admin → Connections → Single
+sign-on (or with the `SSO_*` env vars) for a "Sign in with Tinyauth" button (steps in
 `docker/README.md`). Paired tablets show "Who's reading?" and kids sign in
 with a PIN or pictures. API details: `apps/server/src/auth/` and `apps/web/API_CONTRACT.md`.
 

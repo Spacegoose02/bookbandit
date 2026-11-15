@@ -259,6 +259,33 @@ export interface MetadataInput {
   isbndbKey?: string | null;
 }
 
+/** Admin → Connections → Single sign-on (server: apps/server/src/auth/sso-settings.ts). */
+export interface SsoSettings {
+  active: boolean;
+  label: string;
+  issuer: string;
+  clientId: string;
+  hasClientSecret: boolean;
+  publicUrl: string;
+  scopes: string;
+  autoCreate: boolean;
+  showOnSignIn: boolean;
+  callbackUrl: string;
+  fromEnv: { label: boolean; issuer: boolean; clientId: boolean; clientSecret: boolean; publicUrl: boolean };
+  saved: boolean;
+}
+export interface SsoInput {
+  label: string;
+  issuer: string;
+  clientId: string;
+  /** omit = keep, null = clear */
+  clientSecret?: string | null;
+  publicUrl: string;
+  scopes: string;
+  autoCreate: boolean;
+  showOnSignIn: boolean;
+}
+
 // --- family dashboard ---------------------------------------------------------
 
 export interface KidCard {
@@ -389,6 +416,10 @@ export interface AdminApi {
   testSmtp(to: string): Promise<{ ok: true }>;
   metadataSettings(): Promise<MetadataSettings>;
   saveMetadata(input: MetadataInput): Promise<MetadataSettings>;
+  ssoSettings(): Promise<SsoSettings>;
+  saveSso(input: SsoInput): Promise<SsoSettings>;
+  forgetSso(): Promise<SsoSettings>;
+  testSso(issuer: string): Promise<{ ok: boolean; issuer?: string; error?: string }>;
 
   familyKids(): Promise<(KidCard & { stats: KidStats })[]>;
   familyKid(id: string): Promise<KidDetail>;
@@ -464,6 +495,10 @@ export const httpAdminApi: AdminApi = {
   testSmtp: (to) => request("/api/admin/integrations/smtp/test", { method: "POST", body: json({ to }) }),
   metadataSettings: () => request("/api/admin/settings/metadata"),
   saveMetadata: (input) => request("/api/admin/settings/metadata", { method: "PUT", body: json(input) }),
+  ssoSettings: () => request("/api/admin/settings/sso"),
+  saveSso: (input) => request("/api/admin/settings/sso", { method: "PUT", body: json(input) }),
+  forgetSso: () => request("/api/admin/settings/sso", { method: "DELETE" }),
+  testSso: (issuer) => request("/api/admin/settings/sso/test", { method: "POST", body: json({ issuer }) }),
 
   familyKids: () => request<{ kids: (KidCard & { stats: KidStats })[] }>("/api/family/kids").then((r) => r.kids),
   familyKid: (id) => request(`/api/family/kids/${enc(id)}`),

@@ -38,6 +38,7 @@ Reflowable books (EPUB, AZW3, MOBI, FB2) and CBZ save `{ kind: "epub", cfi, perc
 PDF opens in the browser's own viewer for now and doesn't report a position yet.
 | GET | `/api/auth/status` | ws/auth | `setupRequired, signedIn, device, google: {url} \| null, sso: {label, url} \| null, unlinkedEmail, limits`. Drives the sign-in screens. |
 | GET | `/api/auth/sso/start` → `/auth/sso/callback` | ws/auth | Single sign-on (OIDC) round trip; a plain link, not fetch. Lands on `/` signed in, or `/?sso_error=<code>`. With `?link=1` (signed-in grown-up) the email is linked to the current account instead and it lands on `/settings?sso_linked=1` or `/settings?sso_error=<code>`. Status gives `sso.linkUrl`. |
+| GET / PUT / DELETE | `/api/admin/settings/sso` | ws/auth | Admin: single sign-on settings (`clientSecret` write-only: omit to keep, null to clear); returns `active`, `callbackUrl`, `fromEnv`. `POST …/sso/test { issuer }` checks discovery. |
 | DELETE | `/api/auth/sso/identities/:id` | ws/auth | Unlink one of your own Tinyauth emails; 400 if it's your last way to sign in, 403 for kids. |
 | POST | `/api/auth/setup` | ws/auth | First run only: `{ householdName, displayName, username, password, email? }`. |
 | POST | `/api/auth/login` | ws/auth | `{ username, password }` or `{ userId, password }` from the picker. Sets the `bb_session` cookie. |

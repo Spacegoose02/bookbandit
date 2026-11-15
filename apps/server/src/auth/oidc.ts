@@ -1,7 +1,8 @@
 /**
  * Single sign-on with an OpenID Connect provider (made for Tinyauth, works with any OIDC server).
  *
- * Turned on by SSO_ISSUER + SSO_CLIENT_ID + SSO_CLIENT_SECRET + PUBLIC_URL. The flow is the plain
+ * Turned on in Admin → Connections → Single sign-on, or by SSO_ISSUER + SSO_CLIENT_ID +
+ * SSO_CLIENT_SECRET (see sso-settings.ts; settings are read per request). The flow is the plain
  * authorization-code flow with PKCE:
  *
  *   GET /api/auth/sso/start      → redirect to the provider, with state, nonce and PKCE kept in a
@@ -22,6 +23,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { userIdentities, users } from "../db/schema.js";
 import { httpError, isSecureRequest } from "./plugin.js";
+import { ipMatches } from "./trusted-proxy.js";
 import { userView } from "./view.js";
 import { cookie, readCookie, sessionCookie, type SessionSigner } from "./sessions.js";
 
@@ -29,19 +31,24 @@ export interface SsoConfig {
   issuer: string;
   clientId: string;
   clientSecret: string;
-  /** Bookbandit's own address as people reach it, e.g. https://books.example.com */
-  publicUrl: string;
+  /** Bookbandit's own address as people reach it, e.g. https://books.example.com. Unset: taken from the request. */
+  publicUrl?: string;
   /** Button text: "Sign in with <label>". */
   label: string;
   /** Make a new "adult" account for an email nobody uses yet (otherwise refuse it). */
   autoCreate: boolean;
+  /** Extra scopes asked for on top of openid, email and profile. */
+  scopes: string[];
+  /** Show the button on the sign-in page (linking from Settings works either way). */
+  showOnSignIn: boolean;
 }
 
 export interface SsoOptions {
   db: Db;
   sessions: SessionSigner;
   trustedProxies: string[];
-  sso: SsoConfig;
+  /** The current settings (admin settings over env vars), read on every request so changes apply without a restart. */
+  getSso: () => SsoConfig | null;
   fetchImpl?: typeof fetch;
   now?: () => number;
 }
@@ -71,38 +78,34 @@ interface Flow {
   exp: number;
   /** Set when linking: the signed-in person who asked, who gets the email instead of a sign-in. */
   link?: string;
+  /** The redirect URI sent to the provider, sent again with the code. */
+  ru: string;
 }
 
-/** Reads SSO settings from the environment. Returns null (SSO off) unless all four required values are set. */
-export function ssoConfigFrom(env: {
-  SSO_ISSUER?: string;
-  SSO_CLIENT_ID?: string;
-  SSO_CLIENT_SECRET?: string;
-  PUBLIC_URL?: string;
-  SSO_LABEL?: string;
-  SSO_AUTO_CREATE?: boolean;
-}): SsoConfig | null {
-  const { SSO_ISSUER, SSO_CLIENT_ID, SSO_CLIENT_SECRET, PUBLIC_URL } = env;
-  if (!SSO_ISSUER || !SSO_CLIENT_ID || !SSO_CLIENT_SECRET || !PUBLIC_URL) return null;
-  return {
-    issuer: SSO_ISSUER.replace(/\/+$/, ""),
-    clientId: SSO_CLIENT_ID,
-    clientSecret: SSO_CLIENT_SECRET,
-    publicUrl: PUBLIC_URL.replace(/\/+$/, ""),
-    label: env.SSO_LABEL?.trim() || "Tinyauth",
-    autoCreate: env.SSO_AUTO_CREATE ?? true,
-  };
+/** Normalizes "a, b c" into scope names, leaving out the three that are always asked for. */
+export function parseScopes(raw: string | undefined | null): string[] {
+  const always = new Set(["openid", "email", "profile"]);
+  return [...new Set((raw ?? "").split(/[\s,]+/).map((x) => x.trim()).filter((x) => x && !always.has(x)))];
+}
+
+/** Bookbandit's address as the browser used it (trusting X-Forwarded-* only from TRUSTED_PROXIES). */
+export function requestOrigin(req: FastifyRequest, trustedProxies: string[]): string {
+  const proto = isSecureRequest(req, trustedProxies) ? "https" : "http";
+  const fwd = ipMatches(req.socket.remoteAddress ?? "", trustedProxies) ? req.headers["x-forwarded-host"] : undefined;
+  const host = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.headers.host || "localhost";
+  return `${proto}://${host}`;
 }
 
 const b64url = (b: Buffer) => b.toString("base64url");
 const random = () => b64url(randomBytes(32));
 
 export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
-  const { db, sessions, sso } = opts;
+  const { db, sessions } = opts;
   const fetchImpl = opts.fetchImpl ?? fetch;
   const now = opts.now ?? Date.now;
-  const redirectUri = `${sso.publicUrl}${SSO_CALLBACK_PATH}`;
 
+  // Cached per issuer, so changing the issuer in admin settings starts fresh.
+  let cachedIssuer = "";
   let discovery: Promise<Discovery> | null = null;
   let jwks: { at: number; keys: (JsonWebKey & { kid?: string; alg?: string })[] } | null = null;
 
@@ -112,7 +115,12 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
     return (await res.json()) as T;
   }
 
-  function discover(): Promise<Discovery> {
+  function discover(sso: SsoConfig): Promise<Discovery> {
+    if (cachedIssuer !== sso.issuer) {
+      cachedIssuer = sso.issuer;
+      discovery = null;
+      jwks = null;
+    }
     discovery ??= getJson<Discovery>(`${sso.issuer}/.well-known/openid-configuration`).then(
       (d) => {
         if (!d.authorization_endpoint || !d.token_endpoint) throw new Error("Provider discovery is missing endpoints");
@@ -187,11 +195,13 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
   const canLinkSelf = (req: FastifyRequest) => !!req.reader && req.reader.role !== "kid";
 
   app.get<{ Querystring: { link?: string } }>(SSO_START_PATH, async (req, reply) => {
+    const sso = opts.getSso();
+    if (!sso) throw httpError(404, "Single sign-on isn't set up");
     const linking = req.query.link === "1";
     if (linking && !canLinkSelf(req)) return fail(reply, req, "link_signin", undefined, true);
     let d: Discovery;
     try {
-      d = await discover();
+      d = await discover(sso);
     } catch (e) {
       return fail(reply, req, "provider", e, linking);
     }
@@ -200,14 +210,15 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
       nonce: random(),
       verifier: random(),
       exp: now() + FLOW_TTL_MS,
+      ru: `${sso.publicUrl ?? requestOrigin(req, opts.trustedProxies)}${SSO_CALLBACK_PATH}`,
       ...(linking ? { link: req.reader!.userId } : {}),
     };
     const url = new URL(d.authorization_endpoint);
     url.search = new URLSearchParams({
       response_type: "code",
       client_id: sso.clientId,
-      redirect_uri: redirectUri,
-      scope: "openid email profile",
+      redirect_uri: flow.ru,
+      scope: ["openid", "email", "profile", ...sso.scopes].join(" "),
       state: flow.state,
       nonce: flow.nonce,
       code_challenge: b64url(createHash("sha256").update(flow.verifier).digest()),
@@ -224,12 +235,14 @@ export async function ssoRoutes(app: FastifyInstance, opts: SsoOptions) {
     const linking = !!flow?.link;
     if (q.error) return fail(reply, req, "denied", `${q.error}: ${q.error_description ?? ""}`, linking);
     if (!flow || flow.exp < now() || !q.state || q.state !== flow.state || !q.code) return fail(reply, req, "expired", undefined, linking);
+    const sso = opts.getSso();
+    if (!sso) return fail(reply, req, "provider", "single sign-on was turned off mid-sign-in", linking);
 
     let email: string | undefined;
     let name: string | undefined;
     try {
-      const d = await discover();
-      const form = new URLSearchParams({ grant_type: "authorization_code", code: q.code, redirect_uri: redirectUri, code_verifier: flow.verifier });
+      const d = await discover(sso);
+      const form = new URLSearchParams({ grant_type: "authorization_code", code: q.code, redirect_uri: flow.ru, code_verifier: flow.verifier });
       const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
       const methods = d.token_endpoint_auth_methods_supported;
       if (!methods || methods.includes("client_secret_basic")) {
