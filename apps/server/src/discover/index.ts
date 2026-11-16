@@ -33,6 +33,7 @@ import {
 } from "./personal.js";
 import { seriesRoutes } from "./series.js";
 import { categoryRoutes } from "./categories.js";
+import type { LookupOptions } from "../metadata/lookup.js";
 import { kindleRoutes } from "./kindle.js";
 
 export interface DiscoverOptions {
@@ -44,7 +45,7 @@ export interface DiscoverOptions {
    * Current metadata settings (admin settings page, falling back to env vars). False = online
    * lookups are off. Without it, the env config is used.
    */
-  resolveLookup?: () => { hardcoverToken?: string } | false;
+  resolveLookup?: () => LookupOptions | false;
   /** Test seam for the outside lists. */
   fetchImpl?: FetchLike;
   now?: () => number;
@@ -342,6 +343,13 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
   });
 
   await app.register(seriesRoutes, { db });
-  await app.register(categoryRoutes, { db });
+  // Fiction / Nonfiction re-checks look books up online, with the same settings as enrichment.
+  await app.register(categoryRoutes, {
+    db,
+    resolveLookup: () => {
+      const l = lookup();
+      return l ? { ...l, ...(opts.fetchImpl ? { fetch: opts.fetchImpl } : {}) } : false;
+    },
+  });
   await app.register(kindleRoutes, { db });
 }

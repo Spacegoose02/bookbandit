@@ -21,6 +21,8 @@ export interface CategoryRule {
   fictionGenre?: boolean;
   /** Who the book is for, not what it is about: gets its own slot next to the genres. */
   audience?: boolean;
+  /** Fiction or nonfiction, when the genre settles it (Romance, History); unset for Humor, Poetry, Classics. */
+  kind?: "fiction" | "nonfiction";
 }
 
 /** Order matters only for ties: earlier rules win. */
@@ -41,8 +43,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
   { name: "Westerns", fictionGenre: true, any: /^westerns?$|western stories|western fiction/, fiction: /\bwestern\b|cowboys?|frontier and pioneer/ },
   { name: "Humor", any: /humou?r|comedy|comic fiction|funny|satire|satirical|parod|jokes/ },
   { name: "Classics", any: /\bclassics?\b|classic literature/ },
-  { name: "Literary Fiction", any: /literary fiction|psychological fiction|domestic fiction|bildungsroman/, fiction: /literary|coming of age|family saga|family life|literature|friendship|families/ },
-  { name: "Short Stories", any: /short stor|antholog/ },
+  { name: "Literary Fiction", kind: "fiction", any: /literary fiction|psychological fiction|domestic fiction|bildungsroman/, fiction: /literary|coming of age|family saga|family life|literature|friendship|families/ },
+  { name: "Short Stories", kind: "fiction", any: /short stor|antholog/ },
   { name: "Poetry", any: /poetry|poems|\bpoets?\b|\bverse\b|nursery rhymes/ },
   { name: "Plays & Drama", any: /\bdrama\b|\bplays\b|theater|theatre|shakespeare/ },
   { name: "Comics & Graphic Novels", fictionGenre: true, any: /comics?\b|graphic novels?|manga|superheroes?|cartoons?/ },
@@ -71,10 +73,21 @@ export const CATEGORY_RULES: CategoryRule[] = [
   { name: "Education & Reference", nonfiction: /education|teaching|study aids|reference|dictionar|encyclopedi|language|grammar|test prep|textbooks?|literary criticism|writing|authorship/ },
 ];
 
+// Every rule in the nonfiction half of the list, from Biography & Memoir on, is a nonfiction genre;
+// fiction genres (fictionGenre) are fiction.
+{
+  const firstNonfiction = CATEGORY_RULES.findIndex((r) => r.name === "Biography & Memoir");
+  CATEGORY_RULES.forEach((r, i) => {
+    if (r.kind) return;
+    if (r.fictionGenre) r.kind = "fiction";
+    else if (i >= firstNonfiction) r.kind = "nonfiction";
+  });
+}
+
 /**
- * Where a book with subjects but no rule match goes. Only subjects that say so ("Nonfiction",
- * "Juvenile literature", "Handbooks") put a book in Nonfiction; a book nothing places is a novel
- * far more often than not (subjects like "Women", "Small towns", "Families"), so it goes to Fiction.
+ * Every book with subjects is in Fiction or Nonfiction, next to its genres. Subjects that say so
+ * ("Nonfiction", "Juvenile literature", "Handbooks") or its genres (History, Romance) decide; a book
+ * nothing places is guessed to be Fiction, and the guess is checked again online when it can be.
  */
 export const FALLBACK_FICTION = "Fiction";
 export const FALLBACK_NONFICTION = "Nonfiction";
@@ -141,16 +154,39 @@ export interface ClassifyOptions {
   max?: number;
 }
 
+export interface Classification {
+  /** Children's Books or Young Adult, when a subject says so. */
+  audience: string | null;
+  /** "Fiction" or "Nonfiction": every book with subjects gets one. */
+  kind: string | null;
+  /** True when nothing said which: the kind is a guess ("Fiction") and worth checking online. */
+  kindGuessed: boolean;
+  /** Up to `max` curated genres. */
+  genres: string[];
+}
+
 /**
- * Maps a book's raw subjects onto curated category names: up to `max` genres by how many subjects
- * point at each (earlier subjects break ties, since sources list the main genre first), plus one
- * audience category (Children's Books or Young Adult). A book with subjects but no match gets
- * "Fiction" or "Nonfiction"; a book with no subjects gets nothing.
+ * Fiction or nonfiction from what the subjects say ("Fiction", "Juvenile Nonfiction", "Cookbooks")
+ * or, failing that, from the genres they point to (Romance is fiction, History is nonfiction).
+ * Curated category names can be passed as subjects too, so a book already in History reads as
+ * nonfiction; leave out its current Fiction / Nonfiction, which would only repeat itself.
  */
-export function classifySubjects(subjects: readonly string[], opts: ClassifyOptions = {}): string[] {
+export function bookKind(subjects: readonly string[]): "fiction" | "nonfiction" | null {
+  const c = classifyBook(subjects);
+  if (!c.kind || c.kindGuessed) return null;
+  return c.kind === FALLBACK_NONFICTION ? "nonfiction" : "fiction";
+}
+
+/**
+ * Maps a book's raw subjects onto curated categories: up to `max` genres by how many subjects point
+ * at each (earlier subjects break ties, since sources list the main genre first), one audience
+ * category (Children's Books or Young Adult), and Fiction or Nonfiction. When nothing says which,
+ * the book is guessed to be Fiction (`kindGuessed`). A book with no subjects gets nothing.
+ */
+export function classifyBook(subjects: readonly string[], opts: ClassifyOptions = {}): Classification {
   const max = opts.max ?? 3;
   const list = subjects.map((s) => s?.trim()).filter((s): s is string => !!s && s.length <= 200);
-  if (!list.length) return [];
+  if (!list.length) return { audience: null, kind: null, kindGuessed: false, genres: [] };
   const normed = list.map(norm);
   const signal = fictionSignal(list);
   const fictionHit = (s: string) => CATEGORY_RULES.some((r) => r.fictionGenre && r.any?.test(s));
@@ -177,9 +213,31 @@ export function classifySubjects(subjects: readonly string[], opts: ClassifyOpti
   );
   const rules = new Map(CATEGORY_RULES.map((r) => [r.name, r]));
   const genres = byScore.filter(([n]) => !rules.get(n)!.audience).slice(0, max).map(([n]) => n);
-  const audience = byScore.filter(([n]) => rules.get(n)!.audience).slice(0, 1).map(([n]) => n);
-  if (!genres.length) genres.push(signal === "nonfiction" ? FALLBACK_NONFICTION : FALLBACK_FICTION);
-  return [...audience, ...genres];
+  const audience = byScore.find(([n]) => rules.get(n)!.audience)?.[0] ?? null;
+
+  let kind: "fiction" | "nonfiction" | null = signal;
+  if (!kind) {
+    let fic = 0;
+    let non = 0;
+    for (const g of genres) {
+      const k = rules.get(g)!.kind;
+      if (k === "fiction") fic++;
+      else if (k === "nonfiction") non++;
+    }
+    kind = non > fic ? "nonfiction" : fic > 0 ? "fiction" : null;
+  }
+  return {
+    audience,
+    kind: kind === "nonfiction" ? FALLBACK_NONFICTION : FALLBACK_FICTION,
+    kindGuessed: !kind,
+    genres,
+  };
+}
+
+/** classifyBook as a flat list of names: audience, genres, then Fiction or Nonfiction. */
+export function classifySubjects(subjects: readonly string[], opts: ClassifyOptions = {}): string[] {
+  const c = classifyBook(subjects, opts);
+  return [...(c.audience ? [c.audience] : []), ...c.genres, ...(c.kind ? [c.kind] : [])];
 }
 
 /**

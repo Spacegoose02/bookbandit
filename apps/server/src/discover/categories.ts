@@ -28,6 +28,8 @@ import {
   upgradeCategories,
 } from "./category-store.js";
 import { CURATED_NAMES } from "./taxonomy.js";
+import { RECHECK_BATCH, RECHECK_JOB, recheckKinds, type RecheckPayload } from "./recheck.js";
+import type { LookupOptions } from "../metadata/lookup.js";
 
 const KINDS = ["genre", "section", "custom"] as const;
 const ALL_KINDS = ["genre", "subject", "section", "custom"] as const;
@@ -67,13 +69,38 @@ const PatchBody = z
 const MergeBody = z.object({ into: z.string().min(1).max(64) });
 const SettingsBody = z.object({ minBooks: z.number().int().min(1).max(100) });
 
-export async function categoryRoutes(app: FastifyInstance, opts: { db: Db }) {
+export async function categoryRoutes(app: FastifyInstance, opts: { db: Db; resolveLookup?: () => LookupOptions | false }) {
   const { db } = opts;
 
+  /** Queues online look-ups for books whose Fiction / Nonfiction is a guess. Returns how many. */
+  const queueRecheck = (bookIds: string[]): number => {
+    const lookup = opts.resolveLookup?.();
+    if (!bookIds.length || !lookup || !app.hasDecorator("jobs")) return 0;
+    for (let i = 0; i < bookIds.length; i += RECHECK_BATCH) {
+      const chunk = bookIds.slice(i, i + RECHECK_BATCH);
+      app.jobs.enqueue(RECHECK_JOB, { bookIds: chunk } satisfies RecheckPayload, {
+        label: `Check fiction or nonfiction for ${chunk.length} book${chunk.length === 1 ? "" : "s"}`,
+      });
+    }
+    return bookIds.length;
+  };
+  if (app.hasDecorator("jobs") && !app.jobs.has(RECHECK_JOB)) {
+    app.jobs.register<RecheckPayload>(RECHECK_JOB, async (p, ctx) => {
+      const lookup = opts.resolveLookup?.();
+      if (!lookup) return;
+      await recheckKinds(db, p.bookIds ?? [], lookup, { pauseMs: 400, signal: ctx.signal, progress: ctx.progress });
+    });
+  }
+
   // Libraries scanned before categories were curated: turn the old per-subject categories into
-  // subjects and file every book under the curated list. Once, and without dropping any book link.
+  // subjects and file every book under the curated list, then put every book in Fiction or
+  // Nonfiction (v3). Once per taxonomy version, without dropping genre links.
   const upgraded = upgradeCategories(db);
-  if (upgraded && (upgraded.subjects || upgraded.linked || upgraded.refiled)) app.log.info({ categories: upgraded }, "categories: tidied old genre tags");
+  if (upgraded) {
+    const rechecking = queueRecheck(upgraded.unsure);
+    if (upgraded.subjects || upgraded.linked || upgraded.refiled || rechecking)
+      app.log.info({ categories: { ...upgraded, unsure: upgraded.unsure.length, rechecking } }, "categories: re-filed books");
+  }
 
   app.get("/api/categories", async (req) => {
     const reader = requireReader(req);
@@ -228,7 +255,8 @@ export async function categoryRoutes(app: FastifyInstance, opts: { db: Db }) {
   /** Re-files every book from its subjects (only adds links; merges, renames and hides are kept). */
   app.post("/api/admin/categories/rebuild", async (req) => {
     requireAdmin(req);
-    return rebuildCategories(db);
+    const { unsure, ...report } = rebuildCategories(db);
+    return { ...report, unsure: unsure.length, rechecking: queueRecheck(unsure) };
   });
 
   /** Rename (merging into a same-named category if there is one), hide or show, promote or demote. */

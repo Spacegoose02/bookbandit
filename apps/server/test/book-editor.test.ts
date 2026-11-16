@@ -103,7 +103,7 @@ describe("book editor", () => {
     expect(b.description).toBeNull();
     expect(b.publisher).toBe("Provider Press");
     // Categories weren't locked here, so the auto-categorizer still files it.
-    expect(genres(id)).toEqual(["Self-Help"]);
+    expect(genres(id)).toEqual(["Nonfiction", "Self-Help"]);
 
     await patch(id, { publisher: "Ace" });
     const c = f.db.select().from(books).where(eq(books.id, id)).get()!;
