@@ -109,12 +109,28 @@ function prize([title, author, note]: [string, string, string], i: number): Disc
   return { ...named(`${title}|${author}|${note.slice(-4)}`), coverUrl: outsideCover(title, author, i), note };
 }
 
+const KID_MOODS: [string, string, string, string[]][] = [
+  ["mood-funny", "Funny", "Books to make you laugh", ["b17", "b3", "b2"]],
+  ["mood-cozy", "Cozy", "Warm, gentle, low-stakes", ["b15", "b16", "b1"]],
+  ["mood-curious", "Curious", "Learn something amazing", ["b1", "b2"]],
+];
+const GROWN_MOODS: [string, string, string, string[]][] = [
+  ["mood-cozy", "Cozy", "Warm, gentle, low-stakes", ["b11", "b12", "b9", "b13"]],
+  ["mood-thrilling", "Edge of your seat", "Thrillers, chases and close calls", ["b10", "b7", "b8"]],
+  ["mood-heartwarming", "Heartwarming", "Love, friendship and happy endings", ["b9", "b13", "b11"]],
+  ["mood-spooky", "Spooky", "Ghosts, monsters and shivers", ["b10", "b4"]],
+  ["mood-epic", "Epic worlds", "Big worlds to get lost in", ["b7", "b8", "b10"]],
+];
+const KID_OUTSIDE: [string, string, string[]][] = [
+  ["ol-picture-books", "Popular picture books", ["The Snail Who Raced the Moon|Bea Pickering|2025", "Otto and the Big Sneeze|Liam Fairweather|2024", "Twelve Tiny Dragons|Mina Cho|2026", "Grandpa's Upside-Down Day|Ray Osei|2025"]],
+  ["ol-chapter-books", "Popular chapter books", ["Mabel Mends a Monster|Iris Quill|2025", "The Lunchbox Detectives|Theo Banks|2024", "Ziggy and the Rocket Club|Ana Folau|2026", "Owl Post Academy|Hettie Marsh|2025"]],
+];
+
 const GENRE_DEMO: [string, string, string[]][] = [
   ["genre-fantasy", "Fantasy", ["The Ember Crown|Talia Voss|2025", "Seven Silver Doors|Rhiannon Ash|2024", "Kingdom of Glass Birds|Mateo Ruiz|2026", "The Last Lamplighter|Odile Marsh|2023", "Thornwood|Kit Adair|2025"]],
   ["genre-mystery-crime", "Mystery & crime", ["Murder at Larkspur Lane|Penny Croft|2025", "The Quiet Witness|Ravi Sethi|2024", "Dead Reckoning|Hal Brenner|2026", "A Body in the Bookshop|Nell Ashby|2025"]],
   ["genre-romance", "Romance", ["The Summer of Second Chances|Jo Bellamy|2025", "Love, Annotated|Priya Kapoor|2026", "Snowed In at Hollyfield|Clara Dunn|2024", "Meet Me at the Mill|Sam Whitlow|2025"]],
   ["genre-science-fiction", "Science fiction", ["Signal From Kepler Nine|Ade Okonjo|2026", "The Long Orbit|Freya Lund|2025", "Ghosts of the Generation Ship|Arun Pillai|2024", "Red Dust Lullaby|Vera Kostova|2025"]],
-  ["genre-children-s-books", "Popular with kids", ["The Snail Who Raced the Moon|Bea Pickering|2025", "Otto and the Big Sneeze|Liam Fairweather|2024", "Twelve Tiny Dragons|Mina Cho|2026", "Grandpa's Upside-Down Day|Ray Osei|2025"]],
 ];
 
 // Series edits made in the demo live for the page session.
@@ -233,19 +249,26 @@ export const demoDiscoverApi: DiscoverApi = {
     const seen = new Set<string>();
     const lists: DiscoverList[] = [];
     // Same de-duplication as the server: a book shows in the first row that has it.
-    const add = (l: Omit<DiscoverList, "items">, items: DiscoverItem[], min = 1) => {
-      const fresh = items.filter((i) => !seen.has(i.bookId ?? i.title) && seen.add(i.bookId ?? i.title));
+    const add = (l: Omit<DiscoverList, "items">, items: DiscoverItem[], min = 1, free = false) => {
+      const fresh = free ? items : items.filter((i) => !seen.has(i.bookId ?? i.title) && seen.add(i.bookId ?? i.title));
       if (fresh.length >= min) lists.push({ ...l, items: fresh });
     };
 
     if (me.isKid) {
+      add({ id: "parent-picks", name: "Picked by your grown-ups", source: "library", group: "foryou" }, pick(["b3", "b15"]));
       add({ id: "series-next", name: "Next in your series", source: "foryou", group: "foryou" }, pick(["b2"], "Book 2 of Dino Readers"));
       add(
         { id: "because-b1", name: "Because you read The Dinosaur Who Loved Books", source: "foryou", group: "foryou", aboutBookId: "b1" },
-        noted([["b3", "Also about books and libraries"], ["b16", "A similar story"]]),
+        noted([["b16", "A similar story"], ["b17", "Also about animals"]]),
       );
+      add({ id: "kids-picture-books", name: "Picture books", source: "library", group: "kids" }, pick(["b1", "b15", "b16", "b17"]), 1, true);
+      add({ id: "kids-early-readers", name: "Books I can read myself", source: "library", group: "kids" }, pick(["b2", "b17", "b1"]), 1, true);
+      add({ id: "kids-animals", name: "Animals!", source: "library", group: "kids" }, pick(["b17", "b15", "b1", "b2"]), 1, true);
+      add({ id: "kids-bedtime", name: "Bedtime stories", source: "library", group: "kids" }, pick(["b15", "b16"]), 1, true);
+      add({ id: "kids-funny", name: "Make me laugh", source: "library", group: "kids" }, pick(["b17", "b3", "b2"]), 1, true);
+      add({ id: "new-arrivals", name: "New in the library", source: "library", group: "library" }, pick(["b17", "b15", "b16", "b3"]), 1, true);
+      for (const [id, name, blurb, ids] of KID_MOODS) add({ id, name, blurb, source: "library", group: "moods" }, pick(ids), 1, true);
       add({ id: "openlibrary-weekly", name: "Trending this week", source: "openlibrary", group: "popular" }, pick(["b1", "b3", "b2"]));
-      add({ id: "genre-children-s-books", name: "Children's Books", source: "library", group: "genres" }, pick(["b15", "b17", "b16", "b3", "b2"]));
       add({ id: "awards-kids", name: "Award-winning kids' books", source: "awards", group: "awards" }, KIDS_PRIZES.map((p, i) => ({ ...prize(p, i), requestable: true })));
       add({ id: "family", name: "Popular in your family", source: "library", group: "family" }, family.map(item));
       return wait({ lists, online: true, requests: false });
@@ -270,6 +293,14 @@ export const demoDiscoverApi: DiscoverApi = {
       { id: "author-ada-brightwater", name: "More by Ada Brightwater", source: "foryou", group: "foryou" },
       out(["The Clockmaker's Ferry|Ada Brightwater|2017", "A Map Made of Fog|Ada Brightwater|2021", "Harbour Lights|Ada Brightwater|2015"]),
     );
+    add({ id: "parent-picks", name: "Parent picks for the family", source: "library", group: "library" }, pick(["b3", "b6", "b15"]));
+    add({ id: "new-arrivals", name: "New in the library", source: "library", group: "library" }, pick(["b17", "b16", "b15", "b14", "b13", "b12"]));
+    add(
+      { id: "unopened", name: "Waiting on the shelf", blurb: "Nobody in the house has opened these yet", source: "library", group: "library" },
+      pick(["b10", "b11", "b5", "b2", "b8"]),
+    );
+    add({ id: "quick-reads", name: "Quick reads", blurb: "Under 200 pages", source: "library", group: "library" }, pick(["b1", "b2", "b3", "b16", "b9"]), 2, true);
+    for (const [id, name, blurb, ids] of GROWN_MOODS) add({ id, name, blurb, source: "library", group: "moods" }, pick(ids), 1, true);
     add(
       { id: "openlibrary-weekly", name: "Trending this week", source: "openlibrary", group: "popular" },
       [outside(0), ...pick(["b9"]), outside(1), ...pick(["b11"]), outside(2), ...pick(["b7"]), outside(3)],
@@ -278,11 +309,19 @@ export const demoDiscoverApi: DiscoverApi = {
       { id: "openlibrary-new", name: "New and noteworthy", source: "openlibrary", group: "popular" },
       [outside(4), ...pick(["b13"]), outside(5), ...out(["The Ninth Orchard|Sefa Mensah|2026", "Paper Comets|Lucía Ibarra|2025", "What the River Kept|Noor Haddad|2026"])],
     );
+    add({ id: "kids-picture-books", name: "Picture books", source: "library", group: "kids" }, pick(["b15", "b16", "b17", "b1"]), 1, true);
+    add({ id: "kids-chapter-books", name: "Chapter books", source: "library", group: "kids" }, pick(["b4", "b5", "b6"]), 1, true);
+    add({ id: "kids-animals", name: "Animal stories", source: "library", group: "kids" }, pick(["b17", "b1", "b2", "b15"]), 1, true);
+    for (const [id, name, titles] of KID_OUTSIDE) add({ id, name, source: "openlibrary", group: "kids" }, out(titles), 3);
     for (const [id, name, titles] of GENRE_DEMO) add({ id, name, source: "openlibrary", group: "genres" }, out(titles), 3);
     add({ id: "awards", name: "Prize winners", source: "awards", group: "awards" }, GROWN_UP_PRIZES.map((p, i) => ({ ...prize(p, i + 3), requestable: true })));
     add({ id: "awards-kids", name: "Award-winning kids' books", source: "awards", group: "awards" }, KIDS_PRIZES.map((p, i) => ({ ...prize(p, i), requestable: true })));
     add({ id: "family", name: "Popular in your family", source: "library", group: "family" }, family.map(item));
     return wait({ lists, online: true, requests: true });
+  },
+  async surprise(opts = {}) {
+    const books = (await visibleBooks()).filter((b) => b.percent == null && !b.kindleOnly && (!opts.kids || b.rating === "kids" || b.rating === "middle_grade"));
+    return wait(books[Math.floor(Math.random() * books.length)] ?? null);
   },
   async seriesList(q) {
     const all = await allSeries();

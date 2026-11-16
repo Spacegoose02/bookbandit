@@ -662,3 +662,43 @@ a.bb-series-row:hover {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* --- Surprise me and mood tabs ---------------------------------------------- */
+
+.bb-discover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bb-shelf-blurb {
+  margin: -8px 0 10px;
+}
+.bb-mood-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+.bb-mood-tab {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  background: var(--bb-surface);
+  color: var(--bb-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bb-mood-tab:hover,
+.bb-mood-tab:focus-visible {
+  border-color: var(--bb-accent);
+}
+.bb-mood-tab.active {
+  background: var(--bb-accent);
+  border-color: var(--bb-accent);
+  color: var(--bb-accent-text);
+}
+.bb-mood-tab.is-dice {
+  border-style: dashed;
+}

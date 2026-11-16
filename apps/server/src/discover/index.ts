@@ -19,7 +19,8 @@ import { moreLikeThis } from "../ai/recommend.js";
 import { canSeeOutsideBooks, matchExternal, type DiscoverItem } from "./match.js";
 import { hardcoverSeries, openLibrarySearch, SourceCache, type ExternalBook, type Loadable, type OlSort, type SeriesEntry } from "./sources.js";
 import { AWARD_LISTS } from "./awards.js";
-import { authorQuery, DEFAULT_GENRES, GENRE_QUERIES, GENRE_ROW_NAMES, MAX_GENRE_ROWS, subjectQuery } from "./genres.js";
+import { authorQuery, DEFAULT_GENRES, GENRE_QUERIES, GENRE_ROW_NAMES, KID_QUERIES, MAX_GENRE_ROWS, subjectQuery } from "./genres.js";
+import { allTags, kidRowsFor, MOODS, newArrivals, parentPicks, quickReads, surprise, tagRow, unopened } from "./shelves.js";
 import {
   bookSubjects,
   booksByAuthor,
@@ -59,7 +60,7 @@ const Query = z.object({
 
 type ListSource = "openlibrary" | "hardcover" | "library" | "foryou" | "awards";
 /** Section a row is shown under on the page. */
-type ListGroup = "foryou" | "popular" | "genres" | "awards" | "family";
+type ListGroup = "foryou" | "kids" | "library" | "moods" | "popular" | "genres" | "awards" | "family";
 
 interface DiscoverList {
   id: string;
@@ -69,6 +70,8 @@ interface DiscoverList {
   items: DiscoverItem[];
   /** A library book the row is about ("Because you read …" links back to it). */
   aboutBookId?: string;
+  /** One line under the row title ("Warm, gentle, low-stakes"). */
+  blurb?: string;
   /** Set when the outside site couldn't be reached (the list may be an older copy or empty). */
   error?: string;
 }
@@ -240,16 +243,23 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
     const awards = reader.isKid || !outsideOk ? AWARD_LISTS.filter((a) => a.kids) : AWARD_LISTS;
     const awardsP = awards.map((a) => outside(a));
 
+    // For the kids: grown-ups (who see outside books) also get popular kids' books from Open Library.
+    const kidQueries = outsideOk ? KID_QUERIES : [];
+    const kidQueriesP = kidQueries.map((k) => outside(search(k.id, k.q, "readinglog")));
+
     const lists: DiscoverList[] = [];
     const seen = new Set<string>();
-    /** Adds a row, dropping books an earlier row already showed. */
-    const add = (list: Omit<DiscoverList, "items">, items: DiscoverItem[], min = MIN_ROW) => {
+    /**
+     * Adds a row, dropping books an earlier row already showed. `free` rows (the mood tabs, which
+     * are alternatives to each other) neither claim books nor lose them to other rows.
+     */
+    const add = (list: Omit<DiscoverList, "items">, items: DiscoverItem[], min = MIN_ROW, free = false) => {
       const fresh: DiscoverItem[] = [];
       for (const i of items) {
         if (fresh.length >= q.limit) break;
         const keys = dedupeKeys(i);
-        if (keys.some((k) => seen.has(k))) continue;
-        keys.forEach((k) => seen.add(k));
+        if (!free && keys.some((k) => seen.has(k))) continue;
+        if (!free) keys.forEach((k) => seen.add(k));
         fresh.push(i);
       }
       if (fresh.length >= min || (list.error && !fresh.length && outsideOk)) lists.push({ ...list, items: fresh });
@@ -269,6 +279,11 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
       seriesItems.push(...match(missing).filter((m) => !m.bookId).slice(0, 2));
     });
     add({ id: "series-next", name: "Next in your series", source: "foryou", group: "foryou" }, seriesItems, 1);
+
+    // Parent picks: a kid's "Parent approved" books (their own and their family's) lead their page.
+    const now = (opts.now ?? Date.now)();
+    const picks = parentPicks(db, reader, started, q.limit + 10).map((b) => libraryItem(b));
+    if (reader.isKid) add({ id: "parent-picks", name: "Picked by your grown-ups", source: "library", group: "foryou" }, picks, 1);
 
     // Because you read …: Barnaby's "more like this" from the library, then similar books elsewhere.
     const seedExt = await Promise.all(seedOutside);
@@ -296,6 +311,50 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
     });
     // Interleave so one seed doesn't push every author row down the page.
     for (const r of rows) add(r.list, r.items, 1);
+
+    // Library rows. Grown-ups' outside rows claim books first, so trending keeps its "In library"
+    // badges; a kid's own age bands and themes come before everything else.
+    const tagList = allTags(db);
+    const shelfRows = () => {
+      // Parent picks first: a parent chose these on purpose.
+      if (!reader.isKid)
+        add({ id: "parent-picks", name: "Parent picks for the family", source: "library", group: "library" }, picks, 1);
+      // Kids' age bands and themes, from the library. For a kid these are their own rows; grown-ups
+      // see them under "For the kids", limited to kids' ratings.
+      for (const row of kidRowsFor(reader))
+        add(
+          { id: row.id, name: reader.isKid ? (row.kidName ?? row.name) : row.name, source: "library", group: "kids" },
+          tagRow(db, reader, row, started, q.limit + 10, now, tagList).map((b) => libraryItem(b)),
+          reader.isKid ? 1 : 2,
+        );
+
+      // From the family's shelves: new arrivals, books nobody has opened, quick reads.
+      add(
+        { id: "new-arrivals", name: "New in the library", source: "library", group: "library" },
+        newArrivals(db, reader, started, q.limit + 10).map((b) => libraryItem(b)),
+        1,
+      );
+      add(
+        { id: "unopened", name: reader.isKid ? "Nobody has read these yet" : "Waiting on the shelf", blurb: "Nobody in the house has opened these yet", source: "library", group: "library" },
+        unopened(db, reader, started, q.limit + 10, now).map((b) => libraryItem(b)),
+        2,
+      );
+      add(
+        { id: "quick-reads", name: "Quick reads", blurb: "Under 200 pages", source: "library", group: "library" },
+        quickReads(db, reader, started, q.limit + 10, now).map((b) => libraryItem(b)),
+        2,
+      );
+    };
+    if (reader.isKid) shelfRows();
+
+    // Moods: shown as tabs, so each can repeat books from other rows.
+    for (const m of MOODS)
+      add(
+        { id: m.id, name: m.name, blurb: m.blurb, source: "library", group: "moods" },
+        tagRow(db, reader, m, started, q.limit, now, tagList).map((b) => libraryItem(b)),
+        1,
+        true,
+      );
 
     // What's popular: Hardcover and Open Library trending, and new books.
     const popularExt = await Promise.all(popularP);
@@ -327,9 +386,15 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
         );
     }
 
+    // Popular kids' books from Open Library, for grown-ups choosing for their kids.
+    const kidExt = await Promise.all(kidQueriesP);
+    kidQueries.forEach((k, i) => add({ id: k.id, name: k.name, source: "openlibrary", group: "kids" }, match(kidExt[i]?.books ?? [])));
+
     // Prize winners. Kids' prizes carry their audience rating, so kids see the ones meant for them.
     const awardExt = await Promise.all(awardsP);
     awards.forEach((a, i) => add({ id: a.id, name: a.name, source: "awards", group: "awards" }, match(awardExt[i]?.books ?? [])));
+
+    if (!reader.isKid) shelfRows();
 
     // The household's own favourites go last, after what the wider world is reading.
     const family = popularInFamily(db, reader, q.limit + 10);
@@ -337,9 +402,24 @@ export async function discoverPlugin(app: FastifyInstance, opts: DiscoverOptions
       { id: "family", name: "Popular in your family", source: "library", group: "family" },
       family.map((b) => libraryItem(b)),
       1,
+      // What the household is reading is worth showing even if a row above already has it.
+      true,
     );
 
     return { lists, online, requests: outsideOk };
+  });
+
+  // "Surprise me": one random book this reader may open and hasn't started.
+  const SurpriseQuery = z.object({
+    kids: z.enum(["1", "true"]).optional(),
+    mood: z.string().max(40).optional(),
+  });
+  app.get("/api/discover/surprise", async (req, reply) => {
+    const reader = requireReader(req);
+    const sq = SurpriseQuery.parse(req.query);
+    const book = surprise(db, reader, { kidsOnly: !!sq.kids, ...(sq.mood ? { mood: sq.mood } : {}) });
+    if (!book) return reply.code(404).send({ error: "not_found", message: "Nothing left to surprise you with." });
+    return { book };
   });
 
   await app.register(seriesRoutes, { db });
