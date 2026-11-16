@@ -30,6 +30,9 @@ out of every row except `family`.
 | `foryou` | `series-next` "Next in your series" | The next library books in series the reader is part-way through, then (with a Hardcover token) the next books the library is missing, with a note like "Book 3 of Mistborn" |
 | | `because-<bookId>` "Because you read X" (up to 2, `aboutBookId` set) | Barnaby's "more like this" (shared author, series or genre, plus meaning search when embeddings are set up), then Open Library books on the same subjects by other authors |
 | | `author-<name>` "More by X" (up to 2) | Unread library books by the reader's most-read authors, then their popular Open Library books |
+| `kids` | Age bands `kids-picture-books`, `kids-early-readers`, `kids-chapter-books`, `kids-middle-grade`, `kids-teen` and themes `kids-animals`, `kids-funny`, `kids-bedtime`, `kids-magic`, `kids-adventure`, `kids-mystery`, `kids-space`, `kids-friends`; for grown-ups also `ol-picture-books`, `ol-early-readers`, `ol-chapter-books`, `ol-middle-grade` | Library books whose categories or subjects match (`discover/shelves.ts`), limited to kids' ratings for grown-ups and to the kid's own limit for kids (bands above it never show). Kids get kid-friendly names ("Make me laugh"). The `ol-*` rows are Open Library, so grown-ups only |
+| `library` | `parent-picks`, `new-arrivals`, `unopened`, `quick-reads` | Parent approved books (for a kid: picked for them or their family, and shown first under `foryou`), newest additions, books nobody in the house has opened, books under 200 pages |
+| `moods` | `mood-cozy`, `mood-thrilling`, `mood-funny`, `mood-heartwarming`, `mood-spooky`, `mood-curious`, `mood-epic` | Library books by mood, shown as tabs. These rows may repeat books from other rows |
 | `popular` | `hardcover-trending` (token only), `openlibrary-weekly`, `openlibrary-new` "New and noteworthy" | Trending lists; "new" is books first published this year or last, sorted by Open Library trending |
 | `genres` | `genre-<category>` (up to 8) | Open Library searches for the curated categories, the reader's favourite genres first. Readers who can't see outside books get rows from their own visible library instead |
 | `awards` | `awards`, `awards-kids` | Hand-picked prize winners in `awards.ts` (Booker, Pulitzer, Hugo, Women's Prize; Caldecott, Newbery, Printz), with English covers looked up weekly |
@@ -42,6 +45,12 @@ lists, 10 minutes after a failure, keeping the last good copy), at most 4 reques
 page view waits at most 8 seconds for them (slower lists fill the cache for next time). They're
 skipped entirely when online lookups are off (admin settings or `METADATA_ONLINE=false`).
 Only generic requests leave the server; nothing about the household is sent.
+
+Rows have an optional `blurb` (one line under the title). Library rows are shuffled once a day.
+
+`GET /api/discover/surprise?kids=1&mood=mood-cozy` returns `{ book }`: one random book the reader may
+open, hasn't started, and that isn't Kindle-only (`kids=1` keeps it to kids' ratings, `mood` to that
+mood), or 404 when there's nothing left. Through the content lock like everything else.
 
 A `DiscoverItem`:
 

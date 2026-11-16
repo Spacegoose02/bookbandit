@@ -148,12 +148,19 @@ jobs:
           prev="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
           if [ -n "$prev" ]; then
             echo "## What's new since ${prev}" >> notes.md
+            found=""
             for f in docs/changes/*.md; do
               [ "$(basename "$f")" = README.md ] && continue
               added="$(git diff "$prev" "$TAG" -- "$f" | sed -e '/^+++/d' -n -e 's/^+//p' | grep -E '^(- |  )' || true)"
               [ -z "$added" ] && continue
+              found=1
               printf '\n### %s\n\n%s\n' "$(basename "$f" .md)" "$added" >> notes.md
             done
+            # No change-log bullets (a PR skipped docs/changes/): list the commits instead of leaving it blank.
+            if [ -z "$found" ]; then
+              echo >> notes.md
+              git log --no-merges --format='- %s' "$prev..$TAG" >> notes.md
+            fi
             echo >> notes.md
           fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
