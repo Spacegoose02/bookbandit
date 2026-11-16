@@ -28,7 +28,7 @@ export interface DiscoverItem {
 }
 
 /** Section of the page a row belongs to. */
-export type DiscoverGroup = "foryou" | "popular" | "genres" | "awards" | "family";
+export type DiscoverGroup = "foryou" | "kids" | "library" | "moods" | "popular" | "genres" | "awards" | "family";
 
 export interface DiscoverList {
   id: string;
@@ -38,6 +38,8 @@ export interface DiscoverList {
   items: DiscoverItem[];
   /** A library book the row is about ("Because you read …" links to it). */
   aboutBookId?: string;
+  /** One line under the row title ("Warm, gentle, low-stakes"). */
+  blurb?: string;
   error?: string;
 }
 
@@ -134,6 +136,8 @@ export type RequestResult =
 
 export interface DiscoverApi {
   discover(): Promise<DiscoverResponse>;
+  /** One random book this reader may open and hasn't started; null when there's nothing left. */
+  surprise(opts?: { kids?: boolean; mood?: string }): Promise<BookSummary | null>;
   seriesList(q?: string): Promise<{ items: SeriesSummary[]; total: number }>;
   series(id: string): Promise<SeriesDetail>;
   createSeries(name: string, bookIds: string[]): Promise<{ id: string }>;
@@ -178,6 +182,15 @@ const json = (body: unknown) => JSON.stringify(body);
 
 export const httpDiscoverApi: DiscoverApi = {
   discover: () => request("/api/discover"),
+  surprise: async (opts = {}) => {
+    const qs = new URLSearchParams({ ...(opts.kids ? { kids: "1" } : {}), ...(opts.mood ? { mood: opts.mood } : {}) });
+    try {
+      return (await request<{ book: BookSummary }>(`/api/discover/surprise?${qs}`)).book;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null;
+      throw e;
+    }
+  },
   seriesList: (q) => request(`/api/series?${new URLSearchParams({ limit: "100", ...(q ? { q } : {}) })}`),
   series: (id) => request(`/api/series/${enc(id)}`),
   createSeries: (name, bookIds) =>

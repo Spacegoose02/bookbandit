@@ -23,6 +23,14 @@ export const GENRE_QUERIES: Record<string, string> = {
   "Children's Books": `subject:"juvenile fiction" subject:("picture books" OR "children's stories" OR animals)`,
 };
 
+/** Outside rows for grown-ups under "For the kids" (Open Library, so unrated: never shown to kids). */
+export const KID_QUERIES: { id: string; name: string; q: string }[] = [
+  { id: "ol-picture-books", name: "Popular picture books", q: `subject:"picture books"` },
+  { id: "ol-early-readers", name: "Popular early readers", q: `subject:("readers (primary)" OR "early readers" OR "beginning readers")` },
+  { id: "ol-chapter-books", name: "Popular chapter books", q: `subject:"chapter books"` },
+  { id: "ol-middle-grade", name: "Popular with 8 to 12s", q: `subject:"juvenile fiction" -subject:"picture books" -subject:"young adult fiction"` },
+];
+
 /** Display names for rows that read better than the category name. */
 export const GENRE_ROW_NAMES: Record<string, string> = {
   "Children's Books": "Popular with kids",
@@ -48,7 +56,6 @@ export const DEFAULT_GENRES = [
   "Historical Fiction",
   "Biography & Memoir",
   "Young Adult",
-  "Children's Books",
   "Horror",
   "History",
   "Comics & Graphic Novels",

@@ -44,26 +44,36 @@ async function shot(page, name, opts = {}) {
   console.log("saved", path.basename(file));
 }
 
+async function at(page, sel, name) {
+  await page.evaluate((sel) => document.querySelector(sel).scrollIntoView(), sel);
+  await page.waitForTimeout(500);
+  await shot(page, name);
+}
+
 (async () => {
   const browser = await chromium.launch();
   {
     const { ctx, page } = await open(browser, "admin", { width: 1280, height: 800 }, "dark");
     await shot(page, "discover-for-you-desktop");
+    await at(page, "#dg-library", "discover-shelves-desktop");
+    await at(page, "#dg-moods", "discover-moods-desktop");
+    await page.click('.bb-mood-tab:has-text("Spooky")');
+    await at(page, "#dg-moods", "discover-moods-spooky-desktop");
+    await at(page, "#dg-kids", "discover-for-the-kids-desktop");
+    await at(page, "#dg-awards", "discover-prizes-desktop");
     await shot(page, "discover-full-desktop", { fullPage: true });
-    await page.evaluate(() => document.querySelector("#dg-genres").scrollIntoView());
-    await shot(page, "discover-genres-desktop");
-    await page.evaluate(() => document.querySelector("#dg-awards").scrollIntoView());
-    await shot(page, "discover-prizes-desktop");
     await ctx.close();
   }
   {
     const { ctx, page } = await open(browser, "admin", { width: 800, height: 1280 }, "dark");
     await shot(page, "discover-for-you-tablet");
+    await at(page, "#dg-moods", "discover-moods-tablet");
     await ctx.close();
   }
   {
     const { ctx, page } = await open(browser, "kid", { width: 1280, height: 800 }, "dinosaur");
     await shot(page, "discover-kid-desktop");
+    await at(page, "#dg-kids", "discover-kid-themes-desktop");
     await ctx.close();
   }
   {

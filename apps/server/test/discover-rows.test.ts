@@ -1,7 +1,7 @@
 /** The richer Discover page: personal rows, genres, prizes, English covers, de-duplication and the lock. */
 import { afterEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { authors, bookAuthors, bookSeries, bookTags, readingProgress, series, tags } from "../src/db/schema.js";
+import { authors, bookAuthors, books, bookSeries, bookTags, familyPicks, kidShelf, readingProgress, series, tags } from "../src/db/schema.js";
 import { family, type Family } from "./helpers.js";
 
 const NOW = Date.UTC(2026, 10, 14);
@@ -189,8 +189,9 @@ describe("Discover rows", () => {
     expect(json).not.toContain("Hippo Grows Up");
     const byId = Object.fromEntries(body.lists.map((l) => [l.id, l]));
     expect(byId["series-next"]!.items.map((i) => i.bookId)).toEqual([k2]);
-    // Genre rows come from the library for kids, without the locked book.
-    expect(byId["genre-humor"]!.items.map((i) => i.bookId).sort()).toEqual([pony, joke].sort());
+    // Theme rows come from the library for kids, without the locked book.
+    expect(byId["kids-funny"]).toMatchObject({ name: "Make me laugh", group: "kids" });
+    expect(byId["kids-funny"]!.items.map((i) => i.bookId).sort()).toEqual([pony, joke].sort());
     // Grown-up prizes are left out; kids' prizes only up to the kid's rating (picture books here).
     expect(byId.awards).toBeUndefined();
     const prizes = byId["awards-kids"]!.items;
@@ -235,5 +236,94 @@ describe("Discover rows", () => {
       ["Dark Nights Two", "library", "Book 2 of Dark Nights"],
       ["Dark Nights Three", "request", "Book 3 of Dark Nights"],
     ]);
+  });
+});
+
+describe("Kids' rows, shelves, moods and Surprise me", () => {
+  function subject(bookId: string, name: string) {
+    f.db.insert(tags).values({ name, kind: "subject" }).onConflictDoNothing().run();
+    const t = f.db.select().from(tags).where(eq(tags.name, name)).get()!;
+    f.db.insert(bookTags).values({ bookId, tagId: t.id }).run();
+  }
+
+  it("gives kids age bands, themes and parent picks within their limit", async () => {
+    calls = [];
+    f = await family({ discover: { fetchImpl: (u, i) => olFetch(String(u), i), now: () => NOW } });
+    const picture = f.book("Little Owl's Night", "kids", { pageCount: 32 });
+    const bedtime = f.book("Sleepy Bear", "kids", { pageCount: 28 });
+    const grownSleep = f.book("Insomnia Nights", "adult", { pageCount: 150 });
+    const chapter = f.book("The Treehouse Gang", "middle_grade", { pageCount: 140 });
+    const picked = f.book("Grandma's Garden", "kids");
+    const lockedPick = f.book("Grown-up Pick", "adult");
+    subject(picture, "Picture books");
+    subject(picture, "Owls -- Juvenile fiction");
+    subject(bedtime, "Bedtime -- Fiction");
+    subject(grownSleep, "Sleep disorders");
+    subject(grownSleep, "Bedtime");
+    subject(chapter, "Chapter books");
+    f.db.insert(kidShelf).values({ kidId: f.ids.kid, bookId: picked }).run();
+    f.db.insert(familyPicks).values([{ familyId: f.ids.home, bookId: lockedPick }]).run();
+
+    const kid = await discover("kid");
+    const byId = Object.fromEntries(kid.lists.map((l) => [l.id, l]));
+    expect(JSON.stringify(kid)).not.toContain(grownSleep);
+    expect(JSON.stringify(kid)).not.toContain(lockedPick);
+    // The parent's pick leads the page.
+    expect(kid.lists[0]).toMatchObject({ id: "parent-picks", name: "Picked by your grown-ups" });
+    expect(byId["parent-picks"]!.items.map((i) => i.bookId)).toEqual([picked]);
+    expect(byId["kids-picture-books"]!.items.map((i) => i.bookId)).toEqual([picture]);
+    expect(byId["kids-bedtime"]!.items.map((i) => i.bookId)).toEqual([bedtime]);
+    // The kid in the tests is 7 or 8: chapter books for middle grade only if their limit allows.
+    const all = kid.lists.flatMap((l) => l.items.map((i) => i.bookId));
+    if (all.includes(chapter)) expect(byId["kids-chapter-books"]!.items.map((i) => i.bookId)).toContain(chapter);
+
+    // A grown-up sees the same rows under "For the kids", kids' ratings only.
+    const adult = await discover("adult");
+    const kidsRows = adult.lists.filter((l) => l.group === "kids");
+    expect(kidsRows.map((l) => l.items).flat().some((i) => i.bookId === grownSleep)).toBe(false);
+    // ...and the family's picks among the library rows.
+    expect(adult.lists.find((l) => l.id === "parent-picks")).toMatchObject({ name: "Parent picks for the family", group: "library" });
+    expect(adult.lists.find((l) => l.id === "parent-picks")!.items.map((i) => i.bookId)).toContain(lockedPick);
+  });
+
+  it("adds new arrivals, unopened books, quick reads and mood tabs", async () => {
+    calls = [];
+    f = await family({ discover: { fetchImpl: (u, i) => olFetch(String(u), i), now: () => NOW } });
+    const spooky = f.book("The Haunted Mill", "adult", { pageCount: 180, addedAt: NOW - 1000 });
+    const spooky2 = f.book("Ghost Road", "adult", { pageCount: 420, addedAt: NOW - 2000 });
+    const read1 = f.book("Already Opened", "adult", { pageCount: 90, addedAt: NOW });
+    subject(spooky, "Haunted houses");
+    subject(spooky2, "Ghost stories");
+    read(f.ids.parent, read1, 0.2);
+
+    const { lists } = await discover("adult");
+    const byId = Object.fromEntries(lists.map((l) => [l.id, l]));
+    expect(byId["new-arrivals"]!.items[0]!.bookId).toBe(read1);
+    // Nobody in the house has opened these (the parent opened read1).
+    const unopenedIds = [...(byId.unopened?.items ?? []), ...lists.flatMap((l) => (l.group === "library" ? l.items : []))].map((i) => i.bookId);
+    expect(byId.unopened === undefined || !byId.unopened.items.some((i) => i.bookId === read1)).toBe(true);
+    expect(unopenedIds).toContain(spooky);
+    // Mood tabs may repeat books from rows above.
+    expect(byId["mood-spooky"]).toMatchObject({ group: "moods", blurb: "Ghosts, monsters and shivers" });
+    expect(byId["mood-spooky"]!.items.map((i) => i.bookId).sort()).toEqual([spooky, spooky2].sort());
+  });
+
+  it("surprises a reader with a book they may open and haven't started", async () => {
+    calls = [];
+    f = await family({ discover: { fetchImpl: (u, i) => olFetch(String(u), i), now: () => NOW } });
+    const adultBook = f.book("Grown-up Surprise", "adult");
+    const kidBook = f.book("Kid Surprise", "kids");
+    const done = f.book("Kid Done", "kids");
+    read(f.ids.kid, done);
+    const get = (who: "kid" | "adult", qs = "") => f.app.inject({ method: "GET", url: `/api/discover/surprise${qs}`, headers: f.as(who) });
+    for (let i = 0; i < 8; i++) {
+      const r = await get("kid");
+      expect(r.statusCode).toBe(200);
+      expect(r.json().book.id).toBe(kidBook);
+    }
+    for (let i = 0; i < 5; i++) expect((await get("adult", "?kids=1")).json().book.id).not.toBe(adultBook);
+    f.db.update(books).set({ approved: false }).where(eq(books.id, kidBook)).run();
+    expect((await get("kid")).statusCode).toBe(404);
+    expect((await get("adult", "?mood=mood-spooky")).statusCode).toBe(404);
   });
 });

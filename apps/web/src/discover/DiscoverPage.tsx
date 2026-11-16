@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useSession } from "../app/session";
 import { BarnabyEmpty, BarnabySays } from "../brand/Barnaby";
@@ -15,12 +15,31 @@ const SOURCE_LABEL: Record<DiscoverList["source"], string> = {
   awards: "Prize lists",
 };
 
-const GROUPS: { id: DiscoverGroup; title: string; kidTitle: string }[] = [
-  { id: "foryou", title: "Picked for you", kidTitle: "Picked for you" },
-  { id: "popular", title: "What people are reading", kidTitle: "What everyone's reading" },
-  { id: "genres", title: "Browse by genre", kidTitle: "More to explore" },
-  { id: "awards", title: "Prize winners", kidTitle: "Award winners" },
-  { id: "family", title: "Around the house", kidTitle: "Around the house" },
+interface Group {
+  id: DiscoverGroup;
+  title: string;
+}
+
+/** Section order and titles: a kid's own rows come right after "Picked for you". */
+const GROUPS: Group[] = [
+  { id: "foryou", title: "Picked for you" },
+  { id: "library", title: "From our shelves" },
+  { id: "moods", title: "Pick a mood" },
+  { id: "popular", title: "What people are reading" },
+  { id: "kids", title: "For the kids" },
+  { id: "genres", title: "Browse by genre" },
+  { id: "awards", title: "Prize winners" },
+  { id: "family", title: "Around the house" },
+];
+const KID_GROUPS: Group[] = [
+  { id: "foryou", title: "Picked for you" },
+  { id: "kids", title: "Books for you" },
+  { id: "library", title: "New on the shelf" },
+  { id: "moods", title: "How do you feel today?" },
+  { id: "popular", title: "What everyone's reading" },
+  { id: "genres", title: "More to explore" },
+  { id: "awards", title: "Award winners" },
+  { id: "family", title: "Around the house" },
 ];
 
 const BECAUSE = "Because you read ";
@@ -115,10 +134,85 @@ function DiscoverCard({ item, canRequest: canRequestAll }: { item: DiscoverItem;
   );
 }
 
+function Row({ list, canRequest }: { list: DiscoverList; canRequest: boolean }) {
+  return (
+    <section className="bb-shelf" aria-labelledby={`dl-${list.id}`}>
+      <header className="bb-shelf-head">
+        <div>
+          <h3 id={`dl-${list.id}`}>
+            <RowTitle list={list} />
+          </h3>
+          {list.blurb && <p className="bb-small bb-muted bb-shelf-blurb">{list.blurb}</p>}
+        </div>
+        <span className="bb-small bb-muted">{SOURCE_LABEL[list.source]}</span>
+      </header>
+      {list.error && !list.items.length ? (
+        <p className="bb-muted bb-small">Couldn't reach {list.source === "hardcover" ? "Hardcover" : "Open Library"} just now.</p>
+      ) : (
+        <div className="bb-shelf-row">
+          {list.items.map((i) => (
+            <DiscoverCard key={i.key} item={i} canRequest={canRequest} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Mood rows as tabs: one mood at a time. */
+function Moods({ lists, canRequest, onSurprise }: { lists: DiscoverList[]; canRequest: boolean; onSurprise: (mood: string) => void }) {
+  const [active, setActive] = useState(lists[0]!.id);
+  const current = lists.find((l) => l.id === active) ?? lists[0]!;
+  return (
+    <div className="bb-moods">
+      <div className="bb-mood-tabs" role="tablist" aria-label="Moods">
+        {lists.map((l) => (
+          <button
+            key={l.id}
+            role="tab"
+            aria-selected={l.id === current.id}
+            className={`bb-mood-tab${l.id === current.id ? " active" : ""}`}
+            onClick={() => setActive(l.id)}
+          >
+            {MOOD_ICON[l.id] ?? "📚"} {l.name}
+          </button>
+        ))}
+        <button className="bb-mood-tab is-dice" onClick={() => onSurprise(current.id)}>
+          🎲 Surprise me: {current.name.toLowerCase()}
+        </button>
+      </div>
+      <Row list={current} canRequest={canRequest} />
+    </div>
+  );
+}
+
+const MOOD_ICON: Record<string, string> = {
+  "mood-cozy": "☕",
+  "mood-thrilling": "⚡",
+  "mood-funny": "😄",
+  "mood-heartwarming": "💛",
+  "mood-spooky": "👻",
+  "mood-curious": "🔭",
+  "mood-epic": "🐉",
+};
+
 export function DiscoverPage() {
   const { me } = useSession();
   const [data, setData] = useState<DiscoverResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dice, setDice] = useState<"idle" | "rolling" | "empty">("idle");
+  const navigate = useNavigate();
+
+  const surprise = async (opts: { kids?: boolean; mood?: string } = {}) => {
+    setDice("rolling");
+    try {
+      const book = await discoverApi.surprise(opts);
+      if (book) navigate(`/book/${book.id}`);
+      else setDice("empty");
+    } catch {
+      setDice("empty");
+    }
+  };
 
   useEffect(() => {
     discoverApi
@@ -130,7 +224,9 @@ export function DiscoverPage() {
   if (error) return <BarnabyEmpty title="Barnaby couldn't load Discover">{error}</BarnabyEmpty>;
   if (!data) return <div className="bb-page bb-muted">Loading…</div>;
   const lists = data.lists.filter((l) => l.items.length || l.error);
-  const grouped = GROUPS.map((g) => ({ ...g, lists: lists.filter((l) => (l.group ?? "popular") === g.id) })).filter((g) => g.lists.length);
+  const grouped = (me?.isKid ? KID_GROUPS : GROUPS)
+    .map((g) => ({ ...g, lists: lists.filter((l) => (l.group ?? "popular") === g.id) }))
+    .filter((g) => g.lists.length);
 
   return (
     <div className="bb-page bb-discover">
@@ -138,15 +234,30 @@ export function DiscoverPage() {
       <div className="bb-discover-head">
         <BarnabySays>
           {me?.isKid
-            ? "Look what I found for you! Books like the ones you read, and what everyone else is reading."
-            : "Picked from what you've been reading, plus what's popular and prize-winning. Anything we already have is marked."}
+            ? "Look what I found for you! Pick a mood, try a theme, or let me pick a book for you."
+            : "Picked from what you've been reading, our own shelves, moods, and what's popular and prize-winning. Anything we already have is marked."}
         </BarnabySays>
-        {me?.role === "admin" && (
-          <Link className="bb-btn" to="/discover/kindle-import">
-            Import Kindle library
-          </Link>
-        )}
+        <div className="bb-discover-actions">
+          <button className="bb-btn bb-btn-primary bb-dice" onClick={() => surprise()} disabled={dice === "rolling"}>
+            🎲 {me?.isKid ? "Pick a book for me!" : "Surprise me"}
+          </button>
+          {!me?.isKid && (
+            <button className="bb-btn" onClick={() => surprise({ kids: true })} disabled={dice === "rolling"}>
+              🧸 Surprise a kid
+            </button>
+          )}
+          {me?.role === "admin" && (
+            <Link className="bb-btn" to="/discover/kindle-import">
+              Import Kindle library
+            </Link>
+          )}
+        </div>
       </div>
+      {dice === "empty" && (
+        <p className="bb-small bb-muted" role="status">
+          Barnaby looked everywhere, but there's nothing new left to pick. Try another mood!
+        </p>
+      )}
       <p className="bb-legend bb-small">
         <span className="bb-dbadge is-library">In library</span> read it here
         <span className="bb-dbadge is-kindle">On Kindle</span> opens in the Kindle app
@@ -160,7 +271,7 @@ export function DiscoverPage() {
         <nav className="bb-dgroup-nav" aria-label="Jump to">
           {grouped.map((g) => (
             <a key={g.id} href={`#dg-${g.id}`} className="bb-dgroup-link">
-              {me?.isKid ? g.kidTitle : g.title}
+              {g.title}
             </a>
           ))}
         </nav>
@@ -174,27 +285,13 @@ export function DiscoverPage() {
         grouped.map((g) => (
           <section key={g.id} className="bb-dgroup" id={`dg-${g.id}`} aria-labelledby={`dg-${g.id}-h`}>
             <h2 className="bb-dgroup-title" id={`dg-${g.id}-h`}>
-              {me?.isKid ? g.kidTitle : g.title}
+              {g.title}
             </h2>
-            {g.lists.map((l) => (
-              <section key={l.id} className="bb-shelf" aria-labelledby={`dl-${l.id}`}>
-                <header className="bb-shelf-head">
-                  <h3 id={`dl-${l.id}`}>
-                    <RowTitle list={l} />
-                  </h3>
-                  <span className="bb-small bb-muted">{SOURCE_LABEL[l.source]}</span>
-                </header>
-                {l.error && !l.items.length ? (
-                  <p className="bb-muted bb-small">Couldn't reach {l.source === "hardcover" ? "Hardcover" : "Open Library"} just now.</p>
-                ) : (
-                  <div className="bb-shelf-row">
-                    {l.items.map((i) => (
-                      <DiscoverCard key={i.key} item={i} canRequest={data.requests} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            ))}
+            {g.id === "moods" ? (
+              <Moods lists={g.lists} canRequest={data.requests} onSurprise={(mood) => surprise({ mood })} />
+            ) : (
+              g.lists.map((l) => <Row key={l.id} list={l} canRequest={data.requests} />)
+            )}
           </section>
         ))
       )}
