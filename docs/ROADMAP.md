@@ -99,6 +99,8 @@ Goal: the Calibre desktop app is no longer needed.
 
 - [x] Richer Discover: next in your series, because you read, more by your authors, genre rows, new books, prize winners, kid-safe rows, English covers, no repeats (`ws/discover`)
 
+- [x] Discover for kids and more ways in: age bands and themes, parent picks, new arrivals, unopened, quick reads, moods, Surprise me (`ws/discover`)
+
 - [x] AI: ask your library, spoiler-free book chat, web answers via SearXNG with sources (`ws/ai`)
 
 - [x] AI: more like this, smart requests, meaning search (embeddings), streaming replies, rating helper on the job runner (`ws/ai`, wave 3)
