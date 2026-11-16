@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifySubjects, cleanSubjects, fictionSignal, subjectKey } from "../src/discover/taxonomy.js";
+import { bookKind, classifyBook, classifySubjects, cleanSubjects, fictionSignal, subjectKey } from "../src/discover/taxonomy.js";
 
 describe("category taxonomy", () => {
   it("treats case, plurals, & and punctuation as the same subject", () => {
@@ -24,25 +24,28 @@ describe("category taxonomy", () => {
         "Fantasy fiction",
         "Friendship -- Fiction",
       ]),
-    ).toEqual(["Children's Books", "Fantasy", "Literary Fiction"]);
+    ).toEqual(["Children's Books", "Fantasy", "Literary Fiction", "Fiction"]);
   });
 
   it("splits Google style paths and keeps nonfiction out of fiction books", () => {
-    expect(classifySubjects(["Fiction", "Science Fiction", "Space Opera", "Robots"])).toEqual(["Science Fiction"]);
+    expect(classifySubjects(["Fiction", "Science Fiction", "Space Opera", "Robots"])).toEqual(["Science Fiction", "Fiction"]);
     // "History" in a novel is Historical Fiction, not History.
     expect(classifySubjects(["Fiction", "World War, 1939-1945 -- Fiction", "France -- History -- Fiction"])).toEqual([
       "Historical Fiction",
+      "Fiction",
     ]);
-    expect(classifySubjects(["History", "World War, 1939-1945", "Military history"])).toEqual(["History"]);
+    expect(classifySubjects(["History", "World War, 1939-1945", "Military history"])).toEqual(["History", "Nonfiction"]);
     expect(classifySubjects(["Biography & Autobiography", "Presidents -- United States -- Biography"])).toEqual([
       "Biography & Memoir",
+      "Nonfiction",
     ]);
-    expect(classifySubjects(["Cooking", "Baking", "Desserts"])).toEqual(["Cooking & Food"]);
+    expect(classifySubjects(["Cooking", "Baking", "Desserts"])).toEqual(["Cooking & Food", "Nonfiction"]);
   });
 
   it("caps genres at three plus one audience, and falls back to Fiction or Nonfiction", () => {
     const many = classifySubjects(["Fantasy", "Romance", "Horror", "Mystery", "Thrillers", "Young adult fiction"]);
-    expect(many).toHaveLength(4);
+    expect(many).toHaveLength(5);
+    expect(many.at(-1)).toBe("Fiction");
     expect(many[0]).toBe("Young Adult");
     expect(classifySubjects(["Fiction", "Large type books"])).toEqual(["Fiction"]);
     expect(classifySubjects(["Nonfiction", "Ireland"])).toEqual(["Nonfiction"]);
@@ -54,7 +57,7 @@ describe("category taxonomy", () => {
     expect(classifySubjects(["Women", "Small towns", "Contemporary"])).toEqual(["Fiction"]);
     expect(classifySubjects(["Families", "Large type books"])).toEqual(["Fiction"]);
     // A comic is fiction, so "Dogs" no longer files it under Home & Garden.
-    expect(classifySubjects(["Dogs", "Superheroes"])).toEqual(["Comics & Graphic Novels"]);
+    expect(classifySubjects(["Dogs", "Superheroes"])).toEqual(["Comics & Graphic Novels", "Fiction"]);
     expect(classifySubjects(["Juvenile Fiction"])).toEqual(["Children's Books", "Fiction"]);
     // Real nonfiction still gets there.
     expect(classifySubjects(["Nonfiction", "Ireland"])).toEqual(["Nonfiction"]);
@@ -67,7 +70,20 @@ describe("category taxonomy", () => {
     expect(fictionSignal(["Detective and mystery stories"])).toBe("fiction");
     expect(fictionSignal(["Dragons"])).toBeNull();
     // A juvenile nonfiction book about animals is Science & Nature, not a novel.
-    expect(classifySubjects(["Juvenile Nonfiction", "Animals", "Dinosaurs"])).toEqual(["Children's Books", "Science & Nature"]);
+    expect(classifySubjects(["Juvenile Nonfiction", "Animals", "Dinosaurs"])).toEqual(["Children's Books", "Science & Nature", "Nonfiction"]);
+  });
+
+  it("puts every book in Fiction or Nonfiction, from what it says or from its genres", () => {
+    // Real nonfiction that only names its topic: History, Self-Help, Cooking all mean Nonfiction.
+    expect(classifySubjects(["Self-Help", "Personal Growth"])).toEqual(["Self-Help", "Nonfiction"]);
+    expect(classifyBook(["Ireland", "Social life and customs"])).toMatchObject({ kind: "Fiction", kindGuessed: true });
+    expect(classifyBook(["Romance", "Contemporary"])).toMatchObject({ kind: "Fiction", kindGuessed: false });
+    // Humor or Poetry alone doesn't settle it.
+    expect(bookKind(["Humor"])).toBeNull();
+    expect(bookKind(["Humor", "History"])).toBe("nonfiction");
+    // Curated names work as evidence: a book in History is nonfiction.
+    expect(bookKind(["Small towns", "History"])).toBe("nonfiction");
+    expect(bookKind(["Nonfiction"])).toBe("nonfiction");
   });
 
   it("drops noise and near-duplicates from the subjects it keeps", () => {

@@ -12,6 +12,7 @@ import {
   tags,
 } from "../src/db/schema.js";
 import { applySubjects, setMinBooks, upgradeCategories } from "../src/discover/category-store.js";
+import { recheckKinds } from "../src/discover/recheck.js";
 import { setBookSeries } from "../src/library/store.js";
 import { family, type Family } from "./helpers.js";
 
@@ -381,7 +382,7 @@ describe("categories", () => {
         .filter((t) => t.kind === "genre")
         .map((t) => t.name)
         .sort();
-    expect(names(ids.thriller!)).toEqual(["Horror", "Mystery & Crime", "Thriller & Suspense"]);
+    expect(names(ids.thriller!)).toEqual(["Fiction", "Horror", "Mystery & Crime", "Thriller & Suspense"]);
     expect(names(ids.hippo!)).toEqual(["Children's Books", "Fiction"]);
     const rebuild = await f.app.inject({ method: "POST", url: "/api/admin/categories/rebuild", headers: f.as("admin") });
     expect(rebuild.json()).toMatchObject({ books: 2, linked: 0 });
@@ -475,7 +476,7 @@ describe("tidying categories from before curation", () => {
       f.db.select().from(tags).where(eq(tags.kind, kind)).all().map((t) => t.name).sort();
     expect(byKind("subject")).toEqual(["Dragons", "Fantasy", "History", "Juvenile Fiction"]);
     expect(byKind("section")).toEqual(["Cookbooks"]);
-    expect(byKind("genre")).toEqual(["Children's Books", "Fantasy", "History"]);
+    expect(byKind("genre")).toEqual(["Children's Books", "Fantasy", "Fiction", "History", "Nonfiction"]);
 
     const of = (bookId: string) =>
       f.db
@@ -489,45 +490,52 @@ describe("tidying categories from before curation", () => {
     expect(of(ids.hippo!)).toEqual([
       "genre:Children's Books",
       "genre:Fantasy",
+      "genre:Fiction",
       "subject:Dragons",
       "subject:Fantasy",
       "subject:Juvenile Fiction",
     ]);
-    expect(of(ids.kindle!)).toEqual(["genre:History", "section:Cookbooks", "subject:History"]);
+    expect(of(ids.kindle!)).toEqual(["genre:History", "genre:Nonfiction", "section:Cookbooks", "subject:History"]);
   });
 
-  it("moves novels that were guessed into Nonfiction (taxonomy v2)", () => {
-    // A library upgraded to v1: novels whose saved subjects match no genre sit in "Nonfiction".
+  it("puts every book in Fiction or Nonfiction on update, and lists the guesses (taxonomy v3)", async () => {
+    // A library at v2: real nonfiction sits in History (never in Nonfiction), a novel in Romance, a
+    // nonfiction book whose "Nonfiction" subject was dropped got guessed into Fiction, and one
+    // book's categories were set by hand.
     f.db
       .insert(settings)
-      .values({ key: "categories.taxonomy", value: 1, updatedAt: 0 })
-      .onConflictDoUpdate({ target: settings.key, set: { value: 1 } })
+      .values({ key: "categories.taxonomy", value: 2, updatedAt: 0 })
+      .onConflictDoUpdate({ target: settings.key, set: { value: 2 } })
       .run();
     const made = f.db
       .insert(tags)
       .values([
+        { name: "History", kind: "genre" },
+        { name: "Romance", kind: "genre" },
+        { name: "Fiction", kind: "genre" },
         { name: "Nonfiction", kind: "genre" },
-        { name: "Small towns", kind: "subject" },
-        { name: "Juvenile Nonfiction", kind: "subject" },
+        { name: "Ireland", kind: "subject" },
       ])
       .onConflictDoNothing()
       .returning()
       .all();
     const tag = (name: string) => made.find((t) => t.name === name)!.id;
+    const handSet = f.book("Hand Sorted", "adult");
     f.db.delete(bookTags).where(inArray(bookTags.bookId, [ids.thriller!, ids.hippo!, ids.kindle!])).run();
     f.db
       .insert(bookTags)
       .values([
-        // A novel with an unhelpful subject, a novel with none, and a real nonfiction book.
-        { bookId: ids.thriller!, tagId: tag("Nonfiction") },
-        { bookId: ids.thriller!, tagId: tag("Small towns") },
-        { bookId: ids.kindle!, tagId: tag("Nonfiction") },
-        { bookId: ids.hippo!, tagId: tag("Nonfiction") },
-        { bookId: ids.hippo!, tagId: tag("Juvenile Nonfiction") },
+        { bookId: ids.kindle!, tagId: tag("History") },
+        { bookId: ids.thriller!, tagId: tag("Romance") },
+        { bookId: ids.hippo!, tagId: tag("Fiction") },
+        { bookId: ids.hippo!, tagId: tag("Ireland") },
+        { bookId: handSet, tagId: tag("Nonfiction") },
       ])
       .run();
+    f.db.update(books).set({ lockedFields: ["categories"] }).where(eq(books.id, handSet)).run();
 
-    expect(upgradeCategories(f.db)).toMatchObject({ refiled: 2 });
+    const report = upgradeCategories(f.db)!;
+    expect(report).toMatchObject({ refiled: 2, unsure: [ids.hippo] });
     expect(upgradeCategories(f.db)).toBeNull();
     const genres = (bookId: string) =>
       f.db
@@ -538,9 +546,24 @@ describe("tidying categories from before curation", () => {
         .all()
         .map((t) => t.name)
         .sort();
-    expect(genres(ids.thriller!)).toEqual(["Fiction"]);
-    expect(genres(ids.kindle!)).toEqual(["Fiction"]);
-    expect(genres(ids.hippo!)).toEqual(["Children's Books", "Nonfiction"]);
+    expect(genres(ids.kindle!)).toEqual(["History", "Nonfiction"]);
+    expect(genres(ids.thriller!)).toEqual(["Fiction", "Romance"]);
+    expect(genres(ids.hippo!)).toEqual(["Fiction"]);
+    expect(genres(handSet)).toEqual(["Nonfiction"]);
+
+    // The online re-check moves the guess once a provider says what it is.
+    const hippoTitle = f.db.select({ title: books.title }).from(books).where(eq(books.id, ids.hippo!)).get()!.title;
+    const looked = await recheckKinds(f.db, report.unsure, {
+      fetch: async (input: string) => {
+        const url = new URL(input);
+        if (url.host !== "www.googleapis.com") return new Response("{}", { status: 404 });
+        return new Response(JSON.stringify({ items: [{ id: "g", volumeInfo: { title: hippoTitle, categories: ["Juvenile Nonfiction / Animals / Hippos"] } }] }), {
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+    expect(looked).toBe(1);
+    expect(genres(ids.hippo!)).toEqual(["Children's Books", "Nonfiction", "Science & Nature"]);
   });
 });
 

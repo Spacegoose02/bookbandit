@@ -147,7 +147,7 @@ export interface DiscoverApi {
   updateCategory(id: string, patch: { name?: string; hidden?: boolean; kind?: "genre" | "subject" }): Promise<{ id: string; merged: boolean }>;
   mergeCategory(id: string, into: string): Promise<{ id: string; bookCount: number }>;
   setCategoryMinBooks(minBooks: number): Promise<void>;
-  rebuildCategories(): Promise<{ books: number; linked: number; refiled?: number }>;
+  rebuildCategories(): Promise<{ books: number; linked: number; refiled?: number; unsure?: number; rechecking?: number }>;
   kindleImport(csv: string, opts: { rating?: ContentRating; dryRun?: boolean }): Promise<KindleImportReport>;
   /** Hands a "Request it" to the requests workstream (POST /api/requests). */
   requestBook(input: BookRequestInput): Promise<RequestResult>;

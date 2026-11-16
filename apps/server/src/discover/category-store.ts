@@ -9,13 +9,16 @@ import { and, eq, inArray, like, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { books, bookTags, settings, tags } from "../db/schema.js";
 import { categoryAliases, categoryPrefs } from "./schema.js";
-import { AUDIENCE_NAMES, classifySubjects, cleanSubjects, FALLBACK_FICTION, FALLBACK_NAMES, FALLBACK_NONFICTION, subjectKey } from "./taxonomy.js";
+import { AUDIENCE_NAMES, bookKind, classifyBook, cleanSubjects, FALLBACK_FICTION, FALLBACK_NAMES, FALLBACK_NONFICTION, subjectKey } from "./taxonomy.js";
 
 type Tx = Pick<Db, "select" | "insert" | "update" | "delete">;
 type Kind = (typeof tags.$inferSelect)["kind"];
 
-/** 1: curated categories. 2: books guessed into "Nonfiction" re-filed (see refileFallbacks). */
-export const TAXONOMY_VERSION = 2;
+/**
+ * 1: curated categories. 2: books guessed into "Nonfiction" re-filed. 3: every book in Fiction or
+ * Nonfiction next to its genres, from its subjects and genres (refileKinds); guesses looked up again.
+ */
+export const TAXONOMY_VERSION = 3;
 const VERSION_KEY = "categories.taxonomy";
 const MIN_BOOKS_KEY = "categories.minBooks";
 export const DEFAULT_MIN_BOOKS = 3;
@@ -59,14 +62,24 @@ function link(tx: Tx, bookId: string, tagId: string): boolean {
   return tx.insert(bookTags).values({ bookId, tagId }).onConflictDoNothing().run().changes > 0;
 }
 
-/** Ids of the "Fiction" / "Nonfiction" fallback categories. */
-function fallbackIds(tx: Tx): string[] {
+/** Names of a book's curated categories (genre tags). */
+function genreNames(tx: Tx, bookId: string): string[] {
   return tx
-    .select({ id: tags.id })
-    .from(tags)
-    .where(and(eq(tags.kind, "genre"), inArray(tags.name, FALLBACK_NAMES)))
+    .select({ name: tags.name })
+    .from(bookTags)
+    .innerJoin(tags, eq(tags.id, bookTags.tagId))
+    .where(and(eq(bookTags.bookId, bookId), eq(tags.kind, "genre")))
     .all()
-    .map((r) => r.id);
+    .map((t) => t.name);
+}
+
+/** Puts a book in Fiction or Nonfiction and takes it out of the other. Returns whether it moved. */
+function setKind(tx: Tx, bookId: string, kind: string): boolean {
+  const other = kind === FALLBACK_FICTION ? FALLBACK_NONFICTION : FALLBACK_FICTION;
+  const added = link(tx, bookId, ensureTag(tx, kind, "genre"));
+  const otherId = tx.select({ id: tags.id }).from(tags).where(and(eq(tags.name, other), eq(tags.kind, "genre"))).get()?.id;
+  const removed = otherId ? tx.delete(bookTags).where(and(eq(bookTags.bookId, bookId), eq(bookTags.tagId, otherId))).run().changes > 0 : false;
+  return added || removed;
 }
 
 /** Books among `bookIds` whose categories an admin set by hand: the auto-categorizer leaves them be. */
@@ -84,30 +97,24 @@ export function categoriesLocked(tx: Pick<Db, "select">, bookIds: string[]): Set
 }
 
 /**
- * Files a book under the curated categories its subjects point to. A fallback ("Fiction") is only
- * added to a book with no category yet, and is taken off once a real one is found.
- * Returns how many new links were made.
+ * Files a book under the curated categories its subjects point to, and in Fiction or Nonfiction.
+ * The book's current categories count as evidence for the kind (a book in History is nonfiction).
+ * A guessed "Fiction" is only added to a book with no category yet. Returns how many new links were made.
  */
 export function linkCategories(tx: Tx, bookId: string, subjects: readonly string[]): number {
   if (categoriesLocked(tx, [bookId]).size) return 0;
-  const names = classifySubjects(subjects);
-  if (!names.length) return 0;
-  // An audience ("Children's Books") isn't a genre: a picture book keeps "Fiction" next to it.
-  const real = names.filter((n) => !FALLBACK_NAMES.includes(n) && !AUDIENCE_NAMES.includes(n));
-  const fallbacks = fallbackIds(tx);
+  const c = classifyBook(subjects);
+  if (!c.kind && !c.genres.length && !c.audience) return 0;
   let added = 0;
-  if (!real.length) {
-    const hasCategory = tx
-      .select({ id: tags.id })
-      .from(bookTags)
-      .innerJoin(tags, eq(tags.id, bookTags.tagId))
-      .where(and(eq(bookTags.bookId, bookId), eq(tags.kind, "genre"), notInArray(tags.name, AUDIENCE_NAMES)))
-      .get();
-    if (hasCategory) return 0;
+  for (const name of [...(c.audience ? [c.audience] : []), ...c.genres]) if (link(tx, bookId, ensureTag(tx, name, "genre"))) added++;
+  const current = genreNames(tx, bookId);
+  const kind = bookKind([...subjects, ...current.filter((n) => !FALLBACK_NAMES.includes(n))]);
+  if (kind) {
+    if (setKind(tx, bookId, kind === "nonfiction" ? FALLBACK_NONFICTION : FALLBACK_FICTION)) added++;
+  } else if (!current.some((n) => !AUDIENCE_NAMES.includes(n))) {
+    // Nothing says which: guess Fiction so the book is listed somewhere (checked online later).
+    if (link(tx, bookId, ensureTag(tx, FALLBACK_FICTION, "genre"))) added++;
   }
-  for (const name of names) if (link(tx, bookId, ensureTag(tx, name, "genre"))) added++;
-  if (real.length && fallbacks.length)
-    tx.delete(bookTags).where(and(eq(bookTags.bookId, bookId), inArray(bookTags.tagId, fallbacks))).run();
   return added;
 }
 
@@ -214,51 +221,57 @@ function subjectsByBook(tx: Tx, bookIds?: string[]): Map<string, string[]> {
   return out;
 }
 
+export interface RefileReport {
+  /** Books moved between Fiction and Nonfiction, or put in one for the first time. */
+  moved: number;
+  /** Books in Fiction only because nothing said otherwise: worth looking up online again. */
+  unsure: string[];
+}
+
 /**
- * Re-files books that sit only in the "Fiction" / "Nonfiction" fallback. Before taxonomy v2, a book
- * no rule placed went to Nonfiction unless a subject said "fiction", and "Fiction" itself was never
- * saved as a subject, so novels re-filed from saved subjects (the v1 upgrade, Rebuild) all landed
- * there. Each such book is classified again and moved if the answer changed. Returns books moved.
+ * Puts every book with categories in Fiction or Nonfiction, from its saved subjects and its other
+ * categories (taxonomy v3). Before v3, "Nonfiction" only held books no genre rule placed, so real
+ * nonfiction filed under History or Cooking never showed there, and v2 sent unplaced books with no
+ * clue at all to Fiction. Books whose categories an admin set by hand are left alone.
  */
-export function refileFallbacks(tx: Tx): number {
-  const fallbacks = tx
-    .select({ id: tags.id, name: tags.name })
-    .from(tags)
-    .where(and(eq(tags.kind, "genre"), inArray(tags.name, FALLBACK_NAMES)))
-    .all();
-  if (!fallbacks.length) return 0;
-  const fallbackIds = fallbacks.map((f) => f.id);
-  const nameOf = new Map(fallbacks.map((f) => [f.id, f.name]));
-  const inFallback = tx
-    .select({ bookId: bookTags.bookId, tagId: bookTags.tagId })
+export function refileKinds(tx: Tx): RefileReport {
+  const genreRows = tx
+    .select({ bookId: bookTags.bookId, name: tags.name })
     .from(bookTags)
-    .where(inArray(bookTags.tagId, fallbackIds))
+    .innerJoin(tags, eq(tags.id, bookTags.tagId))
+    .where(eq(tags.kind, "genre"))
     .all();
-  if (!inFallback.length) return 0;
-  const bookIds = [...new Set(inFallback.map((r) => r.bookId))];
-  const subjects = subjectsByBook(tx, bookIds);
+  const genresBy = new Map<string, string[]>();
+  for (const r of genreRows) genresBy.set(r.bookId, [...(genresBy.get(r.bookId) ?? []), r.name]);
+  const subjects = subjectsByBook(tx);
+  const bookIds = [...new Set([...genresBy.keys(), ...subjects.keys()])];
   const locked = categoriesLocked(tx, bookIds);
-  let moved = 0;
-  for (const { bookId, tagId } of inFallback) {
+  const report: RefileReport = { moved: 0, unsure: [] };
+  for (const bookId of bookIds) {
     if (locked.has(bookId)) continue;
-    const current = nameOf.get(tagId)!;
-    const names = classifySubjects(subjects.get(bookId) ?? []);
-    // No saved subjects: nothing says nonfiction, so a guessed "Nonfiction" becomes "Fiction".
-    const wanted = names.length ? names : [current === FALLBACK_NONFICTION ? FALLBACK_FICTION : current];
-    for (const name of wanted) link(tx, bookId, ensureTag(tx, name, "genre"));
-    const real = wanted.some((n) => !FALLBACK_NAMES.includes(n) && !AUDIENCE_NAMES.includes(n));
-    if (real || !wanted.includes(current))
-      tx.delete(bookTags).where(and(eq(bookTags.bookId, bookId), eq(bookTags.tagId, tagId))).run();
-    if (!wanted.includes(current)) moved++;
+    const current = genresBy.get(bookId) ?? [];
+    const kind = bookKind([...(subjects.get(bookId) ?? []), ...current.filter((n) => !FALLBACK_NAMES.includes(n))]);
+    if (kind) {
+      if (setKind(tx, bookId, kind === "nonfiction" ? FALLBACK_NONFICTION : FALLBACK_FICTION)) report.moved++;
+      continue;
+    }
+    const genres = current.filter((n) => !FALLBACK_NAMES.includes(n) && !AUDIENCE_NAMES.includes(n));
+    if (genres.length) continue; // Humor, Poetry, Classics: either; leave it as it is.
+    if (!current.includes(FALLBACK_FICTION) && !current.includes(FALLBACK_NONFICTION)) {
+      if (link(tx, bookId, ensureTag(tx, FALLBACK_FICTION, "genre"))) report.moved++;
+    }
+    report.unsure.push(bookId);
   }
-  return moved;
+  return report;
 }
 
 export interface RebuildReport {
   books: number;
   linked: number;
-  /** Books moved out of a wrong "Fiction" / "Nonfiction" guess. */
+  /** Books moved between Fiction and Nonfiction (or given one). */
   refiled: number;
+  /** Books in Fiction only as a guess. */
+  unsure: string[];
 }
 
 /** Re-files every book from its subject tags (only adds; admin choices and aliases are respected). */
@@ -267,7 +280,8 @@ export function rebuildCategories(db: Db): RebuildReport {
     const bySubject = subjectsByBook(tx);
     let linked = 0;
     for (const [bookId, subjects] of bySubject) linked += linkCategories(tx, bookId, subjects);
-    return { books: bySubject.size, linked, refiled: refileFallbacks(tx) };
+    const kinds = refileKinds(tx);
+    return { books: bySubject.size, linked, refiled: kinds.moved, unsure: kinds.unsure };
   });
 }
 
@@ -278,15 +292,17 @@ export interface UpgradeReport {
   merged: number;
   /** New book → category links. */
   linked: number;
-  /** Books moved out of a wrong "Fiction" / "Nonfiction" guess (v2). */
+  /** Books moved between Fiction and Nonfiction, or given one (v3). */
   refiled: number;
+  /** Books in Fiction only as a guess (v3): look them up online again. */
+  unsure: string[];
 }
 
 /**
  * One-time clean-up for libraries scanned before categories were curated: every old `genre` tag
  * becomes a `subject` (near-duplicates merged), then each book is filed under curated categories
- * from its subjects. Book links are moved, never dropped, except a wrong "Fiction" / "Nonfiction"
- * guess (v2, refileFallbacks).
+ * from its subjects. Book links are moved, never dropped, except a book's Fiction / Nonfiction
+ * link when the other one fits (v3, refileKinds).
  * Runs once (tracked in settings); returns null when there was nothing to do.
  */
 export function upgradeCategories(db: Db, now = Date.now()): UpgradeReport | null {
@@ -294,10 +310,12 @@ export function upgradeCategories(db: Db, now = Date.now()): UpgradeReport | nul
   if (typeof done === "number" && done >= TAXONOMY_VERSION) return null;
   const from = typeof done === "number" ? done : 0;
   const report = db.transaction((tx) => {
-    const r: UpgradeReport = { subjects: 0, merged: 0, linked: 0, refiled: 0 };
+    const r: UpgradeReport = { subjects: 0, merged: 0, linked: 0, refiled: 0, unsure: [] };
     if (from < 1) upgradeToCurated(tx, r);
-    // 4. v2: books guessed into "Nonfiction" (or "Fiction") are classified again with the fixed rules.
-    r.refiled = refileFallbacks(tx);
+    // 4. v3: every book in Fiction or Nonfiction from its subjects and genres (v2's guesses included).
+    const kinds = refileKinds(tx);
+    r.refiled = kinds.moved;
+    r.unsure = kinds.unsure;
 
     tx.insert(settings)
       .values({ key: VERSION_KEY, value: TAXONOMY_VERSION, updatedAt: now })
